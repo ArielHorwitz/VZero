@@ -12,21 +12,37 @@ DMOD_CACHE_SIZE = 10_000
 class UnitStats:
     def __init__(self):
         self.tick = 0
-        print('Unit stats table using stat indices:')
+        # Base stats table, containing all stats and all values.
+        # See STAT class and VALUE class.
+        print('Base stats table using stat indices:')
         for stat in STAT:
             print(stat.value, stat.name)
-        print('Unit stats table using value indices:')
+        print('Base stats table using value indices:')
         for value in VALUE:
             print(value.value, value.name)
         self.stat_count = len(STAT)
         self.values_count = len(VALUE)
         self.table = np.ndarray(
-            shape=(0, self.stat_count, self.values_count), dtype=np.float64)
-        self._dmod_index = 0
+            shape=(0, self.stat_count, self.values_count),
+            dtype=np.float64)
+        # Status table, containing all status durations and amplitudes.
+        print('Status table using status indices:')
+        for status in STATUS:
+            print(status.value, status.name)
+        print('Status table using value indices:')
+        for status_value in STATUS_VALUE:
+            print(status_value.value, status_value.name)
+        self.status_count = len(STATUS)
+        self.status_values_count = len(STATUS_VALUE)
+        self.status_table = np.ndarray(
+            shape=(0, self.status_count, self.status_values_count),
+            dtype=np.float64)
         # Delta modifier table contains temporary effects that can
-        # add to and multiply each stat delta (without changing their source),
+        # add to each stat delta (without changing their source),
         # for a certain number of ticks.
-        self._dmod_effects_add = np.ndarray(shape=(DMOD_CACHE_SIZE, self.stat_count))
+        self._dmod_index = 0
+        self._dmod_effects_add = np.ndarray(
+            shape=(DMOD_CACHE_SIZE, self.stat_count))
         self._dmod_ticks = np.zeros(DMOD_CACHE_SIZE)
         self._dmod_targets = np.zeros(shape=(DMOD_CACHE_SIZE, 0))
 
@@ -37,6 +53,7 @@ class UnitStats:
 
     # ADD/REMOVE UNIT STATS
     def add_unit(self, starting_stats):
+        # Base stats entry
         unit_matrix = np.zeros((1, self.stat_count, self.values_count))
         for stat in STAT:
             if stat not in starting_stats:
@@ -47,10 +64,16 @@ class UnitStats:
                     raise ValueError(f'Missing starting stat value: {stat.name} {value.name}')
                 unit_matrix[0, stat, value] = values[value]
         self.table = np.concatenate((self.table, unit_matrix), axis=0)
+        # Dmod entry
         new_column = np.zeros((DMOD_CACHE_SIZE, 1))
         self._dmod_targets = np.concatenate((self._dmod_targets, new_column), axis=1)
-        assert self._dmod_targets.shape[1] == len(self.table)
+        # Status entry
+        unit_status = np.zeros((1, self.status_count, self.status_values_count))
+        unit_status[:, :, STATUS_VALUE.DURATION] = -1
+        self.status_table = np.concatenate((self.status_table, unit_status), axis=0)
+        assert len(self.status_table) == len(self.table) == self._dmod_targets.shape[1]
         return len(self.table) - 1
+
 
     def add_dmod(self, ticks, units, stat, delta):
         i = self._dmod_index
@@ -73,6 +96,7 @@ class UnitStats:
     def do_tick(self, ticks):
         self.tick += ticks
         self._do_stat_deltas(ticks)
+        self._do_status_deltas(ticks)
 
     def _dmod_deltas(self):
         DEBUG = False
@@ -160,6 +184,14 @@ class UnitStats:
             with np.printoptions(threshold=2, precision=2, edgeitems=2):
                 self.print_table()
 
+    def _do_status_deltas(self, ticks):
+        already_at_zero = self.status_table[:, :, STATUS_VALUE.DURATION] <= 0
+        will_be_at_zero = self.status_table[:, :, STATUS_VALUE.DURATION] - ticks <= 0
+        reaching_zero_now = np.logical_and(already_at_zero == 0, will_be_at_zero == 1)
+        self.status_table[:, :, STATUS_VALUE.ENDED_NOW] = reaching_zero_now
+        self.status_table[:, :, STATUS_VALUE.DURATION] -= ticks
+
+
     # STAT VALUES
     def _convert_indexing(self, index=None, stat=None, value=None, **kwargs):
         if index is None:
@@ -214,6 +246,16 @@ class UnitStats:
 
     def get_unit_values(self, index):
         return self.table[index, :, 0]
+
+
+class STATUS(AutoIntEnum):
+    SLOW = enum.auto()
+
+
+class STATUS_VALUE(AutoIntEnum):
+    DURATION = enum.auto()
+    AMPLITUDE = enum.auto()
+    ENDED_NOW = enum.auto()
 
 
 class VALUE(AutoIntEnum):

@@ -15,10 +15,11 @@ from gui.tileset import TileMap
 
 AUDIO_DIR = Path.cwd() / 'assets' / 'audio'
 SPRITE_DIR = Path.cwd() / 'assets' / 'graphics' / 'sprites'
-SFX = {sname: widgets.Sound.load(str(AUDIO_DIR/'Lokif'/f'{sname}.wav'), volume=v) for sname, v in (
+SFX = {sname: widgets.Sound.load(
+    str(AUDIO_DIR/'Lokif'/f'{sname}.wav'), volume=v) for sname, v in (
     ('adrenaline', 0.25),
     ('attack', 1),
-    ('beam', 0.5),
+    ('beam', 0.25),
     ('blink', 0.25),
     ('cost', 0.5),
     ('move', 0.5),
@@ -28,24 +29,26 @@ SFX = {sname: widgets.Sound.load(str(AUDIO_DIR/'Lokif'/f'{sname}.wav'), volume=v
     ('target', 0.5),
     ('ting', 0.25),
     ('loot', 0.5),
-    ('tum', 0.25),
+    ('tada', 0.1),
 )}
-MUSIC_TRACKS = {sname: widgets.Sound.load(str(AUDIO_DIR/f'{sname}.wav'), volume=0.2) for sname in (
-    'cave_theme',
+MUSIC_TRACKS = {sname: widgets.Sound.load(
+    str(AUDIO_DIR/f'{sname}.wav'), volume=0.2) for sname in (
+    'theme',
 )}
 
 ABILITY_META = {
     ABILITIES.ATTACK: ('q', 'sword-glowburn.png'),
-    ABILITIES.BLINK: ('w', 'error.png'),
+    ABILITIES.BLINK: ('w', 'blink.png'),
     ABILITIES.BLOODLUST: ('e', 'sword-divine.png'),
     ABILITIES.BEAM: ('r', 'piracy.png'),
     ABILITIES.LOOT: ('a', 'crosshair.png'),
     ABILITIES.STOP: ('s', 'banner.png'),
     ABILITIES.LOOT: ('d', 'crosshair.png'),
     ABILITIES.LOOT: ('f', 'crosshair.png'),
-    ABILITIES.VIAL: ('z', 'goal.png'),
-    ABILITIES.SHARD: ('x', 'goal.png'),
-    ABILITIES.MOONSTONE: ('c', 'goal.png'),
+    ABILITIES.VIAL: ('z', 'vial.png'),
+    ABILITIES.SHARD: ('x', 'shard.png'),
+    ABILITIES.MOONSTONE: ('c', 'moonstone.png'),
+    ABILITIES.BRANCH: ('v', 'folphin.png'),
 }
 
 COLOR_CODES = [
@@ -64,7 +67,7 @@ COLOR_CODES = [
 class EncounterGUI(widgets.BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._music_track = MUSIC_TRACKS['cave_theme']
+        self._music_track = MUSIC_TRACKS['theme']
         self.app.hotkeys.register_dict({
             'new game': (f'^ n', lambda: self.new_encounter()),
             'toggle pause': (f' spacebar', lambda: self.toggle_play()),
@@ -123,9 +126,9 @@ class EncounterGUI(widgets.BoxLayout):
             ndis.make_title('Debug', length=30),
             f'Time: {humanize_ms(self.api.elapsed_time_ms)} ({self.api.tick})',
             f'FPS: {self.app.fps.rate:.1f} ({self.app.fps.mean_elapsed_ms:.1f} ms)',
-            f'TPS: {self.api.e.tps.rate:.1f} ({self.api.e.tps.mean_elapsed_ms:.1f} ms)',
+            # f'TPS: {self.api.e.tps.rate:.1f} ({self.api.e.tps.mean_elapsed_ms:.1f} ms)',
             f'Map size: {self.api.map_size}',
-            f'Map zoom: {self.map_view.zoom_level:.2f}',
+            f'Map zoom: x{self.map_view.zoom_level:.2f} ({1/self.map_view.zoom_level:.2f} u/p)',
             f'Monsters: {(stats[:, STAT.HP, VALUE.CURRENT]>0).sum()}',
             ndis.make_title(f'{unit.name}', length=30),
             f'{self.api.pretty_stats(self.selected_unit)}',
@@ -157,18 +160,17 @@ class MapView(widgets.DrawCanvas):
             **{f'ability {a.name.lower()}': (
             f' {key}', lambda *args, a=a: self.use_ability(a, self.mouse_real_pos)
             ) for a, (key, icon) in ABILITY_META.items()},
-            # 'attack (second key)': (f' a', lambda: self.use_ability(ABILITIES.ATTACK, self.mouse_real_pos)),
-            'toggle range': (f'! alt', lambda: self.set_draw_range()),
-            'zoom in': (f' =', lambda: self.zoom(d=1.2)),
-            'zoom out': (f' -', lambda: self.zoom(d=-1.2)),
+            'toggle range': (f'! r', lambda: self.set_draw_range()),
+            'zoom in': (f' =', lambda: self.zoom(d=1.15)),
+            'zoom out': (f' -', lambda: self.zoom(d=-1.15)),
             })
         self.__tilemap_source = TileMap(['tiles1']).make_map(100, 100)
         self.__on_unit_selection = unit_selection
-        self.__units_per_pixel = 0.7
+        self.__units_per_pixel = 0.6
         self.__default_bg_color = (0, 0.15, 0, 1)
         self.__cached_vfx = []
         self.__cached_move = None
-        self.__draw_ranges = True
+        self.__draw_ranges = False
         self.bind(on_touch_down=self.do_mouse_down)
         self.bind(on_touch_move=self.check_mouse_move)
         self.sprites = []
@@ -233,15 +235,12 @@ class MapView(widgets.DrawCanvas):
         ranges = stats[:, STAT.RANGE, VALUE.CURRENT]
         hps = 100 * stats[:, STAT.HP, VALUE.CURRENT] / stats[:, STAT.HP, VALUE.MAX_VALUE]
         all_positions = self.api.get_position()
-        in_box_mask = NP.in_box_mask(all_positions, *self.draw_boundary_real)
-        in_box = NP.indices(in_box_mask)
-        out_box = NP.indices(np.invert(in_box_mask))
 
-        for uid in in_box:
+        for uid, unit in enumerate(self.api.units):
             sprite = self.unit_sprites[uid]
             pos = self.real2pix(all_positions[uid])
             # sprite
-            hitbox_diameter = round(1.8 * self.api.units[uid].HITBOX / self.__units_per_pixel)
+            hitbox_diameter = max(35, round(1.8 * unit.HITBOX / self.__units_per_pixel))
             sprite.size = hitbox_diameter, hitbox_diameter
             sprite.pos = center_position(pos, sprite.size)
 
@@ -256,16 +255,8 @@ class MapView(widgets.DrawCanvas):
 
             # range circle
             if self.__draw_ranges:
-                if hp_ > 0:
-                    attack_range = ranges[uid] / self.__units_per_pixel
-                    self.range_circles[uid].circle = (*pos, attack_range)
-                else:
-                    self.range_circles[uid].circle = (*OUT_OF_DRAW_ZONE, 0)
-
-        for uid in out_box:
-            self.unit_sprites[uid].pos = OUT_OF_DRAW_ZONE
-            self.hps[uid].pos = OUT_OF_DRAW_ZONE
-            self.range_circles[uid].circle = (*OUT_OF_DRAW_ZONE, 1)
+                attack_range = ranges[uid] / self.__units_per_pixel
+                self.range_circles[uid].circle = (*pos, attack_range)
 
 
         target_pos = self.api.get_stats(0, (STAT.POS_X, STAT.POS_Y), VALUE.TARGET_VALUE)
@@ -429,7 +420,7 @@ class HUD(widgets.BoxLayout):
         else:
             v = 1 - (adelay / self._adelay_max)
 
-        self.adelay_label.text = f'Attack cooldown'
+        self.adelay_label.text = f'Attack cooldown: {stats[0, STAT.ATTACK_DELAY_COST, VALUE.CURRENT]:.2f}'
         self.adelay.value = 100 * v
 
         hp, hp_max, hp_delta = stats[0, STAT.HP, (VALUE.CURRENT, VALUE.MAX_VALUE, VALUE.DELTA)]

@@ -32,7 +32,7 @@ class Unit:
 class Player(Unit):
     SPRITE = 'robot-1.png'
     STARTING_STATS = {
-        STAT.GOLD: {VALUE.CURRENT: 200},
+        STAT.GOLD: {VALUE.CURRENT: 0},
         STAT.HP: {VALUE.CURRENT: 100, VALUE.MAX_VALUE: 100, VALUE.DELTA: 0.02},
         STAT.MOVE_SPEED: {VALUE.CURRENT: 1},
         STAT.MANA: {VALUE.CURRENT: 100, VALUE.MAX_VALUE: 100, VALUE.DELTA: 0.2},
@@ -62,7 +62,7 @@ class Camping(Unit):
             player_pos = api.get_position(0)
             player_dist = math.dist(player_pos, my_pos)
             if player_dist < api.get_stats(self.uid, STAT.RANGE, VALUE.CURRENT):
-                abilities.append((ABILITIES.ATTACK, player_pos))
+                abilities.append((ABILITIES.ATTACK, player_pos + (SEED.r, SEED.r)))
             if player_dist < self.aggro_range and not self.__deaggro:
                 abilities.append((ABILITIES.MOVE, player_pos))
                 camp_dist = math.dist(my_pos, self.camp)
@@ -117,7 +117,7 @@ class NullIce(Camping):
     SPRITE = 'null-tri.png'
     STARTING_STATS = {
         STAT.GOLD: {VALUE.CURRENT: 10},
-        STAT.HP: {VALUE.CURRENT: 60, VALUE.MAX_VALUE: 60, VALUE.DELTA: 0.05},
+        STAT.HP: {VALUE.CURRENT: 85, VALUE.MAX_VALUE: 85, VALUE.DELTA: 0.05},
         STAT.MOVE_SPEED: {VALUE.CURRENT: 0.2},
         STAT.MANA: {VALUE.CURRENT: 20, VALUE.MAX_VALUE: 20, VALUE.DELTA: 0.25},
         STAT.RANGE: {VALUE.CURRENT: 200},
@@ -136,8 +136,8 @@ class NullIce(Camping):
 class WingedSnake(Camping):
     SPRITE = 'winged-snake.png'
     STARTING_STATS = {
-        STAT.GOLD: {VALUE.CURRENT: 80},
-        STAT.HP: {VALUE.CURRENT: 300, VALUE.MAX_VALUE: 300, VALUE.DELTA: 0.15},
+        STAT.GOLD: {VALUE.CURRENT: 100},
+        STAT.HP: {VALUE.CURRENT: 400, VALUE.MAX_VALUE: 400, VALUE.DELTA: 0.15},
         STAT.MOVE_SPEED: {VALUE.CURRENT: 0.2},
         STAT.MANA: {VALUE.CURRENT: 20, VALUE.MAX_VALUE: 20, VALUE.DELTA: 0.25},
         STAT.RANGE: {VALUE.CURRENT: 300},
@@ -158,15 +158,16 @@ class Ratzan(Camping):
     SPRITE = 'ratzan.png'
     STARTING_STATS = {
         STAT.GOLD: {VALUE.CURRENT: 5},
-        STAT.HP: {VALUE.CURRENT: 40, VALUE.MAX_VALUE: 40, VALUE.DELTA: 0.05},
+        STAT.HP: {VALUE.CURRENT: 30, VALUE.MAX_VALUE: 30, VALUE.DELTA: 0.05},
         STAT.MOVE_SPEED: {VALUE.CURRENT: 1.2},
         STAT.MANA: {VALUE.CURRENT: 10, VALUE.MAX_VALUE: 10, VALUE.DELTA: 0.25},
         STAT.RANGE: {VALUE.CURRENT: 80},
-        STAT.DAMAGE: {VALUE.CURRENT: 20},
+        STAT.DAMAGE: {VALUE.CURRENT: 10},
+        STAT.ATTACK_DELAY_COST: {VALUE.CURRENT: 50},
     }
 
     def startup(self, api):
-        self._name = 'Blood Imp'
+        self._name = 'Zen Rat'
         self.color_code = 4
 
     @property
@@ -204,11 +205,11 @@ class FireElemental(Roaming):
     SPRITE = 'fire-elemental.png'
     STARTING_STATS = {
         STAT.GOLD: {VALUE.CURRENT: 20},
-        STAT.HP: {VALUE.CURRENT: 180, VALUE.MAX_VALUE: 180, VALUE.DELTA: 0.05},
+        STAT.HP: {VALUE.CURRENT: 220, VALUE.MAX_VALUE: 180, VALUE.DELTA: 0.05},
         STAT.MOVE_SPEED: {VALUE.CURRENT: 0.7},
         STAT.MANA: {VALUE.CURRENT: 20, VALUE.MAX_VALUE: 20, VALUE.DELTA: 0.25},
-        STAT.RANGE: {VALUE.CURRENT: 70},
-        STAT.DAMAGE: {VALUE.CURRENT: 60},
+        STAT.RANGE: {VALUE.CURRENT: 90},
+        STAT.DAMAGE: {VALUE.CURRENT: 80},
     }
 
     def startup(self, api):
@@ -321,8 +322,8 @@ DEFAULT_STARTING_STATS = {
 
 
 SPAWN_WEIGHTS = {
+    Ratzan: (6, 6),
     BloodImp: (6, 4),
-    Ratzan: (6, 3),
     NullIce: (3, 1),
     FireElemental: (2, 1),
     WingedSnake: (0, 1),

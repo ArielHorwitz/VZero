@@ -89,13 +89,21 @@ class EncounterAPI:
             max_value = stat_table[uid, stat, VALUE.MAX_VALUE]
             mv_str = f' / {max_value:.2f}' if max_value < 100_000 else ''
             s.append(f'{stat.name.lower().capitalize()}: {current:3.2f}{d_str}{mv_str}')
+        s.append(f'Statuses:')
+        for status in STATUS:
+            v = self.e.stats.status_table[uid, status]
+            duration = v[STATUS_VALUE.DURATION]
+            if duration > 0:
+                name_ = status.name.lower().capitalize()
+                amplitude = v[STATUS_VALUE.AMPLITUDE]
+                s.append(f'{name_}: {duration} *{amplitude}')
         return njoin(s)
 
 
 class Encounter:
     DEFAULT_TPS = 120
-    SPAWN_MULTIPLIER = 1
-    MAP_SIZE = (3_000, 3_000)
+    SPAWN_MULTIPLIER = 2
+    MAP_SIZE = (5_000, 5_000)
     AGENCY_PHASE_COUNT = 10
 
     def __init__(self):
@@ -194,9 +202,11 @@ class Encounter:
 
     # UNITS
     def _find_camps(self):
-        camps = RNG.random((10_000, 2))*self.map_size
-        bl = self.map_center - 500
-        tr = self.map_center + 500
+        spawn_zone_radius = 500
+        map_edge = np.array([200, 200])
+        camps = RNG.random((10_000, 2))*(self.map_size-map_edge*2)+map_edge
+        bl = self.map_center - spawn_zone_radius
+        tr = self.map_center + spawn_zone_radius
         out_box_mask = np.invert(NP.in_box_mask(camps, bl, tr))
         return camps[out_box_mask]
 
@@ -239,9 +249,17 @@ class Encounter:
                         location=self.monster_camps[cluster_index],
                         allegience=1,
                     )
-            print(f'Spawned {i} {monster_type.__name__}')
+            print(f'Spawned {(c+1)*(u+1)} {monster_type.__name__}')
 
     # UTILITY
+    def get_stats(self, *a, **k):
+        return self.stats.get_stats(*a, **k)
+
+    def get_status(self, uid, status, value=None):
+        if value is None:
+            value = STATUS_VALUE.DURATION
+        return self.stats.status_table[uid, status, value]
+
     def _do_damage(self, source_uid, target_uid, damage):
         source = self.units[source_uid]
         target = self.units[target_uid]
@@ -259,8 +277,8 @@ class Encounter:
         return self.stats.get_stats(uid, STAT.MANA, VALUE.CURRENT) < mana_cost
 
     def find_enemy_target(self, uid, target,
-            include_hitbox=True,
-            range=None,
+            range=None, include_hitbox=True,
+            draw_vfx=True,
         ):
         pos = self.stats.get_position(uid)
         if range is None:
@@ -274,6 +292,12 @@ class Encounter:
         if include_hitbox:
             range += attack_target.HITBOX
         if math.dist(pos, attack_pos) > range:
+            if uid == 0 and draw_vfx:
+                self.add_visual_effect(VisualEffect.LINE, 10, {
+                    'p1': pos,
+                    'p2': pos + normalize(attack_pos - pos, range),
+                    'color_code': self.units[uid].color_code,
+                })
             return None
         return target_uid
 
@@ -345,15 +369,7 @@ class Encounter:
         return r
 
     def do_ability_move(self, uid, target):
-        move_speed = self.stats.get_stats(uid, STAT.MOVE_SPEED, VALUE.CURRENT)
-        current_pos = self.stats.get_position(uid)
-        target_vector = target - current_pos
-        delta = normalize(target_vector, move_speed)
-        for i, n in ((0, STAT.POS_X), (1, STAT.POS_Y)):
-            self.stats.set_stats(
-                uid, n, (VALUE.DELTA, VALUE.TARGET_VALUE),
-                values=(delta[i], target[i])
-            )
+        self.apply_move(uid, target=target)
         return ABILITIES.MOVE
 
     def do_ability_loot(self, uid, target):
@@ -407,7 +423,7 @@ class Encounter:
         return ABILITIES.STOP
 
     def do_ability_attack(self, uid, target):
-        mana_cost = 10
+        mana_cost = 0
         stats = self.stats.table
         if self.check_mana(uid, mana_cost):
             return RESULT.MISSING_COST
@@ -438,14 +454,29 @@ class Encounter:
             return RESULT.ON_COOLDOWN
         units_mask = np.zeros(len(stats))
         units_mask[uid] = 1
+        self.stats.modify_stat(uid, STAT.MANA, -mana_cost)
         stats[uid, STAT.BLOODLUST_COOLDOWN, VALUE.CURRENT] = self.__tps*60
         stats[uid, STAT.BLOODLUST_LIFESTEAL, VALUE.CURRENT] = self.__tps*8
         self.add_visual_effect(VisualEffect.BACKGROUND, self.__tps*8)
         return ABILITIES.BLOODLUST
 
     def do_ability_beam(self, uid, target):
-        self.stats.table[uid, STAT.HP, VALUE.MAX_VALUE] *= 0.9
-        self.stats.table[uid, STAT.HP, VALUE.CURRENT] += 50
+        mana_cost = 100
+        if self.get_stats(uid, STAT.MANA, VALUE.CURRENT) < mana_cost:
+            return RESULT.MISSING_COST
+        range = self.get_stats(uid, STAT.RANGE, VALUE.CURRENT) * 3
+        target_uid = self.find_enemy_target(uid, target, range=range)
+        if target_uid is None:
+            return RESULT.MISSING_TARGET
+        duration = 240
+        percent = 0.5
+        self.stats.modify_stat(uid, STAT.MANA, -mana_cost)
+        self.apply_slow(target_uid, duration, percent)
+        self.add_visual_effect(VisualEffect.LINE, 5, {
+            'p1': self.stats.get_position(uid),
+            'p2': self.stats.get_position(target_uid),
+            'color_code': self.units[uid].color_code,
+        })
         return ABILITIES.BEAM
 
     def do_ability_vial(self, uid, target):
@@ -477,3 +508,42 @@ class Encounter:
         stats[uid, STAT.GOLD, VALUE.CURRENT] -= gold_cost
         stats[uid, STAT.HP, VALUE.MAX_VALUE] += max_hp_buff
         return ABILITIES.MOONSTONE
+
+    def do_ability_branch(self, uid, target):
+        stats = self.stats.get_stats()
+        gold_cost = 10
+        damage_buff = 1
+        attack_speed_buff = 0.01
+        max_hp_buff = 1
+        if stats[uid, STAT.GOLD, VALUE.CURRENT] < gold_cost:
+            return RESULT.MISSING_COST
+        stats[uid, STAT.GOLD, VALUE.CURRENT] -= gold_cost
+        stats[uid, STAT.DAMAGE, VALUE.CURRENT] += damage_buff
+        stats[uid, STAT.ATTACK_DELAY_COST, VALUE.CURRENT] *= (1-attack_speed_buff)
+        stats[uid, STAT.HP, VALUE.MAX_VALUE] += max_hp_buff
+        return ABILITIES.BRANCH
+
+    # MECHANICS
+    def apply_move(self, uid, target=None, move_speed=None):
+        if move_speed is None:
+            move_speed = self.stats.get_stats(uid, STAT.MOVE_SPEED, VALUE.CURRENT)
+            if self.get_status(uid, STATUS.SLOW) > 0:
+                move_speed *= 1-self.get_status(uid, STATUS.SLOW, STATUS_VALUE.AMPLITUDE)
+        if target is None:
+            target = np.array([
+                self.stats.get_stats(uid, STAT.POS_X, VALUE.TARGET_VALUE),
+                self.stats.get_stats(uid, STAT.POS_Y, VALUE.TARGET_VALUE),
+                ])
+        current_pos = self.stats.get_position(uid)
+        target_vector = target - current_pos
+        delta = normalize(target_vector, move_speed)
+        for i, n in ((0, STAT.POS_X), (1, STAT.POS_Y)):
+            self.stats.set_stats(
+                uid, n, (VALUE.DELTA, VALUE.TARGET_VALUE),
+                values=(delta[i], target[i])
+            )
+
+    def apply_slow(self, uid, duration, percent):
+        self.stats.status_table[uid, STATUS.SLOW, STATUS_VALUE.DURATION] = duration
+        self.stats.status_table[uid, STATUS.SLOW, STATUS_VALUE.AMPLITUDE] = percent
+        self.apply_move(uid)

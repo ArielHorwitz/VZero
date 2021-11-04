@@ -1,6 +1,6 @@
 import enum
 from nutil.vars import AutoIntEnum
-from logic.encounter.stats import STAT, VALUE, argmin
+from logic.encounter.stats import STAT, VALUE, STATUS, STATUS_VALUE, argmin
 
 
 class _VFX(AutoIntEnum):
@@ -45,6 +45,7 @@ class ABILITIES(AutoIntEnum):
     VIAL = enum.auto()
     SHARD = enum.auto()
     MOONSTONE = enum.auto()
+    BRANCH = enum.auto()
 
 
 class RESULT(enum.Enum):
