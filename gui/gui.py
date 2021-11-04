@@ -1,22 +1,22 @@
 
-import os
+from pathlib import Path
 from nutil.kex import widgets
-from nutil.time import RateCounter
+from nutil.time import RateCounter, pingpong
 
 from gui.encounter.encounter import EncounterGUI
 
 
-VERSION = 0.001
+VERSION = 0.002
 NAME = f'Roguesque'
 TITLE = f'{NAME} v{VERSION}'
-SPRITE_DIR = os.getcwd() + '/gui/sprites/'
+SPRITE_DIR = Path.cwd() / 'assets' / 'graphics' / 'sprites'
 FPS = 60
 
 
 class App(widgets.App):
     def __init__(self, **kwargs):
         super().__init__(make_bg=False, make_menu=False, **kwargs)
-        self.icon = SPRITE_DIR + 'goal.png'
+        self.icon = str(SPRITE_DIR/'goal.png')
         widgets.kvWindow.maximize()
         self.encounter = self.add(EncounterGUI())
 

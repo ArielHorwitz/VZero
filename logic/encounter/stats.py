@@ -8,6 +8,7 @@ from nutil.display import nprint, njoin
 
 DMOD_CACHE_SIZE = 10_000
 
+
 class UnitStats:
     def __init__(self):
         self.tick = 0
@@ -73,6 +74,27 @@ class UnitStats:
         self.tick += ticks
         self._do_stat_deltas(ticks)
 
+    def _dmod_deltas(self):
+        DEBUG = False
+
+        active_targets = self._dmod_targets[active_dmods]
+        active_effects_add = self._dmod_effects_add[active_dmods]
+        # Reshape targets and effects and compare
+        active_targets = active_targets[:, :, np.newaxis]
+        active_effects_add = active_effects_add[:, np.newaxis, :]
+        dmod_add = active_targets * active_effects_add
+        delta_add = np.sum(dmod_add, axis=0)
+
+        # debug
+        if DEBUG:
+            with np.printoptions(edgeitems=2, linewidth=10_000):
+                print(self._dmod_index)
+                nprint(self._dmod_ticks, 'dmod ticks / active')
+                print(active_dmods)
+                nprint(self._dmod_targets, 'dmod targets')
+                nprint(self._dmod_effects_add, 'dmod effects (add)')
+                nprint(delta_add, 'add deltas')
+
     def _do_stat_deltas(self, ticks):
         DEBUG = False
         # TODO consider target ticks when applying deltas
@@ -80,34 +102,15 @@ class UnitStats:
 
         current_values = self.table[:, :, VALUE.CURRENT]
         # Raw deltas, without modifications
-        deltas = self.table[:, :, VALUE.DELTA]
+        deltas = self.table[:, :, VALUE.DELTA] * ticks
         # Find active modifications
         active_dmods = self._dmod_ticks > 0
         dmod_count = active_dmods.sum()
         if dmod_count > 0:
             print(f'Found {dmod_count} active dmods')
-            deltas = copy.deepcopy(deltas)
-            active_targets = self._dmod_targets[active_dmods]
-            active_effects_add = self._dmod_effects_add[active_dmods]
-            # Reshape targets and effects and compare
-            active_targets = active_targets[:, :, np.newaxis]
-            active_effects_add = active_effects_add[:, np.newaxis, :]
-            dmod_add = active_targets * active_effects_add
-            delta_add = np.sum(dmod_add, axis=0)
-            deltas += delta_add * ticks
-
-            # decrement tick for dmods
+            delta_add = self._dmod_deltas() * ticks
+            deltas = copy.deepcopy(deltas) + delta_add
             self._dmod_ticks -= ticks
-
-            # debug
-            if DEBUG:
-                with np.printoptions(edgeitems=2, linewidth=10_000):
-                    print(self._dmod_index)
-                    nprint(self._dmod_ticks, 'dmod ticks / active')
-                    print(active_dmods)
-                    nprint(self._dmod_targets, 'dmod targets')
-                    nprint(self._dmod_effects_add, 'dmod effects (add)')
-                    nprint(delta_add, 'add deltas')
 
         min_values = self.table[:, :, VALUE.MIN_VALUE]
         max_values = self.table[:, :, VALUE.MAX_VALUE]
@@ -198,10 +201,10 @@ class UnitStats:
         self.table[index, stat_name, values] = value
 
     # SPECIAL VALUES
-    def get_position(self, index, value=None):
-        if value is None:
-            value = VALUE.CURRENT
-        return self.table[index, (STAT.POS_X, STAT.POS_Y), value]
+    def get_position(self, index=None):
+        if index is None:
+            index = slice(None)
+        return self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.CURRENT]
 
     def get_distances(self, point):
         positions = self.table[:, (STAT.POS_X, STAT.POS_Y), VALUE.CURRENT]

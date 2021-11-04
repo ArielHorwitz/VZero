@@ -1,17 +1,16 @@
 
-import os, enum
 from pathlib import Path
 import numpy as np
 import nutil
 from nutil import display as ndis
-from nutil.time import humanize_ms
+from nutil.time import humanize_ms, pingpong
 from nutil.random import SEED
-from nutil.vars import nsign
+from nutil.vars import nsign, NP
 from nutil.display import njoin
 from nutil.kex import widgets
-from logic.encounter.encounter import Encounter, EncounterAPI, ABILITIES, RESULT
-from logic.encounter.stats import STAT, VALUE
-from gui.tileset import Tileset
+from logic.encounter.encounter import EncounterAPI
+from logic.encounter.common import *
+from gui.tileset import TileMap
 
 
 AUDIO_DIR = Path.cwd() / 'assets' / 'audio'
@@ -19,27 +18,27 @@ SPRITE_DIR = Path.cwd() / 'assets' / 'graphics' / 'sprites'
 SFX = {sname: widgets.Sound.load(str(AUDIO_DIR/'Lokif'/f'{sname}.wav'), volume=v) for sname, v in (
     ('adrenaline', 0.25),
     ('attack', 1),
-    ('blink', 0.5),
-    ('blood_pact', 0.5),
+    ('beam', 0.5),
+    ('blink', 0.25),
     ('cost', 0.5),
     ('move', 0.5),
-    ('ouch', 0.5),
+    ('ouch', 0.15),
     ('range', 0.5),
     ('stop', 0.25),
     ('target', 0.5),
     ('ting', 0.25),
     ('loot', 0.5),
-    ('z2', 0.5),
+    ('tum', 0.25),
 )}
-MUSIC_TRACKS = {sname.split('.')[0]: widgets.Sound.load(str(AUDIO_DIR/f'{sname}'), volume=0.2) for sname in (
-    'cave_theme.ogg',
+MUSIC_TRACKS = {sname: widgets.Sound.load(str(AUDIO_DIR/f'{sname}.wav'), volume=0.2) for sname in (
+    'cave_theme',
 )}
 
 ABILITY_META = {
-    ABILITIES.ATTACK: ('q', 'sword-titanium.png'),
+    ABILITIES.ATTACK: ('q', 'sword-glowburn.png'),
     ABILITIES.BLINK: ('w', 'error.png'),
-    ABILITIES.BLOODLUST: ('e', 'sword-glowburn.png'),
-    ABILITIES.BLOOD_PACT: ('r', 'piracy.png'),
+    ABILITIES.BLOODLUST: ('e', 'sword-divine.png'),
+    ABILITIES.BEAM: ('r', 'piracy.png'),
     ABILITIES.LOOT: ('a', 'crosshair.png'),
     ABILITIES.STOP: ('s', 'banner.png'),
     ABILITIES.LOOT: ('d', 'crosshair.png'),
@@ -67,15 +66,20 @@ class EncounterGUI(widgets.BoxLayout):
         super().__init__(**kwargs)
         self._music_track = MUSIC_TRACKS['cave_theme']
         self.app.hotkeys.register_dict({
-            'respawn': (f'+ escape', lambda: nutil.restart_script()),
+            'new game': (f'^ n', lambda: self.new_encounter()),
+            'toggle pause': (f' spacebar', lambda: self.toggle_play()),
+            # debug
             'debug': (f'^+ d', lambda: self.debug()),
             'debug dmod': (f'^+ v', lambda: self.debug(dmod=True)),
-            'toggle pause': (f' spacebar', lambda: self.toggle_play()),
+            'normal tps': (f'^+ t', lambda: self.debug(tps=None)),
+            'high tps': (f'^!+ t', lambda: self.debug(tps=920)),
             'single tick': (f'^ t', lambda: self.debug(tick=1)),
         })
         self.selected_unit = 0
 
-        self.api = Encounter().api
+        self.api = EncounterAPI.new_encounter()
+        if self.api.e.auto_tick is True:
+            self._music_track.play()
 
         left_pane = self.add(widgets.BoxLayout(orientation='vertical'))
         self.info_panel = self.add(widgets.BoxLayout(orientation='vertical')).set_size(x=250)
@@ -99,10 +103,14 @@ class EncounterGUI(widgets.BoxLayout):
         ]:
             self.info_panel.add(widgets.Button(text=s, on_release=c)).set_size(y=30)
 
+    def new_encounter(self):
+        self.api = EncounterAPI.new_encounter()
+        self.map_view.api = self.hud.api = self.api
+
     def toggle_play(self, *a, **k):
         play = self.api.set_auto_tick()
         if play:
-            self._music_track.play(loop=True)
+            self._music_track.play(loop=True, replay=False)
         else:
             self._music_track.pause()
 
@@ -117,6 +125,7 @@ class EncounterGUI(widgets.BoxLayout):
             f'FPS: {self.app.fps.rate:.1f} ({self.app.fps.mean_elapsed_ms:.1f} ms)',
             f'TPS: {self.api.e.tps.rate:.1f} ({self.api.e.tps.mean_elapsed_ms:.1f} ms)',
             f'Map size: {self.api.map_size}',
+            f'Map zoom: {self.map_view.zoom_level:.2f}',
             f'Monsters: {(stats[:, STAT.HP, VALUE.CURRENT]>0).sum()}',
             ndis.make_title(f'{unit.name}', length=30),
             f'{self.api.pretty_stats(self.selected_unit)}',
@@ -149,24 +158,153 @@ class MapView(widgets.DrawCanvas):
             f' {key}', lambda *args, a=a: self.use_ability(a, self.mouse_real_pos)
             ) for a, (key, icon) in ABILITY_META.items()},
             # 'attack (second key)': (f' a', lambda: self.use_ability(ABILITIES.ATTACK, self.mouse_real_pos)),
+            'toggle range': (f'! alt', lambda: self.set_draw_range()),
             'zoom in': (f' =', lambda: self.zoom(d=1.2)),
             'zoom out': (f' -', lambda: self.zoom(d=-1.2)),
             })
-        self.__tilemap_source = Tileset().make_map(100, 100)
+        self.__tilemap_source = TileMap(['tiles1']).make_map(100, 100)
         self.__on_unit_selection = unit_selection
-        self.__units_per_pixel = 0.5
+        self.__units_per_pixel = 0.7
         self.__default_bg_color = (0, 0.15, 0, 1)
         self.__cached_vfx = []
         self.__cached_move = None
+        self.__draw_ranges = True
         self.bind(on_touch_down=self.do_mouse_down)
         self.bind(on_touch_move=self.check_mouse_move)
         self.sprites = []
         self.api = api
 
-    def zoom(self, d):
-        self.__units_per_pixel *= abs(d)**(-1*nsign(d))
-        print(f'Units per pixel: {self.__units_per_pixel}')
+    # Drawing
+    def redraw(self):
+        self.canvas.clear()
 
+        with self.canvas.before:
+            # Tilemap
+            self.tilemap = widgets.Image(
+               source=self.__tilemap_source,
+               size=cc_int(self.api.map_size / self.__units_per_pixel),
+               allow_stretch=True,
+           )
+
+        self.unit_sprites = []
+        self.range_circles = []
+        self.hps = []
+        with self.canvas:
+            for uid, unit in enumerate(self.api.units):
+                # Sprite details
+                color = COLOR_CODES[unit.color_code]
+                sprite_file = unit.SPRITE
+                # Draw and cache sprites
+                sprite = widgets.Image(
+                    source=str(SPRITE_DIR/sprite_file),
+                    # size=self.UNIT_SIZE,
+                    pos=(-1_000_000, -1_000_000),
+                    allow_stretch=True,
+                )
+                self.unit_sprites.append(sprite)
+
+                widgets.kvColor(*color)
+                self.range_circles.append(widgets.kvLine(width=2))
+
+                self.hps.append(self.add(widgets.ProgressBar()))
+
+            widgets.kvColor(1, 1, 1)
+            ch_size = (3, 3)
+            ch_pos = center_position(self.api.get_position(0), ch_size)
+            self.move_crosshair = widgets.kvEllipse(pos=ch_pos, size=ch_size)
+
+    def update(self):
+        if self.__cached_move is not None:
+            self.use_ability(ABILITIES.MOVE, self.__cached_move, supress_sfx=True)
+            self.__cached_move = None
+        player_pos = self.api.get_position(0)
+        self.__player_pos = player_pos
+        self.__anchor_offset = np.array(self.size) / 2
+
+        # Tilemap
+        self.tilemap.size = cc_int(np.array(self.api.map_size) / self.__units_per_pixel)
+        self.tilemap.pos = cc_int(self.real2pix(np.zeros(2)))
+
+        self._draw_units()
+        self._draw_vfx()
+
+    def _draw_units(self):
+        stats = self.api.get_stats()
+        ranges = stats[:, STAT.RANGE, VALUE.CURRENT]
+        hps = 100 * stats[:, STAT.HP, VALUE.CURRENT] / stats[:, STAT.HP, VALUE.MAX_VALUE]
+        all_positions = self.api.get_position()
+        in_box_mask = NP.in_box_mask(all_positions, *self.draw_boundary_real)
+        in_box = NP.indices(in_box_mask)
+        out_box = NP.indices(np.invert(in_box_mask))
+
+        for uid in in_box:
+            sprite = self.unit_sprites[uid]
+            pos = self.real2pix(all_positions[uid])
+            # sprite
+            hitbox_diameter = round(1.8 * self.api.units[uid].HITBOX / self.__units_per_pixel)
+            sprite.size = hitbox_diameter, hitbox_diameter
+            sprite.pos = center_position(pos, sprite.size)
+
+            # hp bar
+            hp_ = self.hps[uid].value = hps[uid]
+            if hp_ > 0 and self.__units_per_pixel < 1.5:
+                self.hps[uid].set_size(x=hitbox_diameter*2, y=20 / self.__units_per_pixel)
+                hp_pos = pos + (0, hitbox_diameter/2)
+                self.hps[uid].pos = center_position(hp_pos, self.hps[uid].size)
+            else:
+                self.hps[uid].pos = OUT_OF_DRAW_ZONE
+
+            # range circle
+            if self.__draw_ranges:
+                if hp_ > 0:
+                    attack_range = ranges[uid] / self.__units_per_pixel
+                    self.range_circles[uid].circle = (*pos, attack_range)
+                else:
+                    self.range_circles[uid].circle = (*OUT_OF_DRAW_ZONE, 0)
+
+        for uid in out_box:
+            self.unit_sprites[uid].pos = OUT_OF_DRAW_ZONE
+            self.hps[uid].pos = OUT_OF_DRAW_ZONE
+            self.range_circles[uid].circle = (*OUT_OF_DRAW_ZONE, 1)
+
+
+        target_pos = self.api.get_stats(0, (STAT.POS_X, STAT.POS_Y), VALUE.TARGET_VALUE)
+        self.move_crosshair.pos = center_position(self.real2pix(target_pos), self.move_crosshair.size)
+
+    def _draw_vfx(self):
+        for instruction in self.__cached_vfx:
+            self.canvas.remove(instruction)
+        self.__cached_vfx = []
+
+        effects = self.api.get_visual_effects()
+
+        for effect in effects:
+            # Flash background
+            if effect.eid is effect.BACKGROUND:
+                with self.canvas:
+                    self.__cached_vfx.append(widgets.kvColor(1, 0, 0, 0.15))
+                    self.__cached_vfx.append(widgets.kvRectangle(pos=self.to_local(*self.pos), size=self.size))
+
+            # Draw line
+            if effect.eid is effect.LINE:
+                width = 2
+                if 'width' in effect.params:
+                    width = effect.params['width']
+                color_code = -1
+                if 'color_code' in effect.params:
+                    color_code = effect.params['color_code']
+                points = (*self.real2pix(effect.params['p1']),
+                          *self.real2pix(effect.params['p2']))
+                with self.canvas:
+                    self.__cached_vfx.append(widgets.kvColor(*COLOR_CODES[color_code]))
+                    self.__cached_vfx.append(widgets.kvLine(points=points, width=width))
+
+            # SFX
+            if effect.eid is effect.SFX:
+                if self.api.e.auto_tick:
+                    SFX[effect.params['sfx']].play()
+
+    # Utility
     def use_ability(self, *a, supress_sfx=False, **k):
         r = self.api.use_ability(*a, **k)
         if supress_sfx == False:
@@ -187,6 +325,12 @@ class MapView(widgets.DrawCanvas):
                 if name in SFX:
                     SFX[name].play()
         return r
+
+    @property
+    def draw_boundary_real(self):
+        size = np.array(self.size)
+        bl = np.zeros(2) - size / 2
+        return self.pix2real(bl), self.pix2real(bl + (size * 2))
 
     def real2pix(self, pos):
         pos_relative_to_player = np.array(pos) - self.__player_pos
@@ -220,115 +364,21 @@ class MapView(widgets.DrawCanvas):
             selected_unit = self.api.nearest_uid(real_pos, alive=False)[0]
             self.__on_unit_selection(selected_unit)
 
-    def redraw(self):
-        self.canvas.clear()
+    @property
+    def zoom_level(self):
+        return 1 / self.__units_per_pixel
 
-        with self.canvas.before:
-            # Tilemap
-            self.tilemap = widgets.Image(
-               source=self.__tilemap_source,
-               size=cc_int(self.api.map_size / self.__units_per_pixel),
-               allow_stretch=True,
-           )
+    # Config
+    def set_draw_range(self, v=None):
+        if v is None:
+            v = not self.__draw_ranges
+        self.__draw_ranges = v
+        if not self.__draw_ranges:
+            for r in self.range_circles:
+                r.circle = (*OUT_OF_DRAW_ZONE, 1)
 
-        self.unit_sprites = []
-        self.range_circles = []
-        self.hps = []
-        with self.canvas:
-            for uid, unit in enumerate(self.api.units):
-                # Sprite details
-                ustats = self.api.get_unit_stats(uid)
-                pos = (ustats[STAT.POS_X], ustats[STAT.POS_Y])
-                color = COLOR_CODES[unit.color_code]
-                sprite_file = unit.SPRITE
-                # Draw and cache sprites
-                sprite = widgets.Image(
-                    source=str(SPRITE_DIR/sprite_file),
-                    # size=self.UNIT_SIZE,
-                    allow_stretch=True,
-                )
-                self.unit_sprites.append(sprite)
-                if uid == 0:
-                    widgets.kvColor(*color)
-                    self.range_circles.append(widgets.kvLine(circle=(*pos, 50)))
-                self.hps.append(self.add(widgets.ProgressBar()).set_size(x=50, y=10))
-                if uid == 0:
-                    widgets.kvColor(1, 1, 1)
-                    ch_size = (3, 3)
-                    ch_pos = center_position(pos, ch_size)
-                    self.move_crosshair = widgets.kvEllipse(pos=ch_pos, size=ch_size)
-
-    def update(self):
-        if self.__cached_move is not None:
-            self.use_ability(ABILITIES.MOVE, self.__cached_move, supress_sfx=True)
-            self.__cached_move = None
-        player_pos = self.api.get_position(0)
-        self.__player_pos = player_pos
-        self.__anchor_offset = np.array(self.size) / 2
-
-        # Tilemap
-        self.tilemap.size = cc_int(np.array(self.api.map_size) / self.__units_per_pixel)
-        self.tilemap.pos = cc_int(self.real2pix(np.zeros(2)))
-
-        self._draw_units()
-        self._draw_vfx()
-
-    def _draw_units(self):
-        stats = self.api.get_stats()
-        ranges = stats[:, STAT.RANGE, VALUE.CURRENT]
-        hp = stats[:, STAT.HP, VALUE.CURRENT]
-        hps = 100 * hp / stats[:, STAT.HP, VALUE.MAX_VALUE]
-        golds = stats[:, STAT.GOLD, VALUE.CURRENT] / stats[:, STAT.HP, VALUE.MAX_VALUE]
-        alive_or_gold = np.logical_and(hp, golds)
-        for uid, sprite in enumerate(self.unit_sprites):
-            # sprite
-            hitbox_diameter = self.api.units[uid].HITBOX / self.__units_per_pixel * 2
-            sprite.size = cc_int(np.array([hitbox_diameter, hitbox_diameter]))
-            pos = cc_int(self.real2pix(self.api.get_position(uid)))
-            sprite.pos = center_position(pos, sprite.size)
-
-            # hp bar
-            self.hps[uid].value = hps[uid]
-            self.hps[uid].pos = int(pos[0]-25), int(pos[1]+(hitbox_diameter/2))# range circle
-
-            if uid == 0:
-                attack_range = ranges[uid]/self.__units_per_pixel
-                self.range_circles[uid].circle = (*pos, attack_range)
-
-        target_pos = self.api.get_stats(0, (STAT.POS_X, STAT.POS_Y), VALUE.TARGET_VALUE)
-        self.move_crosshair.pos = center_position(self.real2pix(target_pos), self.move_crosshair.size)
-
-    def _draw_vfx(self):
-        for instruction in self.__cached_vfx:
-            self.canvas.remove(instruction)
-        self.__cached_vfx = []
-
-        for effect in self.api.get_visual_effects():
-            # Flash background
-            if effect.eid is effect.BACKGROUND:
-                # if (effect.elapsed_ticks % 30) < 5:
-                with self.canvas:
-                    self.__cached_vfx.append(widgets.kvColor(1, 0, 0, 0.15))
-                    self.__cached_vfx.append(widgets.kvRectangle(pos=self.to_local(*self.pos), size=self.size))
-
-            # Draw line
-            if effect.eid is effect.LINE:
-                width = 2
-                if 'width' in effect.params:
-                    width = effect.params['width']
-                color_code = -1
-                if 'color_code' in effect.params:
-                    color_code = effect.params['color_code']
-                points = (*self.real2pix(effect.params['p1']),
-                          *self.real2pix(effect.params['p2']))
-                with self.canvas:
-                    self.__cached_vfx.append(widgets.kvColor(*COLOR_CODES[color_code]))
-                    self.__cached_vfx.append(widgets.kvLine(points=points, width=width))
-
-            # SFX
-            if effect.eid is effect.SFX:
-                if self.api.e.auto_tick:
-                    SFX[effect.params['sfx']].play()
+    def zoom(self, d):
+        self.__units_per_pixel *= abs(d)**(-1*nsign(d))
 
 
 class HUD(widgets.BoxLayout):
@@ -404,3 +454,6 @@ def center_position(pos, size):
 
 def cc_int(pos):
     return int(pos[0]), int(pos[1])
+
+
+OUT_OF_DRAW_ZONE = (-1_000_000, -1_000_000)
