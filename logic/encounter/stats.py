@@ -2,8 +2,9 @@
 import copy
 import numpy as np
 import enum
-from nutil.vars import AutoIntEnum
+from nutil.vars import AutoIntEnum, is_iterable
 from nutil.display import nprint, njoin
+from logic.mechanics.common import *
 
 
 DMOD_CACHE_SIZE = 10_000
@@ -14,29 +15,21 @@ class UnitStats:
         self.tick = 0
         # Base stats table, containing all stats and all values.
         # See STAT class and VALUE class.
-        print('Base stats table using stat indices:')
-        for stat in STAT:
-            print(stat.value, stat.name)
-        print('Base stats table using value indices:')
-        for value in VALUE:
-            print(value.value, value.name)
         self.stat_count = len(STAT)
         self.values_count = len(VALUE)
         self.table = np.ndarray(
             shape=(0, self.stat_count, self.values_count),
             dtype=np.float64)
         # Status table, containing all status durations and amplitudes.
-        print('Status table using status indices:')
-        for status in STATUS:
-            print(status.value, status.name)
-        print('Status table using value indices:')
-        for status_value in STATUS_VALUE:
-            print(status_value.value, status_value.name)
         self.status_count = len(STATUS)
         self.status_values_count = len(STATUS_VALUE)
         self.status_table = np.ndarray(
             shape=(0, self.status_count, self.status_values_count),
             dtype=np.float64)
+        # Cooldown table contains a cooldown value (-1 per tick)
+        # For each ability
+        self.ability_count = len(ABILITIES)
+        self.cooldowns = np.ndarray(shape=(0, self.ability_count))
         # Delta modifier table contains temporary effects that can
         # add to each stat delta (without changing their source),
         # for a certain number of ticks.
@@ -71,9 +64,11 @@ class UnitStats:
         unit_status = np.zeros((1, self.status_count, self.status_values_count))
         unit_status[:, :, STATUS_VALUE.DURATION] = -1
         self.status_table = np.concatenate((self.status_table, unit_status), axis=0)
-        assert len(self.status_table) == len(self.table) == self._dmod_targets.shape[1]
+        # Cooldowns entry
+        unit_cooldowns = np.zeros((1, self.ability_count))
+        self.cooldowns = np.concatenate((self.cooldowns, unit_cooldowns), axis=0)
+        assert len(self.status_table) == len(self.table) == len(self.cooldowns) == self._dmod_targets.shape[1]
         return len(self.table) - 1
-
 
     def add_dmod(self, ticks, units, stat, delta):
         i = self._dmod_index
@@ -97,10 +92,11 @@ class UnitStats:
         self.tick += ticks
         self._do_stat_deltas(ticks)
         self._do_status_deltas(ticks)
+        self._do_cooldown_deltas(ticks)
 
     def _dmod_deltas(self):
         DEBUG = False
-
+        active_dmods = self._dmod_ticks > 0
         active_targets = self._dmod_targets[active_dmods]
         active_effects_add = self._dmod_effects_add[active_dmods]
         # Reshape targets and effects and compare
@@ -191,46 +187,55 @@ class UnitStats:
         self.status_table[:, :, STATUS_VALUE.ENDED_NOW] = reaching_zero_now
         self.status_table[:, :, STATUS_VALUE.DURATION] -= ticks
 
+    def _do_cooldown_deltas(self, ticks):
+        self.cooldowns -= 1
 
     # STAT VALUES
-    def _convert_indexing(self, index=None, stat=None, value=None, **kwargs):
-        if index is None:
-            index = slice(None)
-        if stat is None:
-            stat = slice(None)
-        if value is None:
-            value = slice(None)
-        return index, stat, value
-
-    def get_stats(self, *args, copy=False, **kwargs):
-        index, stat, value = self._convert_indexing(*args, **kwargs)
-        view = self.table[index, stat, value]
+    def get_stats(self, index, stat, value_name=None, copy=False):
+        if value_name is None:
+            value_name = VALUE.CURRENT
+        view = self.table[index, stat, value_name]
         if copy:
             return view.copy()
         return view
 
-    def set_stats(self, *args, values=None, **kwargs):
-        index, stat, value = self._convert_indexing(*args, **kwargs)
-        try:
-            self.table[index, stat, value] = values
-        except ValueError as e:
-            s = njoin([
-                f'Indexing: {index, stat, value}',
-                f'Old: {self.table[index, stat, value]}',
-                f'New: {values}',
-            ])
-            raise ValueError(f'{s}\n{e}')
+    def set_stats(self, index, stat, stat_value, value_name=None,
+                  additive=False, multiplicative=False):
+        if value_name is None:
+            value_name = VALUE.CURRENT
+        cv = self.table[index, stat, value_name]
+        if additive:
+            stat_value += cv
+        elif multiplicative:
+            stat_value *= cv
+        self.table[index, stat, value_name] = stat_value
 
-    def modify_stat(self, index, stat_name, value,
-                    multiplicative=False, values=None):
-        if values is None:
-            values = VALUE.CURRENT
-        cv = self.table[index, stat_name, values]
-        if multiplicative:
-            value = cv * value
-        else:
-            value = cv + value
-        self.table[index, stat_name, values] = value
+    def get_cooldown(self, index, ability=None):
+        if ability is None:
+            ability = slice(None)
+        return self.cooldowns[index, ability]
+
+    def set_cooldown(self, index, ability, value):
+        self.cooldowns[index, ability] = value
+
+    def get_status(self, index, status, value_name=None):
+        """
+        Get a status duration/amplitude. Passing neither to value_name will return
+        the amplitude only if duration > 0.
+        """
+        duration = self.status_table[index, status, STATUS_VALUE.DURATION]
+        amp = self.status_table[index, status, STATUS_VALUE.AMPLITUDE]
+        if value_name is STATUS_VALUE.DURATION:
+            return duration
+        elif value_name is STATUS_VALUE.AMPLITUDE:
+            return amp
+        elif value_name is None:
+            return amp * (duration > 0)
+        raise ValueError(f'value_name unrecognized')
+
+    def set_status(self, index, status, duration, amplitude):
+        self.status_table[index, status, STATUS_VALUE.DURATION] = duration
+        self.status_table[index, status, STATUS_VALUE.AMPLITUDE] = amplitude
 
     # SPECIAL VALUES
     def get_position(self, index=None):
@@ -238,55 +243,34 @@ class UnitStats:
             index = slice(None)
         return self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.CURRENT]
 
+    def set_position(self, index, pos, value_name=None):
+        if value_name is None:
+            value_name = VALUE.CURRENT
+        if not is_iterable(value_name):
+            value_name = value_name,
+        for value in value_name:
+            self.table[index, (STAT.POS_X, STAT.POS_Y), value] = pos
+
     def get_distances(self, point):
         positions = self.table[:, (STAT.POS_X, STAT.POS_Y), VALUE.CURRENT]
         vectors = positions - np.array(point)
         dist = np.linalg.norm(vectors, axis=1)
         return dist
 
-    def get_unit_values(self, index):
-        return self.table[index, :, 0]
 
-
-class STATUS(AutoIntEnum):
-    SLOW = enum.auto()
-
-
-class STATUS_VALUE(AutoIntEnum):
-    DURATION = enum.auto()
-    AMPLITUDE = enum.auto()
-    ENDED_NOW = enum.auto()
-
-
-class VALUE(AutoIntEnum):
-    CURRENT = enum.auto()
-    DELTA = enum.auto()
-    TARGET_VALUE = enum.auto()
-    TARGET_TICK = enum.auto()
-    MIN_VALUE = enum.auto()
-    MAX_VALUE = enum.auto()
-
-
-class STAT(AutoIntEnum):
-    POS_X = enum.auto()
-    POS_Y = enum.auto()
-    MOVE_SPEED = enum.auto()
-    GOLD = enum.auto()
-    HP = enum.auto()
-    MANA = enum.auto()
-    RANGE = enum.auto()
-    DAMAGE = enum.auto()
-    ATTACK_DELAY = enum.auto()
-    ATTACK_DELAY_COST = enum.auto()
-    BLOODLUST_LIFESTEAL = enum.auto()
-    BLOODLUST_COOLDOWN = enum.auto()
-
-
-def argmin(a, mask=None):
-    if mask is None:
-        return np.array(a).argmin()
-    idx = np.flatnonzero(mask)
-    out = idx[a[idx].argmin()]
-    # Or
-    # out = np.flatnonzero(mask)[a[mask].argmin()]
-    return out
+def debug_indices():
+    print('Using stat indices:')
+    for stat in STAT:
+        print(stat.value, stat.name)
+    print('Using stat value indices:')
+    for value in VALUE:
+        print(value.value, value.name)
+    print('Using status indices:')
+    for status in STATUS:
+        print(status.value, status.name)
+    print('Using status value indices:')
+    for status_value in STATUS_VALUE:
+        print(status_value.value, status_value.name)
+    print('Using ability indices:')
+    for ability in ABILITIES:
+        print(ability.value, ability.name)

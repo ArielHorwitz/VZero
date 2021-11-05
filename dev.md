@@ -1,7 +1,7 @@
 ## TODO
 
 ### Result Oriented
-- Buffs
+- Organize balance and mechanics in config files
 - AOE
 - Abilities (aoe, slow, reflect)
 - Ability selection before map start
@@ -11,19 +11,17 @@
 
 
 ### Desired Features
-- Prolonged effects / buffs
-  - Or delayed effects to allow temporary buffs (buff then debuff)
+- Agency `poll_abilities` should have multiple resolutions (per 10 ticks, per 100 ticks, etc.)
 - Aura effects: method `uids_in_radius` for aoes and auras
   - Map features: foundtains, shops (using auras)
-- Respawning
+- Respawning / death feedback
 - Real time-translations: methods `ticks2ms`, and `ms2ticks` for Agency and VFX
-- Packaging for Windows
 - Debug frame update breakdown
   - By draw
   - By logic
     - Ticks, Agency
   - By mainloop interval (kivy runtime between frames)
-- Scale HP bar to max hp
+- Scale HP bar size to max hp
 
 
 ### Known Bugs

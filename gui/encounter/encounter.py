@@ -8,8 +8,8 @@ from nutil.random import SEED
 from nutil.vars import nsign, NP
 from nutil.display import njoin
 from nutil.kex import widgets
-from logic.encounter.encounter import EncounterAPI
-from logic.encounter.common import *
+from logic.encounter.encounter import Encounter
+from logic.mechanics.common import *
 from gui.tileset import TileMap
 
 
@@ -21,7 +21,7 @@ SFX = {sname: widgets.Sound.load(
     ('attack', 1),
     ('beam', 0.25),
     ('blink', 0.25),
-    ('cost', 0.5),
+    ('cost', 0.25),
     ('move', 0.5),
     ('ouch', 0.15),
     ('range', 0.5),
@@ -80,7 +80,7 @@ class EncounterGUI(widgets.BoxLayout):
         })
         self.selected_unit = 0
 
-        self.api = EncounterAPI.new_encounter()
+        self.api = Encounter.new_encounter()
         if self.api.e.auto_tick is True:
             self._music_track.play()
 
@@ -107,7 +107,7 @@ class EncounterGUI(widgets.BoxLayout):
             self.info_panel.add(widgets.Button(text=s, on_release=c)).set_size(y=30)
 
     def new_encounter(self):
-        self.api = EncounterAPI.new_encounter()
+        self.api = Encounter.new_encounter()
         self.map_view.api = self.hud.api = self.api
 
     def toggle_play(self, *a, **k):
@@ -118,7 +118,7 @@ class EncounterGUI(widgets.BoxLayout):
             self._music_track.pause()
 
     def update_info_panel(self):
-        stats = self.api.get_stats()
+        stats = self.api.get_stats(index=slice(None), stat=slice(None), value_name=slice(None))
         unit = self.api.units[self.selected_unit]
         bg_color = list(np.array(COLOR_CODES[unit.color_code]) / 3)
         self.info_panel.make_bg(color=bg_color, hsv=False)
@@ -129,7 +129,7 @@ class EncounterGUI(widgets.BoxLayout):
             # f'TPS: {self.api.e.tps.rate:.1f} ({self.api.e.tps.mean_elapsed_ms:.1f} ms)',
             f'Map size: {self.api.map_size}',
             f'Map zoom: x{self.map_view.zoom_level:.2f} ({1/self.map_view.zoom_level:.2f} u/p)',
-            f'Monsters: {(stats[:, STAT.HP, VALUE.CURRENT]>0).sum()}',
+            f'Monsters: {self.api.get_live_monster_count()}',
             ndis.make_title(f'{unit.name}', length=30),
             f'{self.api.pretty_stats(self.selected_unit)}',
         ])
@@ -231,9 +231,8 @@ class MapView(widgets.DrawCanvas):
         self._draw_vfx()
 
     def _draw_units(self):
-        stats = self.api.get_stats()
-        ranges = stats[:, STAT.RANGE, VALUE.CURRENT]
-        hps = 100 * stats[:, STAT.HP, VALUE.CURRENT] / stats[:, STAT.HP, VALUE.MAX_VALUE]
+        ranges = self.api.get_stats(index=slice(None), stat=STAT.RANGE)
+        hps = 100 * self.api.get_stats(index=slice(None), stat=STAT.HP) / self.api.get_stats(index=slice(None), stat=STAT.HP, value_name=VALUE.MAX_VALUE)
         all_positions = self.api.get_position()
 
         for uid, unit in enumerate(self.api.units):
@@ -299,16 +298,16 @@ class MapView(widgets.DrawCanvas):
     def use_ability(self, *a, supress_sfx=False, **k):
         r = self.api.use_ability(*a, **k)
         if supress_sfx == False:
-            if r is RESULT.MISSING_COST:
+            if r is FAIL_RESULT.MISSING_COST:
                 print('Missing cost')
                 SFX['cost'].play()
-            if r is RESULT.MISSING_TARGET:
+            if r is FAIL_RESULT.MISSING_TARGET:
                 print('Missing target')
                 SFX['target'].play()
-            if r is RESULT.OUT_OF_BOUNDS:
+            if r is FAIL_RESULT.OUT_OF_BOUNDS:
                 print('Out of bounds')
                 SFX['range'].play()
-            if r is RESULT.OUT_OF_RANGE:
+            if r is FAIL_RESULT.OUT_OF_RANGE:
                 print('Out of range')
                 SFX['range'].play()
             if r in ABILITIES:
@@ -383,10 +382,9 @@ class HUD(widgets.BoxLayout):
 
         bar = self.add(widgets.BoxLayout(orientation='vertical'))
 
-        adelay_bar = bar.add(widgets.BoxLayout()).set_size(y=15)
-        self.adelay_label = adelay_bar.add(widgets.Label()).set_size(x=200)
-        self.adelay = adelay_bar.add(widgets.ProgressBar())
-        self._adelay_max = None
+        atkcd_bar = bar.add(widgets.BoxLayout()).set_size(y=15)
+        self.atkcd_label = atkcd_bar.add(widgets.Label()).set_size(x=200)
+        self.atkcd = atkcd_bar.add(widgets.ProgressBar())
         hp_bar = bar.add(widgets.BoxLayout()).set_size(y=30)
         self.hp_label = hp_bar.add(widgets.Label()).set_size(x=200)
         self.hp = hp_bar.add(widgets.ProgressBar())
@@ -394,47 +392,52 @@ class HUD(widgets.BoxLayout):
         self.mana_label = mana_bar.add(widgets.Label()).set_size(x=200)
         self.mana = mana_bar.add(widgets.ProgressBar())
 
+        self.cooldown_filters = {a: {} for a in ABILITIES}
         ability_bar = bar.add(widgets.BoxLayout())
         for ai, (ability, (key, ico)) in enumerate(ABILITY_META.items()):
             panel = ability_bar.add(widgets.BoxLayout()).set_size(hx=0.1)
             panel.make_bg((1-0.2*ai, 1, 0.3))
-            panel.add(widgets.Image(
+            im = panel.add(widgets.Image(
                 source=str(SPRITE_DIR/ico),
                 allow_stretch=True,
             )).set_size(hx=0.5)
             details = panel.add(widgets.Label(text=njoin([
                 f'<{key.upper()}> {ability.name.lower().capitalize()}',
             ])))
+            with im.canvas.after:
+                self.cooldown_filters[ability]['color'] = widgets.kvColor(0, 0, 0, 1)
+                self.cooldown_filters[ability]['rect'] = widgets.kvRectangle(pos=self.pos, size=self.size)
+            self.cooldown_filters[ability]['panel'] = panel
 
     def update(self):
-        stats = self.api.get_stats()
+        attack_speed = self.api.get_stats(0, STAT.ATTACK_SPEED)
+        max_cooldown = self.api.attack_speed_to_cooldown(attack_speed)
+        current_cooldown = max(0, self.api.get_cooldown(0, ABILITIES.ATTACK))
+        v = 1 - (current_cooldown / max_cooldown)
+        self.atkcd_label.text = f'Attack cooldown: {current_cooldown:.1f}'
+        self.atkcd.value = 100 * v
 
-        adelay, adelay_delta = stats[0, STAT.ATTACK_DELAY, (VALUE.CURRENT, VALUE.DELTA)]
-
-        if adelay == 0:
-            self._adelay_max = None
-        if self._adelay_max is None and adelay > 0:
-            self._adelay_max = adelay
-        if self._adelay_max is None:
-            v = 1
-        else:
-            v = 1 - (adelay / self._adelay_max)
-
-        self.adelay_label.text = f'Attack cooldown: {stats[0, STAT.ATTACK_DELAY_COST, VALUE.CURRENT]:.2f}'
-        self.adelay.value = 100 * v
-
-        hp, hp_max, hp_delta = stats[0, STAT.HP, (VALUE.CURRENT, VALUE.MAX_VALUE, VALUE.DELTA)]
+        hp, hp_max, hp_delta = self.api.get_stats(0, STAT.HP, value_name=(VALUE.CURRENT, VALUE.MAX_VALUE, VALUE.DELTA))
         hp_delta_str = f'(+ {hp_delta:.2f})' if hp_delta > 0 else ''
         self.hp_label.text = f'HP: {hp:.2f} / {hp_max:.2f}{hp_delta_str}'
         self.hp.value = 100 * hp / hp_max
 
-        mana, mana_max, mana_delta = stats[0, STAT.MANA, (VALUE.CURRENT, VALUE.MAX_VALUE, VALUE.DELTA)]
+        mana, mana_max, mana_delta = self.api.get_stats(0, STAT.MANA, (VALUE.CURRENT, VALUE.MAX_VALUE, VALUE.DELTA))
         mana_delta_str = f'(+ {mana_delta:.2f})' if mana_delta > 0 else ''
         self.mana_label.text = f'Mana: {mana:.2f} / {mana_max:.2f}{mana_delta_str}'
         self.mana.value = 100 * mana / mana_max
 
         self.stats_label.text = self.api.pretty_stats(0, stats=(
             STAT.MOVE_SPEED, STAT.RANGE, STAT.DAMAGE, STAT.GOLD))
+
+        cds = self.api.get_cooldown(0)
+        for ability in ABILITY_META.keys():
+            if cds[ability] > 0:
+                self.cooldown_filters[ability]['color'].rgba = (0, 0, 0, 0.5)
+            else:
+                self.cooldown_filters[ability]['color'].rgba = (0, 0, 0, 0)
+            self.cooldown_filters[ability]['rect'].pos = self.to_local(*self.cooldown_filters[ability]['panel'].pos)
+            self.cooldown_filters[ability]['rect'].size = self.cooldown_filters[ability]['panel'].size
 
 
 def center_position(pos, size):
