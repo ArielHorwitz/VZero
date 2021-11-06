@@ -1,5 +1,4 @@
 ### Long Term Goals
-- Construct abilities from balance config and mechanics
 - Ability selection before map start
 - Objectives bosses
   - Reward with acceses to new abilities and items

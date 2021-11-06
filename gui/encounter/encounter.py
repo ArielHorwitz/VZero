@@ -2,6 +2,7 @@
 from pathlib import Path
 import numpy as np
 import nutil
+from data.load import load_settings
 from nutil import display as ndis
 from nutil.time import humanize_ms, pingpong
 from nutil.random import SEED
@@ -153,6 +154,7 @@ class EncounterGUI(widgets.BoxLayout):
 
 class MapView(widgets.DrawCanvas):
     UNIT_SIZE = (30, 30)
+    DEFAULT_UPP = 1 / float(load_settings()['zoom'])
 
     def __init__(self, api, unit_selection, **kwargs):
         super().__init__(**kwargs)
@@ -162,12 +164,13 @@ class MapView(widgets.DrawCanvas):
             ) for a, (key, icon) in ABILITY_META.items()},
             'attack target': (f' q', lambda: self.attack_target()),
             'toggle range': (f'! r', lambda: self.set_draw_range()),
+            'zoom default': (f' 0', lambda: self.zoom()),
             'zoom in': (f' =', lambda: self.zoom(d=1.15)),
             'zoom out': (f' -', lambda: self.zoom(d=-1.15)),
             })
         self.__tilemap_source = TileMap(['tiles1']).make_map(100, 100)
         self.__on_unit_selection = unit_selection
-        self.__units_per_pixel = 0.6
+        self.__units_per_pixel = self.DEFAULT_UPP
         self.__default_bg_color = (0, 0.15, 0, 1)
         self.__cached_vfx = []
         self.__cached_move = None
@@ -372,8 +375,11 @@ class MapView(widgets.DrawCanvas):
             for r in self.range_circles:
                 r.circle = (*OUT_OF_DRAW_ZONE, 1)
 
-    def zoom(self, d):
-        self.__units_per_pixel *= abs(d)**(-1*nsign(d))
+    def zoom(self, d=None):
+        if d is None:
+            self.__units_per_pixel = self.DEFAULT_UPP
+        else:
+            self.__units_per_pixel *= abs(d)**(-1*nsign(d))
 
 
 class HUD(widgets.BoxLayout):

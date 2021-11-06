@@ -1,23 +1,26 @@
 import enum
+from nutil.display import adis
 from nutil.vars import AutoIntEnum
+from data.load import load_abilities as __mechanics_common_load_abilities_
 
 
-# ABILITIES
-class ABILITIES(AutoIntEnum):
-    # Basic
-    MOVE = enum.auto()
-    STOP = enum.auto()
-    LOOT = enum.auto()
-    # Spells
-    ATTACK = enum.auto()
-    BLOODLUST = enum.auto()
-    BEAM = enum.auto()
-    BLINK = enum.auto()
-    # Items
-    VIAL = enum.auto()
-    SHARD = enum.auto()
-    MOONSTONE = enum.auto()
-    BRANCH = enum.auto()
+MECHANICS_COMMON_DEFAULT_ABILITIES_NAMES = [
+    'MOVE',
+    'STOP',
+    'ATTACK',
+    'LOOT',
+    'VIAL',
+    'SHARD',
+    'MOONSTONE',
+    'BRANCH',
+]
+
+
+ABILITY = ABILITIES = AutoIntEnum('ABILITIES', [
+    *MECHANICS_COMMON_DEFAULT_ABILITIES_NAMES,
+    *[f'{internal_name.upper()}' for internal_name in \
+      __mechanics_common_load_abilities_().keys()]
+])
 
 
 class FAIL_RESULT(enum.Enum):

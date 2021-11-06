@@ -2,24 +2,15 @@
 import pkgutil, copy
 from pathlib import Path
 from collections import defaultdict
-from nutil.display import nprint
+from nutil.display import nprint, adis
 from nutil.file import file_load
 from logic.mechanics.common import *
-
+from data.load import load_units, load_spawn_weights
 
 
 class Units:
     ALL_UNITS = None
-    SPAWN_WEIGHTS = {
-        'ratzan': (4, 7),
-        'blood-imp': (4, 4),
-        'null-ice': (3, 1),
-        'winged-snake': (0, 1),
-        'fire-elemental': (2, 1),
-        'folphin': (3,1),
-        'treasure': (0, 1),
-        'heros-treasure': (0,1),
-    }
+    SPAWN_WEIGHTS = load_spawn_weights()
 
     @classmethod
     def new_unit(cls, unit_type_name, *args, **kwargs):
@@ -47,7 +38,15 @@ class Units:
     @classmethod
     def _get_all_units(cls):
         unit_types = cls._get_all_unit_types()
-        units = cls._get_units_config(unit_types)
+        units = load_units(unit_types)
+        for internal_name in units:
+            translated_stats = defaultdict(lambda: {})
+            for stat_name, unit_stats in units[internal_name]['stats'].items():
+                for value_name, value in unit_stats.items():
+                    stat_ = getattr(STAT, stat_name.upper())
+                    value_ = getattr(VALUE, value_name.upper())
+                    translated_stats[stat_][value_] = float(value)
+            units[internal_name]['stats'] = translated_stats
         return units
 
     @classmethod
@@ -66,6 +65,8 @@ class Units:
         unit_types = {}
         for loader, modname, ispkg in pkgutil.iter_modules(__path__, __name__+'.'):
             module = __import__(modname, fromlist='UNITS')
+            if 'UNIT_TYPES' not in module.__dict__:
+                continue
             for unit_name, unit_cls in module.UNIT_TYPES.items():
                 if unit_name in unit_types:
                     raise ValueError(f'Unit name duplicate: {unit_name} \
@@ -74,52 +75,6 @@ class Units:
                 unit_types[unit_name] = unit_cls
         return unit_types
 
-    @classmethod
-    def _get_units_config(cls, unit_types):
-        raw = file_load(Path.cwd()/'config'/'units.bal')
-        all_units = {}
-        line_number = 0
-        lines = raw.split('\n')
-        while line_number < len(lines):
-            if lines[line_number].startswith('='):
-                name = lines[line_number].split('= ', 1)[1]
-                unit_type = lines[line_number + 1]
-                if unit_type not in unit_types:
-                    raise ValueError(f'Unrecognized unit type: {unit_type}')
-                unit_type = unit_types[unit_type]
-                line_number += 2
-                unit_data = {
-                    'type': unit_type,
-                    'name': name,
-                    'params': {},
-                    'stats': defaultdict(lambda: {}),
-                }
-                while line_number < len(lines) and not lines[line_number].startswith('-'):
-                    if ':' not in lines[line_number]:
-                        line_number += 1
-                        continue
-                    param, value = lines[line_number].split(':')
-                    line_number += 1
-                    unit_data['params'][param] = value
-                while line_number < len(lines) and not lines[line_number].startswith('='):
-                    if ':' not in lines[line_number]:
-                        line_number += 1
-                        continue
-                    stat, value = lines[line_number].split(':')
-                    line_number += 1
-                    if '.' in stat:
-                        stat_name, value_name = stat.split('.')
-                    else:
-                        stat_name = stat
-                        value_name = 'current'
-                    stat_name = getattr(STAT, stat_name.upper())
-                    value_name = getattr(VALUE, value_name.upper())
-                    unit_data['stats'][stat_name][value_name] = float(value)
-                internal_name = name.lower().replace(' ', '-')
-                all_units[internal_name] = unit_data
-            else:
-                line_number += 1
-        return all_units
 
 
 DEFAULT_STARTING_STATS = {

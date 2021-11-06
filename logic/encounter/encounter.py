@@ -9,7 +9,7 @@ from logic.encounter.api import EncounterAPI
 from logic.encounter.stats import UnitStats
 from logic.units import Units
 from logic.mechanics.common import *
-from logic.mechanics.abilities import Abilities
+from logic.mechanics.casting import Cast
 
 
 RNG = np.random.default_rng()
@@ -200,9 +200,9 @@ class Encounter:
         target = np.array(target)
         if (target > self.map_size).any() or (target < 0).any():
             return FAIL_RESULT.OUT_OF_BOUNDS
-        callback_name = f'{ability.name.lower()}'
-        callback = getattr(Abilities, callback_name)
-        r = callback(self.api, uid, target)
+
+        r = Cast.cast_ability(ability, self.api, uid, target)
+
         if r is None:
             print(f'Ability method {callback_name} return result not implemented.')
             r = FAIL_RESULT.CRITICAL_ERROR
