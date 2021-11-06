@@ -6,7 +6,7 @@ from nutil.time import RateCounter, pingpong
 from gui.encounter.encounter import EncounterGUI
 
 
-VERSION = 0.002
+VERSION = 0.003
 NAME = f'Roguesque'
 TITLE = f'{NAME} v{VERSION}'
 SPRITE_DIR = Path.cwd() / 'assets' / 'graphics' / 'sprites'

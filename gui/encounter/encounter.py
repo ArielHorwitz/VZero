@@ -21,6 +21,7 @@ SFX = {sname: widgets.Sound.load(
     ('attack', 1),
     ('beam', 0.25),
     ('blink', 0.25),
+    ('consume', 0.1),
     ('cost', 0.25),
     ('move', 0.5),
     ('ouch', 0.15),
@@ -29,19 +30,18 @@ SFX = {sname: widgets.Sound.load(
     ('target', 0.5),
     ('ting', 0.25),
     ('loot', 0.5),
-    ('tada', 0.1),
 )}
+GUI_SFX = {'move', 'stop'}
 MUSIC_TRACKS = {sname: widgets.Sound.load(
     str(AUDIO_DIR/f'{sname}.wav'), volume=0.2) for sname in (
     'theme',
 )}
 
 ABILITY_META = {
-    ABILITIES.ATTACK: ('q', 'sword-glowburn.png'),
+    ABILITIES.ATTACK: ('a', 'sword-glowburn.png'),
     ABILITIES.BLINK: ('w', 'blink.png'),
-    ABILITIES.BLOODLUST: ('e', 'sword-divine.png'),
-    ABILITIES.BEAM: ('r', 'piracy.png'),
-    ABILITIES.LOOT: ('a', 'crosshair.png'),
+    ABILITIES.BEAM: ('e', 'piracy.png'),
+    ABILITIES.BLOODLUST: ('r', 'sword-divine.png'),
     ABILITIES.STOP: ('s', 'banner.png'),
     ABILITIES.LOOT: ('d', 'crosshair.png'),
     ABILITIES.LOOT: ('f', 'crosshair.png'),
@@ -136,7 +136,7 @@ class EncounterGUI(widgets.BoxLayout):
         self.info_pic.pos=(
             self.info_panel.pos[0],
             self.info_panel.pos[1]+self.info_panel.size[1]-self.info_pic.size[1])
-        self.info_pic.source = str(SPRITE_DIR/unit.SPRITE)
+        self.info_pic.source = str(SPRITE_DIR/unit.sprite)
 
     def select_unit(self, index=0):
         self.selected_unit = index
@@ -160,6 +160,7 @@ class MapView(widgets.DrawCanvas):
             **{f'ability {a.name.lower()}': (
             f' {key}', lambda *args, a=a: self.use_ability(a, self.mouse_real_pos)
             ) for a, (key, icon) in ABILITY_META.items()},
+            'attack target': (f' q', lambda: self.attack_target()),
             'toggle range': (f'! r', lambda: self.set_draw_range()),
             'zoom in': (f' =', lambda: self.zoom(d=1.15)),
             'zoom out': (f' -', lambda: self.zoom(d=-1.15)),
@@ -195,7 +196,7 @@ class MapView(widgets.DrawCanvas):
             for uid, unit in enumerate(self.api.units):
                 # Sprite details
                 color = COLOR_CODES[unit.color_code]
-                sprite_file = unit.SPRITE
+                sprite_file = unit.sprite
                 # Draw and cache sprites
                 sprite = widgets.Image(
                     source=str(SPRITE_DIR/sprite_file),
@@ -239,7 +240,7 @@ class MapView(widgets.DrawCanvas):
             sprite = self.unit_sprites[uid]
             pos = self.real2pix(all_positions[uid])
             # sprite
-            hitbox_diameter = max(35, round(1.8 * unit.HITBOX / self.__units_per_pixel))
+            hitbox_diameter = max(35, round(1.8 * unit.hitbox / self.__units_per_pixel))
             sprite.size = hitbox_diameter, hitbox_diameter
             sprite.pos = center_position(pos, sprite.size)
 
@@ -295,6 +296,9 @@ class MapView(widgets.DrawCanvas):
                     SFX[effect.params['sfx']].play()
 
     # Utility
+    def attack_target(self):
+        self.api.units[0].set_preferred_target(self.api, self.mouse_real_pos)
+
     def use_ability(self, *a, supress_sfx=False, **k):
         r = self.api.use_ability(*a, **k)
         if supress_sfx == False:
@@ -312,9 +316,10 @@ class MapView(widgets.DrawCanvas):
                 SFX['range'].play()
             if r in ABILITIES:
                 name = r.name.lower()
-                if name in SFX:
+                if name in GUI_SFX:
                     SFX[name].play()
         return r
+
 
     @property
     def draw_boundary_real(self):

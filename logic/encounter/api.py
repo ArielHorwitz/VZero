@@ -27,7 +27,7 @@ class EncounterAPI:
         attack_pos = self.get_position(target_uid)
         attack_target = self.units[target_uid]
         if include_hitbox:
-            range += attack_target.HITBOX
+            range += attack_target.hitbox
         if math.dist(pos, attack_pos) > range:
             if uid == 0 and draw_miss_vfx:
                 self.add_visual_effect(VisualEffect.LINE, 10, {
@@ -134,6 +134,10 @@ class EncounterAPI:
     def set_position(self):
         return self.e.stats.set_position
 
+    @property
+    def get_distances(self):
+        return self.e.stats.get_distances
+
     def debug_stats_table(self):
         return str(self.e.stats.table)
 
@@ -162,10 +166,11 @@ class EncounterAPI:
         return self.e.debug_action
 
     def pretty_stats(self, uid, stats=None):
+        unit = self.units[uid]
         if stats is None:
             stats = STAT
         stat_table = self.e.stats.table
-        s = [f'Allegience: {self.units[uid].allegience}']
+        s = [f'#{uid:0>3} .. Allegience: {unit.allegience}']
         for stat in stats:
             current = stat_table[uid, stat, VALUE.CURRENT]
             delta = stat_table[uid, stat, VALUE.DELTA]
@@ -187,4 +192,5 @@ class EncounterAPI:
             if v > 0:
                 name_ = ability.name.lower().capitalize()
                 s.append(f'{name_}: {v:.2f}')
+        s.append(f'{unit.debug_str[:30]}')
         return njoin(s)

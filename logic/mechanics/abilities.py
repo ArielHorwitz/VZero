@@ -1,18 +1,20 @@
 
 import numpy as np
 import math
+from pathlib import Path
+from nutil.file import file_load
 from logic.mechanics.common import *
 from logic.mechanics.mechanics import Mechanics as Mech
 
 
 class Abilities:
     @staticmethod
-    def do_ability_move(api, uid, target):
+    def move(api, uid, target):
         Mech.apply_move(api, uid, target=target)
         return ABILITIES.MOVE
 
     @staticmethod
-    def do_ability_loot(api, uid, target):
+    def loot(api, uid, target):
         ability = ABILITIES.LOOT
         pos = api.get_position(uid)
         range = api.get_stats(uid, STAT.RANGE)
@@ -33,10 +35,11 @@ class Abilities:
         # Move remains
         api.set_stats(loot_target, (STAT.POS_X, STAT.POS_Y), (-5000, -5000))
         print(f'Looted: {looted_gold} from {api.units[loot_target].name}')
+        api.add_visual_effect(VisualEffect.SFX, 5, params={'sfx': 'loot'})
         return ABILITIES.LOOT
 
     @staticmethod
-    def do_ability_blink(api, uid, target):
+    def blink(api, uid, target):
         ability = ABILITIES.BLINK
         mana_cost = 50
         blink_range_factor = 50
@@ -59,16 +62,17 @@ class Abilities:
             'p2': target,
             'color_code': -1,
         })
+        api.add_visual_effect(VisualEffect.SFX, 5, params={'sfx': 'blink'})
         return ability
 
     @staticmethod
-    def do_ability_stop(api, uid, target):
+    def stop(api, uid, target):
         current_pos = api.get_position(uid)
-        Abilities.do_ability_move(api, uid, current_pos)
+        Abilities.move(api, uid, current_pos)
         return ABILITIES.STOP
 
     @staticmethod
-    def do_ability_attack(api, uid, target):
+    def attack(api, uid, target):
         ability = ABILITIES.ATTACK
         attack_speed = api.get_stats(uid, STAT.ATTACK_SPEED, VALUE.CURRENT)
         cooldown = api.attack_speed_to_cooldown(attack_speed)
@@ -87,10 +91,12 @@ class Abilities:
             'p2': api.get_position(target_uid),
             'color_code': api.units[uid].color_code,
         })
+        if uid == 0:
+            api.add_visual_effect(VisualEffect.SFX, 5, params={'sfx': 'attack'})
         return ABILITIES.ATTACK
 
     @staticmethod
-    def do_ability_bloodlust(api, uid, target):
+    def bloodlust(api, uid, target):
         ability = ABILITIES.BLOODLUST
         mana_cost = 25
         cooldown = 120*60
@@ -110,7 +116,7 @@ class Abilities:
         return ability
 
     @staticmethod
-    def do_ability_beam(api, uid, target):
+    def beam(api, uid, target):
         ability = ABILITIES.BEAM
         cooldown = 600
         mana_cost = 50
@@ -126,6 +132,7 @@ class Abilities:
         if target_uid is None:
             return FAIL_RESULT.MISSING_TARGET
         # Apply
+        print(f'{uid} applied beam on {target_uid}')
         api.set_cooldown(uid, ability, cooldown)
         api.set_stats(uid, STAT.MANA, -mana_cost, additive=True)
         Mech.apply_slow(api, target_uid, duration, percent)
@@ -134,52 +141,54 @@ class Abilities:
             'p2': api.get_position(target_uid),
             'color_code': api.units[uid].color_code,
         })
+        api.add_visual_effect(VisualEffect.SFX, 5, params={'sfx': 'beam'})
         return ability
 
     @staticmethod
-    def do_ability_vial(api, uid, target):
+    def vial(api, uid, target):
         ability = ABILITIES.VIAL
-        gold_cost = 40
+        gold_cost = 50
         damage_buff = 10
         if api.get_stats(uid, STAT.GOLD) < gold_cost:
             return FAIL_RESULT.MISSING_COST
         api.set_stats(uid, STAT.GOLD, -gold_cost, additive=True)
         api.set_stats(uid, STAT.DAMAGE, damage_buff, additive=True)
+        api.add_visual_effect(VisualEffect.SFX, 5, params={'sfx': 'consume'})
         return ability
 
     @staticmethod
-    def do_ability_shard(api, uid, target):
+    def shard(api, uid, target):
         ability = ABILITIES.SHARD
-        gold_cost = 40
-        attack_speed_buff = 100
+        gold_cost = 30
+        attack_speed_buff = 10
         if api.get_stats(uid, STAT.GOLD) < gold_cost:
             return FAIL_RESULT.MISSING_COST
         api.set_stats(uid, STAT.GOLD, -gold_cost, additive=True)
         api.set_stats(uid, STAT.ATTACK_SPEED, attack_speed_buff, additive=True)
+        api.add_visual_effect(VisualEffect.SFX, 5, params={'sfx': 'consume'})
         return ability
 
     @staticmethod
-    def do_ability_moonstone(api, uid, target):
+    def moonstone(api, uid, target):
         ability = ABILITIES.MOONSTONE
-        gold_cost = 40
-        max_hp_buff = 10
+        gold_cost = 25
+        max_hp_buff = 5
         if api.get_stats(uid, STAT.GOLD) < gold_cost:
             return FAIL_RESULT.MISSING_COST
         api.set_stats(uid, STAT.GOLD, -gold_cost, additive=True)
         api.set_stats(uid, STAT.HP, max_hp_buff, value_name=VALUE.MAX_VALUE, additive=True)
+        api.set_stats(uid, STAT.HP, max_hp_buff, additive=True)
+        api.add_visual_effect(VisualEffect.SFX, 5, params={'sfx': 'consume'})
         return ability
 
     @staticmethod
-    def do_ability_branch(api, uid, target):
+    def branch(api, uid, target):
         ability = ABILITIES.BRANCH
         gold_cost = 10
-        damage_buff = 1
-        attack_speed_buff = 10
-        max_hp_buff = 1
+        move_speed = 0.05
         if api.get_stats(uid, STAT.GOLD) < gold_cost:
             return FAIL_RESULT.MISSING_COST
         api.set_stats(uid, STAT.GOLD, -gold_cost, additive=True)
-        api.set_stats(uid, STAT.DAMAGE, damage_buff, additive=True)
-        api.set_stats(uid, STAT.ATTACK_SPEED, attack_speed_buff, additive=True)
-        api.set_stats(uid, STAT.HP, max_hp_buff, value_name=VALUE.MAX_VALUE, additive=True)
+        api.set_stats(uid, STAT.MOVE_SPEED, move_speed, additive=True)
+        api.add_visual_effect(VisualEffect.SFX, 5, params={'sfx': 'consume'})
         return ability

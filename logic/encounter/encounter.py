@@ -7,11 +7,11 @@ from nutil.random import Seed, SEED
 from nutil.vars import normalize, NP
 from logic.encounter.api import EncounterAPI
 from logic.encounter.stats import UnitStats
-from logic.units import Player, get_starting_stats, get_all_units, SPAWN_WEIGHTS
+from logic.units import Units
 from logic.mechanics.common import *
 from logic.mechanics.abilities import Abilities
 
-UNIT_TYPES = get_all_units()
+
 RNG = np.random.default_rng()
 
 
@@ -95,6 +95,13 @@ class Encounter:
 
     def _do_agency(self):
         next_agency = self.__last_agency_tick + self.agency_resolution
+        # Player abilities
+        if self.api.mask_alive()[0]:
+            abilities = self.api.units[0].poll_abilities(self.api)
+            if abilities is not None:
+                for ability, target in abilities:
+                    self.use_ability(ability, target, uid=0)
+        # Monster abilities
         if self.tick < next_agency:
             return
         self.__last_agency_tick = self.tick
@@ -131,26 +138,25 @@ class Encounter:
 
     def _create_unit(self, unit_type, location, allegience):
         # Create stats
-        stats = get_starting_stats(custom=unit_type.STARTING_STATS)
+        stats = Units.get_starting_stats(unit_type)
         uid = self.stats.add_unit(stats)
         assert uid == len(self.units)
         # Set spawn location
         self.api.set_position(uid, location, value_name=(VALUE.CURRENT, VALUE.TARGET_VALUE))
         # Create agency
-        unit = unit_type(api=self.api, uid=uid, allegience=allegience)
+        unit = Units.new_unit(unit_type, api=self.api, uid=uid, allegience=allegience)
         self.units.append(unit)
 
     def _create_player(self):
         spawn = self.map_size/2
         # spawn = np.zeros(2)
-        self._create_unit(Player, spawn, allegience=0)
+        self._create_unit('player', spawn, allegience=0)
 
     def _create_monsters(self):
         i = -1
         cluster_index = -1
-        for type_index, d in enumerate(SPAWN_WEIGHTS.items()):
-            monster_type_name, (spawn_weight, cluster_size) = d
-            monster_type = UNIT_TYPES[monster_type_name]
+        for type_index, d in enumerate(Units.SPAWN_WEIGHTS.items()):
+            unit_type, (spawn_weight, cluster_size) = d
             if spawn_weight == 0:
                 cluster_count = 1
             else:
@@ -160,11 +166,11 @@ class Encounter:
                 for u in range(cluster_size):
                     i += 1
                     self._create_unit(
-                        unit_type=monster_type,
+                        unit_type=unit_type,
                         location=self.monster_camps[cluster_index],
                         allegience=1,
                     )
-            print(f'Spawned {(c+1)*(u+1)} {monster_type.__name__}')
+            print(f'Spawned {(c+1)*(u+1)} {unit_type}')
 
     # UTILITY
     def debug_action(self, *args, **kwargs):
@@ -194,7 +200,7 @@ class Encounter:
         target = np.array(target)
         if (target > self.map_size).any() or (target < 0).any():
             return FAIL_RESULT.OUT_OF_BOUNDS
-        callback_name = f'do_ability_{ability.name.lower()}'
+        callback_name = f'{ability.name.lower()}'
         callback = getattr(Abilities, callback_name)
         r = callback(self.api, uid, target)
         if r is None:
