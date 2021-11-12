@@ -16,7 +16,7 @@ class Camper(Unit):
               reaggro_range=100,
               camp_spread=50,
               ):
-        self.color_code = 1
+        self.color = (1, 0, 0)
         self.__aggro_range = float(aggro_range)
         self.__deaggro_range = float(deaggro_range)
         self.__reaggro_range = float(reaggro_range)
@@ -52,7 +52,7 @@ class Roamer(Unit):
     def setup(self, api,
               aggro_range=0,
               ):
-        self.color_code = 2
+        self.color = (0, 0, 1)
         self.__aggro_range = float(aggro_range)
         self.last_move = ping() - (SEED.r * 5000)
         self.__last_move_location = api.random_location()
@@ -73,13 +73,44 @@ class Roamer(Unit):
 
 
 class Treasure(Unit):
-    def startup(self, api, name='Loot me!'):
+    def setup(self, api, name='Loot me!'):
         self.name = name
 
 
+class DPSMeter(Unit):
+    def setup(self, api, name='Hit me!'):
+        self.name = name
+        api.set_stats(self.uid, STAT.HP, 10**12, value_name=VALUE.MAX_VALUE)
+        api.set_stats(self.uid, STAT.HP, 10**12)
+        api.set_stats(self.uid, STAT.HP, 0, value_name=VALUE.DELTA)
+        self.__started = False
+        self.__sample_size = 10
+        self.__sample_index = 0
+        self.__sample = np.ndarray((self.__sample_size, 2), dtype = np.float64)
+        self.__last_tick = api.tick
+        self.__last_hp = api.get_stats(self.uid, STAT.HP)
+        self.__tps = 120
+
+    def poll_abilities(self, api):
+        new_hp = api.get_stats(self.uid, STAT.HP)
+        self.__sample_index += 1
+        self.__sample_index %= self.__sample_size
+        sample_time = api.tick - self.__last_tick
+        self.__last_tick = api.tick
+        sample_damage = self.__last_hp - new_hp
+        self.__last_hp = new_hp
+        self.__sample[self.__sample_index] = (sample_time, sample_damage)
+
+    @property
+    def debug_str(self):
+        total_time = self.__sample[:, 0].sum()
+        total_damage = self.__sample[:, 1].sum()
+        dps = total_damage / total_time
+        return f'DPS: {dps*self.__tps:.2f} ({total_damage:.2f} / {total_time:.2f}) [{self.__sample_index}]'
 
 UNIT_TYPES = {
     'camper': Camper,
     'roamer': Roamer,
     'treasure': Treasure,
+    'dps_meter': DPSMeter,
 }

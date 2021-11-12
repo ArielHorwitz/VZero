@@ -6,6 +6,7 @@ from nutil.display import njoin
 from nutil.vars import normalize, NP
 from logic.mechanics.common import *
 from logic.mechanics.mechanics import Mechanics as Mech
+from logic.mechanics.casting import Cast as APICAST
 
 
 RNG = np.random.default_rng()
@@ -15,25 +16,27 @@ class EncounterAPI:
     # UTILITY
     def find_enemy_target(self, uid, target,
             range=None, include_hitbox=True,
-            draw_miss_vfx=True,
+            draw_miss_vfx=True, mask=None,
         ):
         pos = self.get_position(uid)
         if range is None:
             range = self.get_stats(uid, STAT.RANGE)
         enemies = self.mask_enemies(uid)
+        if mask is not None:
+            enemies = np.logical_and(enemies, mask)
         target_uid, dist = self.nearest_uid(target, enemies)
         if target_uid is None:
             return None
         attack_pos = self.get_position(target_uid)
         attack_target = self.units[target_uid]
         if include_hitbox:
-            range += attack_target.hitbox
+            range += self.get_stats(target_uid, STAT.HITBOX)
         if math.dist(pos, attack_pos) > range:
             if uid == 0 and draw_miss_vfx:
                 self.add_visual_effect(VisualEffect.LINE, 10, {
                     'p1': pos,
                     'p2': pos + normalize(attack_pos - pos, range),
-                    'color_code': self.units[uid].color_code,
+                    'color': self.units[uid].color,
                 })
             return None
         return target_uid
@@ -81,6 +84,20 @@ class EncounterAPI:
         return self.e.add_visual_effect
 
     # PROPERTIES
+    ALL_ABILITIES = list(APICAST.ABILITY_INSTANCES[_] for _ in ABILITIES)
+
+    @classmethod
+    def get_ability(cls, index):
+        return cls.ALL_ABILITIES[index]
+
+    @classmethod
+    def get_abilities(cls):
+        return cls.ALL_ABILITIES
+
+    @property
+    def abilities(self):
+        return self.ALL_ABILITIES
+
     @property
     def map_size(self):
         return self.e.map_size
@@ -88,6 +105,14 @@ class EncounterAPI:
     @property
     def map_center(self):
         return self.map_size / 2
+
+    @property
+    def auto_tick(self):
+        return self.e.auto_tick
+
+    @property
+    def unit_count(self):
+        return len(self.units)
 
     @property
     def tick(self):
@@ -141,7 +166,7 @@ class EncounterAPI:
     def debug_stats_table(self):
         return str(self.e.stats.table)
 
-    # GUI UTILITIES
+    # GUI UTILITIES - do not use for mechanics
     def do_ticks(self, t=1):
         return self.e._do_ticks(t)
 
@@ -157,6 +182,16 @@ class EncounterAPI:
     def use_ability(self, *args, **kwargs):
         return self.e.use_ability(*args, **kwargs)
 
+    def ticks2s(self, ticks=1):
+        return ticks / self.e.target_tps
+
+    def s2ticks(self, seconds=1):
+        return seconds * self.e.target_tps
+
+    @property
+    def timers(self):
+        return self.e.timers
+
     # DEBUG / MISC
     def __init__(self, encounter):
         self.e = encounter
@@ -170,27 +205,32 @@ class EncounterAPI:
         if stats is None:
             stats = STAT
         stat_table = self.e.stats.table
-        s = [f'#{uid:0>3} .. Allegience: {unit.allegience}']
+        s = [f'Allegience: {unit.allegience}']
         for stat in stats:
             current = stat_table[uid, stat, VALUE.CURRENT]
-            delta = stat_table[uid, stat, VALUE.DELTA]
+            delta = self.s2ticks()*stat_table[uid, stat, VALUE.DELTA]
             d_str = f' + {delta:.2f}' if delta != 0 else ''
             max_value = stat_table[uid, stat, VALUE.MAX_VALUE]
             mv_str = f' / {max_value:.2f}' if max_value < 100_000 else ''
             s.append(f'{stat.name.lower().capitalize()}: {current:3.2f}{d_str}{mv_str}')
-        s.append(f'Statuses:')
+        return njoin(s)
+
+    def pretty_statuses(self, uid):
+        s = []
         for status in STATUS:
             v = self.e.stats.status_table[uid, status]
-            duration = v[STATUS_VALUE.DURATION]
+            duration = self.ticks2s(v[STATUS_VALUE.DURATION])
             if duration > 0:
                 name_ = status.name.lower().capitalize()
                 amplitude = v[STATUS_VALUE.AMPLITUDE]
-                s.append(f'{name_}: {duration} *{amplitude}')
-        s.append(f'Cooldowns:')
+                s.append(f'{name_}: {duration:.2f} *{amplitude:.2f}')
+        return njoin(s)
+
+    def pretty_cooldowns(self, uid):
+        s = []
         for ability in ABILITIES:
-            v = self.e.stats.cooldowns[uid, ability]
+            v = self.get_cooldown(uid, ability)
             if v > 0:
                 name_ = ability.name.lower().capitalize()
-                s.append(f'{name_}: {v:.2f}')
-        s.append(f'{unit.debug_str[:30]}')
+                s.append(f'{name_}: {self.ticks2s(v):.2f}')
         return njoin(s)

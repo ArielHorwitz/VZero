@@ -77,11 +77,6 @@ class UnitStats:
         self._dmod_ticks[i] = ticks
         self._dmod_targets[i] = np.array(units)
         self._dmod_index += 1
-        print(self._dmod_index)
-        print(self._dmod_ticks)
-        print(self._dmod_targets)
-        print(units)
-        print(self._dmod_effects_add)
         return i
 
     def kill_stats(self, index):
@@ -104,16 +99,6 @@ class UnitStats:
         active_effects_add = active_effects_add[:, np.newaxis, :]
         dmod_add = active_targets * active_effects_add
         delta_add = np.sum(dmod_add, axis=0)
-
-        # debug
-        if DEBUG:
-            with np.printoptions(edgeitems=2, linewidth=10_000):
-                print(self._dmod_index)
-                nprint(self._dmod_ticks, 'dmod ticks / active')
-                print(active_dmods)
-                nprint(self._dmod_targets, 'dmod targets')
-                nprint(self._dmod_effects_add, 'dmod effects (add)')
-                nprint(delta_add, 'add deltas')
 
     def _do_stat_deltas(self, ticks):
         DEBUG = False
@@ -145,18 +130,6 @@ class UnitStats:
         at_target = np.logical_or(reaching_target, np.equal(target_value_diffs, 0))
         not_at_target = np.invert(at_target)
 
-        if DEBUG:
-            with np.printoptions(threshold=2, precision=2, edgeitems=2):
-                print('-'*50)
-                print('values', current_values)
-                print('deltas', deltas)
-                print('target values', target_values)
-                print('target ticks', target_ticks)
-                print('target value diffs', target_value_diffs)
-                print('same direction', tv_same_direction)
-                print('smaller than delta', tv_smaller_than_delta)
-                print('reaching target', at_target)
-
         # Add deltas or set at target
         current_values[not_at_target] += deltas[not_at_target]
         current_values[at_target] = target_values[at_target]
@@ -165,20 +138,9 @@ class UnitStats:
         # Cap at min and max value
         below_min_mask = current_values < min_values
         above_max_mask = current_values > max_values
-        if DEBUG:
-            with np.printoptions(threshold=2, precision=2, edgeitems=2):
-                self.print_table()
-                print('-'*50)
-                print('below min', below_min_mask)
-                print('above max', above_max_mask)
-                print('target values', target_values)
-                print('target ticks', target_ticks)
         current_values[below_min_mask] = min_values[below_min_mask]
         current_values[above_max_mask] = max_values[above_max_mask]
 
-        if DEBUG:
-            with np.printoptions(threshold=2, precision=2, edgeitems=2):
-                self.print_table()
 
     def _do_status_deltas(self, ticks):
         already_at_zero = self.status_table[:, :, STATUS_VALUE.DURATION] <= 0
@@ -188,7 +150,7 @@ class UnitStats:
         self.status_table[:, :, STATUS_VALUE.DURATION] -= ticks
 
     def _do_cooldown_deltas(self, ticks):
-        self.cooldowns -= 1
+        self.cooldowns -= ticks
 
     # STAT VALUES
     def get_stats(self, index, stat, value_name=None, copy=False):
@@ -238,10 +200,12 @@ class UnitStats:
         self.status_table[index, status, STATUS_VALUE.AMPLITUDE] = amplitude
 
     # SPECIAL VALUES
-    def get_position(self, index=None):
+    def get_position(self, index=None, value_name=None):
         if index is None:
             index = slice(None)
-        return self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.CURRENT]
+        if value_name is None:
+            value_name = VALUE.CURRENT
+        return self.table[index, (STAT.POS_X, STAT.POS_Y), value_name]
 
     def set_position(self, index, pos, value_name=None):
         if value_name is None:

@@ -4,23 +4,21 @@ from nutil.vars import AutoIntEnum
 from data.load import load_abilities as __mechanics_common_load_abilities_
 
 
-MECHANICS_COMMON_DEFAULT_ABILITIES_NAMES = [
-    'MOVE',
-    'STOP',
-    'ATTACK',
-    'LOOT',
-    'VIAL',
-    'SHARD',
-    'MOONSTONE',
-    'BRANCH',
-]
-
-
 ABILITY = ABILITIES = AutoIntEnum('ABILITIES', [
-    *MECHANICS_COMMON_DEFAULT_ABILITIES_NAMES,
     *[f'{internal_name.upper()}' for internal_name in \
       __mechanics_common_load_abilities_().keys()]
 ])
+
+
+class COLOR:
+    BLACK = (0, 0, 0)
+    WHITE = (1, 1, 1)
+    RED = (1, 0, 0)
+    GREEN = (0, 1, 0)
+    BLUE = (0, 0, 1)
+    YELLOW = (1, 1, 0)
+    PURPLE = (1, 0, 1)
+    CYAN = (0, 1, 1)
 
 
 class FAIL_RESULT(enum.Enum):
@@ -35,12 +33,16 @@ class FAIL_RESULT(enum.Enum):
 
 # BASE STATS
 class STAT(AutoIntEnum):
+    # Builtins - do not touch
     POS_X = enum.auto()
     POS_Y = enum.auto()
-    MOVE_SPEED = enum.auto()
-    GOLD = enum.auto()
     HP = enum.auto()
     MANA = enum.auto()
+    HITBOX = enum.auto()
+
+    # Stats required by mechanics
+    MOVE_SPEED = enum.auto()
+    GOLD = enum.auto()
     RANGE = enum.auto()
     DAMAGE = enum.auto()
     ATTACK_SPEED = enum.auto()
@@ -53,6 +55,9 @@ assert STAT.POS_X + 1 == STAT.POS_Y
 class STATUS(AutoIntEnum):
     SLOW = enum.auto()
     LIFESTEAL = enum.auto()
+    SHIELD_CHANCE = enum.auto()
+    SHIELD_BLOCK = enum.auto()
+    WRATH = enum.auto()
 
 
 # STATUSES
@@ -75,12 +80,16 @@ class VALUE(AutoIntEnum):
 class _VFX(AutoIntEnum):
     BACKGROUND = enum.auto()
     LINE = enum.auto()
+    CIRCLE = enum.auto()
+    SPRITE = enum.auto()
     SFX = enum.auto()
 
 
 class VisualEffect:
     BACKGROUND = _VFX.BACKGROUND
     LINE = _VFX.LINE
+    CIRCLE = _VFX.CIRCLE
+    SPRITE = _VFX.SPRITE
     SFX = _VFX.SFX
 
     def __init__(self, eid, ticks, params=None):
