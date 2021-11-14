@@ -11,7 +11,7 @@ from nutil.kex import widgets
 
 from data.load import Settings, Assets
 from data.tileset import TileMap
-from gui import cc_int
+from gui import cc_int, center_position
 from gui.encounter.sprites import Sprites
 from gui.encounter.vfx import VFX
 from gui.encounter.hud import HUD
@@ -21,43 +21,55 @@ from logic.mechanics.common import *
 
 
 class Encounter(widgets.RelativeLayout):
-    DEFAULT_UPP = 1 / Settings.get_setting('zoom')
+    DEFAULT_UPP = 1 / Settings.get_setting('default_zoom')
 
     def __init__(self, api, **kwargs):
         super().__init__(**kwargs)
         self.api = api
         self.timers = defaultdict(RateCounter)
         self.__units_per_pixel = self.DEFAULT_UPP
-        self.__cached_move = None
+        self.__cached_target = None
         self.selected_unit = 0
-        self._music_track = Assets.get_sfx('theme', 'theme')
-        self.toggle_theme()
+        self._theme_track = Assets.get_sfx('theme', 'theme')
+        self.toggle_play_sounds()
 
         # Setting the order of timers
         for timer in ('draw/idle', 'frame_total', 'graphics_total'):
             self.timers[timer]
 
-        ability_hotkeys = enumerate(Settings.get_setting('ability_hotkeys'))
+        self.ability_hotkeys = Settings.get_setting('abilities', 'Hotkeys')
+        self.right_click_ability = Settings.get_setting('right_click', 'Hotkeys')
 
         # User input bindings
         self.app.hotkeys.register_dict({
             # encounter management
-            'toggle pause': (f' spacebar', lambda: self.toggle_play()),
-            'leave encounter': (f' escape', lambda: self.app.end_encounter()),
+            'toggle play/pause': (
+                f'{Settings.get_setting("toggle_play", "Hotkeys")}',
+                lambda: self.toggle_play()),
+            'leave encounter': (
+                f'{Settings.get_setting("leave_encounter", "Hotkeys")}',
+                lambda: self.app.end_encounter()),
+            # user controls
+            **{f'ability {key.upper()}': (
+                f'{key}', lambda *args, x=i: self.quickcast(x)
+                ) for i, key in enumerate(self.ability_hotkeys)},
+            'zoom default': (
+                f'{Settings.get_setting("zoom_default", "Hotkeys")}',
+                lambda: self.zoom()),
+            'zoom in': (
+                f'{Settings.get_setting("zoom_in", "Hotkeys")}',
+                lambda: self.zoom(d=1.15)),
+            'zoom out': (
+                f'{Settings.get_setting("zoom_out", "Hotkeys")}',
+                lambda: self.zoom(d=-1.15)),
+            'map view': (
+                f'{Settings.get_setting("map_view", "Hotkeys")}',
+                lambda: self.toggle_map_zoom()),
             # debug
             'debug': (f'^+ d', lambda: self.debug()),
-            'debug dmod': (f'^+ v', lambda: self.debug(dmod=True)),
             'normal tps': (f'^+ t', lambda: self.debug(tps=None)),
             'high tps': (f'^!+ t', lambda: self.debug(tps=920)),
             'single tick': (f'^ t', lambda: self.debug(tick=1)),
-            # user controls
-            **{f'ability {key.upper()}': (
-                f' {key}', lambda *args, x=i: self.quickcast(x)
-                ) for i, key in ability_hotkeys},
-            'toggle range': (f'! r', lambda: self.set_draw_range()),
-            'zoom default': (f' 0', lambda: self.zoom()),
-            'zoom in': (f' =', lambda: self.zoom(d=1.15)),
-            'zoom out': (f' -', lambda: self.zoom(d=-1.15)),
             })
         self.bind(on_touch_down=self.do_mouse_down)
         self.bind(on_touch_move=self.check_mouse_move)
@@ -87,21 +99,31 @@ class Encounter(widgets.RelativeLayout):
             # Tilemap
             self.tilemap = widgets.Image(
                source=tilemap_source,
-               allow_stretch=True,
                size=cc_int(tilemap_size),
-           )
+               allow_stretch=True)
 
-    def toggle_play(self):
-        self.api.set_auto_tick()
-        self.toggle_theme()
+        # Move target indicator
+        with self.canvas:
+            widgets.kvColor(1, 1, 1)
+            self.move_crosshair = widgets.kvRectangle(
+                source=Assets.get_sprite('ability', 'crosshair2'),
+                allow_stretch=True, size=(15, 15))
 
-    def toggle_theme(self):
+    def toggle_play(self, *args, **kwargs):
+        logger.debug(f'GUI toggling play/pause')
+        self.api.set_auto_tick(*args, **kwargs)
+        self.toggle_play_sounds()
+
+    def toggle_play_sounds(self):
+        logger.debug(f'Toggling theme music, autotick: {self.api.auto_tick}')
         if self.api.auto_tick is True:
-            logger.debug(f'Playing theme {self._music_track}')
-            self._music_track.play(loop=True, replay=False, volume=Settings.get_setting('volume_music'))
+            Assets.play_sfx('ui', 'play', volume=Settings.get_volume('ui'))
+            logger.debug(f'Playing theme {self._theme_track}')
+            self._theme_track.play(loop=True, replay=False, volume=Settings.get_volume('music'))
         else:
-            logger.debug(f'Pausing theme {self._music_track}')
-            self._music_track.pause()
+            Assets.play_sfx('ui', 'pause', volume=Settings.get_volume('ui'))
+            logger.debug(f'Pausing theme {self._theme_track}')
+            self._theme_track.pause()
 
     def update(self):
         self.timers['draw/idle'].pong()
@@ -118,11 +140,10 @@ class Encounter(widgets.RelativeLayout):
         self.timers['draw/idle'].ping()
 
     def _update(self):
-        if self.__cached_move is not None:
-            self.use_ability(
-                self.api.units[0].ability_order[5],
-                self.__cached_move, supress_sfx=True)
-            self.__cached_move = None
+        if self.__cached_target is not None:
+            if Settings.get_setting('enable_hold_mouse', 'Hotkeys'):
+                self.use_right_click()
+            self.__cached_target = None
         player_pos = self.api.get_position(0)
         self.__player_pos = player_pos
         self.__anchor_offset = np.array(self.size) / 2
@@ -130,22 +151,29 @@ class Encounter(widgets.RelativeLayout):
         self.tilemap.size = cc_int(np.array(self.api.map_size) / self.__units_per_pixel)
         self.tilemap.pos = cc_int(self.real2pix(np.zeros(2)))
 
+        self.move_crosshair.pos = center_position(self.real2pix(
+            self.api.get_position(0, value_name=VALUE.TARGET_VALUE)
+            ), self.move_crosshair.size)
+
     def debug(self, *a, **k):
         return self.api.debug(*a, **k)
 
     def check_mouse_move(self, w, m):
         if m.button == 'right':
-            self.__cached_move = self.mouse_real_pos
+            self.__cached_target = self.mouse_real_pos
 
     def do_mouse_down(self, w, m):
         if not self.collide_point(*m.pos):
             return
         real_pos = self.mouse_real_pos
         if m.button == 'right':
-            self.use_ability(self.api.units[0].ability_order[5], real_pos)
+            self.use_right_click()
         if m.button == 'left':
-            selected_unit = self.api.nearest_uid(real_pos, alive=False)[0]
+            selected_unit = self.api.nearest_uid(real_pos, alive_only=False)[0]
             self.info_panel.select_unit(selected_unit)
+
+    def use_right_click(self):
+        return self.quickcast(self.ability_hotkeys.index(self.right_click_ability))
 
     @property
     def zoom_level(self):
@@ -153,6 +181,12 @@ class Encounter(widgets.RelativeLayout):
 
     # Utility
     def quickcast(self, key_index):
+        self.api.add_visual_effect(VisualEffect.SPRITE, 15, {
+            'point': self.mouse_real_pos,
+            'fade': 30,
+            'source': 'crosshair',
+            'size': (40, 40),
+        })
         ao = self.api.units[0].ability_order
         if key_index >= len(ao):
             return
@@ -162,25 +196,20 @@ class Encounter(widgets.RelativeLayout):
         self.use_ability(ao[key_index], self.mouse_real_pos)
 
     def use_ability(self, aid, target, supress_sfx=False):
-        if not self.api.auto_tick:
+        if not self.api.auto_tick and not self.api.dev_mode:
             return
         r = self.api.units[0].use_ability(self.api, aid, target)
         if supress_sfx == False:
             if r is FAIL_RESULT.MISSING_COST:
-                # print(f'Missing cost for {aid.name}')
-                Assets.play_sfx('ui', 'cost', volume=Settings.get_setting('volume_feedback'))
+                Assets.play_sfx('ui', 'cost', volume=Settings.get_volume('feedback'))
             if r is FAIL_RESULT.MISSING_TARGET:
-                # print(f'Missing target for {aid.name}')
-                Assets.play_sfx('ui', 'target', volume=Settings.get_setting('volume_feedback'))
+                Assets.play_sfx('ui', 'target', volume=Settings.get_volume('feedback'))
             if r is FAIL_RESULT.OUT_OF_BOUNDS:
-                # print('Out of bounds')
-                Assets.play_sfx('ui', 'range', volume=Settings.get_setting('volume_feedback'))
+                Assets.play_sfx('ui', 'range', volume=Settings.get_volume('feedback'))
             if r is FAIL_RESULT.OUT_OF_RANGE:
-                # print(f'Out of range for {aid.name}')
-                Assets.play_sfx('ui', 'range', volume=Settings.get_setting('volume_feedback'))
+                Assets.play_sfx('ui', 'range', volume=Settings.get_volume('feedback'))
             if r is FAIL_RESULT.ON_COOLDOWN:
-                # print(f'{aid.name} on cooldown')
-                Assets.play_sfx('ui', 'cooldown', volume=Settings.get_setting('volume_feedback'))
+                Assets.play_sfx('ui', 'cooldown', volume=Settings.get_volume('feedback'))
         return r
 
     def real2pix(self, pos):
@@ -205,7 +234,20 @@ class Encounter(widgets.RelativeLayout):
         real = self.pix2real(local)
         return real
 
-    def zoom(self, d=None):
+    def toggle_map_zoom(self):
+        if self.__units_per_pixel == self.DEFAULT_UPP:
+            upp_to_fit_axes = np.array(self.api.map_size) / self.size
+            v = sum(upp_to_fit_axes) / 2
+            logger.debug(f'Fitting map size into widget size, ratio: {self.api.map_size}/{self.size} = {upp_to_fit_axes} upp, average: {v}')
+            self.zoom(v=v)
+        else:
+            logger.debug(f'Setting to default upp')
+            self.zoom()
+
+    def zoom(self, d=None, v=None):
+        if v is not None:
+            self.__units_per_pixel = v
+            return
         if d is None:
             self.__units_per_pixel = self.DEFAULT_UPP
         else:

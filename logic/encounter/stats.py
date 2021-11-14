@@ -1,5 +1,9 @@
+import logging
+logger = logging.getLogger(__name__)
+# logger.setLevel(logging.DEBUG)
 
 import copy
+import math
 import numpy as np
 import enum
 from nutil.vars import AutoIntEnum, is_iterable
@@ -20,7 +24,7 @@ class UnitStats:
         self.table = np.ndarray(
             shape=(0, self.stat_count, self.values_count),
             dtype=np.float64)
-        # Status table, containing all status durations and amplitudes.
+        # Status table, containing all status durations and stacks.
         self.status_count = len(STATUS)
         self.status_values_count = len(STATUS_VALUE)
         self.status_table = np.ndarray(
@@ -28,7 +32,7 @@ class UnitStats:
             dtype=np.float64)
         # Cooldown table contains a cooldown value (-1 per tick)
         # For each ability
-        self.ability_count = len(ABILITIES)
+        self.ability_count = len(ABILITY)
         self.cooldowns = np.ndarray(shape=(0, self.ability_count))
         # Delta modifier table contains temporary effects that can
         # add to each stat delta (without changing their source),
@@ -47,15 +51,7 @@ class UnitStats:
     # ADD/REMOVE UNIT STATS
     def add_unit(self, starting_stats):
         # Base stats entry
-        unit_matrix = np.zeros((1, self.stat_count, self.values_count))
-        for stat in STAT:
-            if stat not in starting_stats:
-                raise ValueError(f'Missing starting stat: {stat.name}')
-            values = starting_stats[stat]
-            for value in VALUE:
-                if value not in values:
-                    raise ValueError(f'Missing starting stat value: {stat.name} {value.name}')
-                unit_matrix[0, stat, value] = values[value]
+        unit_matrix = _make_unit_stats(starting_stats)
         self.table = np.concatenate((self.table, unit_matrix), axis=0)
         # Dmod entry
         new_column = np.zeros((DMOD_CACHE_SIZE, 1))
@@ -80,7 +76,7 @@ class UnitStats:
         return i
 
     def kill_stats(self, index):
-        self.table[index, :, [VALUE.DELTA, VALUE.TARGET_VALUE, VALUE.TARGET_TICK]] = 0
+        self.table[index, :, [VALUE.DELTA, VALUE.TARGET_VALUE]] = 0
 
     # TICK
     def do_tick(self, ticks):
@@ -120,7 +116,6 @@ class UnitStats:
         min_values = self.table[:, :, VALUE.MIN_VALUE]
         max_values = self.table[:, :, VALUE.MAX_VALUE]
         target_values = self.table[:, :, VALUE.TARGET_VALUE]
-        target_ticks = self.table[:, :, VALUE.TARGET_TICK]
         target_value_diffs = target_values - current_values
 
         # Find which values are changed by delta, and which reach their target
@@ -140,7 +135,6 @@ class UnitStats:
         above_max_mask = current_values > max_values
         current_values[below_min_mask] = min_values[below_min_mask]
         current_values[above_max_mask] = max_values[above_max_mask]
-
 
     def _do_status_deltas(self, ticks):
         already_at_zero = self.status_table[:, :, STATUS_VALUE.DURATION] <= 0
@@ -182,22 +176,22 @@ class UnitStats:
 
     def get_status(self, index, status, value_name=None):
         """
-        Get a status duration/amplitude. Passing neither to value_name will return
-        the amplitude only if duration > 0.
+        Get a status duration/stacks. Passing neither to value_name will return
+        the stacks only if duration > 0.
         """
         duration = self.status_table[index, status, STATUS_VALUE.DURATION]
-        amp = self.status_table[index, status, STATUS_VALUE.AMPLITUDE]
+        amp = self.status_table[index, status, STATUS_VALUE.STACKS]
         if value_name is STATUS_VALUE.DURATION:
             return duration
-        elif value_name is STATUS_VALUE.AMPLITUDE:
+        elif value_name is STATUS_VALUE.STACKS:
             return amp
         elif value_name is None:
             return amp * (duration > 0)
         raise ValueError(f'value_name unrecognized')
 
-    def set_status(self, index, status, duration, amplitude):
+    def set_status(self, index, status, duration, stacks):
         self.status_table[index, status, STATUS_VALUE.DURATION] = duration
-        self.status_table[index, status, STATUS_VALUE.AMPLITUDE] = amplitude
+        self.status_table[index, status, STATUS_VALUE.STACKS] = stacks
 
     # SPECIAL VALUES
     def get_position(self, index=None, value_name=None):
@@ -215,6 +209,12 @@ class UnitStats:
         for value in value_name:
             self.table[index, (STAT.POS_X, STAT.POS_Y), value] = pos
 
+    def get_velocity(self, index=None):
+        if index is None:
+            index = slice(None)
+        v = self.get_position(index, value_name=VALUE.DELTA)
+        return math.dist((0, 0), v)
+
     def get_distances(self, point):
         positions = self.table[:, (STAT.POS_X, STAT.POS_Y), VALUE.CURRENT]
         vectors = positions - np.array(point)
@@ -222,19 +222,14 @@ class UnitStats:
         return dist
 
 
-def debug_indices():
-    print('Using stat indices:')
+def _make_unit_stats(data_dict):
+    unit_matrix = np.zeros((1, len(STAT), len(VALUE)))
     for stat in STAT:
-        print(stat.value, stat.name)
-    print('Using stat value indices:')
-    for value in VALUE:
-        print(value.value, value.name)
-    print('Using status indices:')
-    for status in STATUS:
-        print(status.value, status.name)
-    print('Using status value indices:')
-    for status_value in STATUS_VALUE:
-        print(status_value.value, status_value.name)
-    print('Using ability indices:')
-    for ability in ABILITIES:
-        print(ability.value, ability.name)
+        if stat not in data_dict:
+            raise ValueError(f'Missing starting stat: {stat.name}')
+        values = data_dict[stat]
+        for value in VALUE:
+            if value not in values:
+                raise ValueError(f'Missing starting stat value: {stat.name} {value.name}')
+            unit_matrix[0, stat, value] = values[value]
+    return unit_matrix

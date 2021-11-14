@@ -1,3 +1,7 @@
+import logging
+logger = logging.getLogger(__name__)
+# logger.setLevel(logging.DEBUG)
+
 
 import numpy as np
 import math
@@ -6,38 +10,18 @@ from nutil.file import file_load
 from nutil.vars import normalize
 from nutil.display import njoin
 from logic.mechanics.common import *
-from logic.mechanics.mechanics import Mechanics as Mech
-
-import logging
-logger = logging.getLogger(__name__)
-
-
-class Ability:
-    def __init__(self, aid, name):
-        self.name = name
-        self.aid = aid
-        self.color = (0.25, 0.25, 0.25)
-
-    @property
-    def sprite(self):
-        return self.aid.name.lower()
-
-    def cast(self, aid, uid, target):
-        raise NotImplementedError(f'Ability {self.aid} cast method not implemented')
-
-    @property
-    def description(self):
-        return f'No description available (#{self.aid})'
+from logic.mechanics.ability import Ability
+from logic.mechanics import import_mod_module
+Mech = import_mod_module('mechanics').Mechanics
 
 
 class Move(Ability):
-    def __init__(self, aid, name,
-                 mana_cost=0,
-                 range=1_000_000,
-                 cooldown=0,
-                 speed_multiplier=1,
-                 ):
-        super().__init__(aid, name)
+    def setup(self,
+              mana_cost=0,
+              range=1_000_000,
+              cooldown=0,
+              speed_multiplier=1,
+              ):
         self.mana_cost = mana_cost
         self.range = range
         self.cooldown = cooldown
@@ -69,12 +53,11 @@ class Move(Ability):
 
 
 class Loot(Ability):
-    def __init__(self, aid, name,
+    def setup(self,
                  mana_cost=0,
                  range=150,
                  cooldown=0,
                  ):
-        super().__init__(aid, name)
         self.mana_cost = mana_cost
         self.range = range
         self.cooldown = cooldown
@@ -113,13 +96,12 @@ class Loot(Ability):
 
 
 class Attack(Ability):
-    def __init__(self, aid, name,
+    def setup(self,
                  mana_cost=0,
                  range=100,
                  cooldown=150,
                  damage_multiplier=1
                  ):
-        super().__init__(aid, name)
         self.mana_cost = mana_cost
         self.range = range
         self.cooldown = cooldown
@@ -132,7 +114,7 @@ class Attack(Ability):
             return FAIL_RESULT.ON_COOLDOWN
         if api.get_stats(uid, STAT.MANA) < self.mana_cost:
             return FAIL_RESULT.MISSING_COST
-        target_uid = api.find_enemy_target(uid, target)
+        target_uid = Mech.find_enemy_target(api, uid, target)
         if target_uid is None:
             return FAIL_RESULT.MISSING_TARGET
         damage = api.get_stats(uid, STAT.DAMAGE, VALUE.CURRENT) * self.damage_multiplier
@@ -162,12 +144,11 @@ class Attack(Ability):
 
 
 class Teleport(Ability):
-    def __init__(self, aid, name,
+    def setup(self,
                  mana_cost=50,
                  range=300,
                  cooldown=200,
                  ):
-        super().__init__(aid, name)
         self.mana_cost = mana_cost
         self.range = range
         self.cooldown = cooldown
@@ -209,7 +190,7 @@ class Teleport(Ability):
 
 
 class Slow(Ability):
-    def __init__(self, aid, name,
+    def setup(self,
                  mana_cost=50,
                  cooldown=600,
                  duration=240,
@@ -217,7 +198,6 @@ class Slow(Ability):
                  range=400,
                  damage_percent=0,
                  ):
-        super().__init__(aid, name)
         self.mana_cost = mana_cost
         self.cooldown = cooldown
         self.duration = duration
@@ -232,7 +212,7 @@ class Slow(Ability):
             return FAIL_RESULT.MISSING_COST
         if api.get_cooldown(uid, self.aid) > 0:
             return FAIL_RESULT.ON_COOLDOWN
-        target_uid = api.find_enemy_target(uid, target, range=self.range)
+        target_uid = Mech.find_enemy_target(api, uid, target, range=self.range)
         if target_uid is None:
             return FAIL_RESULT.MISSING_TARGET
         damage = api.get_stats(target_uid, STAT.HP) * self.damage
@@ -266,13 +246,12 @@ class Slow(Ability):
 
 
 class Lifesteal(Ability):
-    def __init__(self, aid, name,
+    def setup(self,
                  mana_cost=25,
                  cooldown=7200,
                  duration=960,
                  percent=100,
                  ):
-        super().__init__(aid, name)
         self.mana_cost = mana_cost
         self.cooldown = cooldown
         self.duration = duration
@@ -291,6 +270,7 @@ class Lifesteal(Ability):
         api.set_status(uid, STATUS.LIFESTEAL, self.duration, self.percent)
         if uid == 0:
             api.add_visual_effect(VisualEffect.BACKGROUND, self.duration, params={'color': (1, 0, 0, 0.15)})
+        api.add_visual_effect(VisualEffect.SFX, 5, params={'sfx': 'bloodlust'})
         return self.aid
 
     @property
@@ -306,14 +286,13 @@ class Lifesteal(Ability):
 
 
 class Shield(Ability):
-    def __init__(self, aid, name,
+    def setup(self,
                  hp_cost_percent= 5,
                  cooldown=2400,
                  duration=800,
                  chance_percent=69,
                  block_percent=69,
                  ):
-        super().__init__(aid, name)
         self.hp_cost = hp_cost_percent / 100
         self.cooldown = cooldown
         self.duration = duration
@@ -356,14 +335,13 @@ class Shield(Ability):
 
 
 class Blast(Ability):
-    def __init__(self, aid, name,
-                 mana_cost=30,
-                 cooldown=5000,
-                 range=500,
-                 radius=300,
+    def setup(self,
+                 mana_cost=35,
+                 cooldown=500,
+                 range=300,
+                 radius=70,
                  damage=0,
                  ):
-        super().__init__(aid, name)
         self.mana_cost = mana_cost
         self.cooldown = cooldown
         self.range = range
@@ -436,7 +414,7 @@ class Mindcontrol(Ability):
         current_hps = api.get_stats(slice(None),STAT.HP)
 
         precent_mask = current_hps < (max_hps * self.hp_margin)
-        target_uid = api.find_enemy_target(uid, target, range=self.range, mask=precent_mask)
+        target_uid = Mech.find_enemy_target(api, uid, target, range=self.range, mask=precent_mask)
         if target_uid is None:
             return FAIL_RESULT.MISSING_TARGET
 
@@ -448,11 +426,10 @@ class Mindcontrol(Ability):
 
 
 class Wrath(Ability):
-    def __init__(self,aid,name,
+    def setup(self,
                  hp_cost_percent = 50,
                  duration = 1200,
                  ):
-        super().__init__(aid, name)
         self.hp_cost = hp_cost_percent / 100
         self.duration = duration
         self.color = (1, 0.4, 0)
@@ -466,93 +443,6 @@ class Wrath(Ability):
         api.set_status(uid, STATUS.WRATH, self.duration, stacks)
 
         return self.aid
-
-
-class DefaultAbilities:
-    class Move(Ability):
-        def cast(self, api, uid, target):
-            Mech.apply_move(api, uid, target=target)
-            return ABILITIES.MOVE
-
-    class Loot(Ability):
-        def cast(self, api, uid, target):
-            ability = ABILITIES.LOOT
-            pos = api.get_position(uid)
-            range = 150
-            # Check
-            golds = api.get_stats(index=slice(None), stat=STAT.GOLD)
-            mask_gold = golds > 0
-            lootables = np.logical_and(api.mask_dead(), mask_gold)
-            loot_target, dist = api.nearest_uid(pos, mask=lootables, alive=False)
-            if loot_target is None:
-                return FAIL_RESULT.MISSING_TARGET
-            loot_pos = api.get_position(loot_target)
-            if math.dist(pos, loot_pos) > range:
-                return FAIL_RESULT.OUT_OF_RANGE
-            # Apply
-            looted_gold = api.get_stats(loot_target, STAT.GOLD)
-            api.set_stats(uid, STAT.GOLD, looted_gold, additive=True)
-            api.set_stats(loot_target, STAT.GOLD, 0)
-            # Move remains
-            api.set_stats(loot_target, (STAT.POS_X, STAT.POS_Y), (-5000, -5000))
-            logger.debug(f'Looted: {looted_gold} from {api.units[loot_target].name}')
-            api.add_visual_effect(VisualEffect.SFX, 5, params={'sfx': 'coin'})
-            return self.aid
-
-    @classmethod
-    def stop(cls, api, uid, target):
-        current_pos = api.get_position(uid)
-        cls.move(api, uid, current_pos)
-        return ABILITIES.STOP
-
-    @classmethod
-    def vial(cls, api, uid, target):
-        ability = ABILITIES.VIAL
-        gold_cost = 50
-        damage_buff = 10
-        if api.get_stats(uid, STAT.GOLD) < gold_cost:
-            return FAIL_RESULT.MISSING_COST
-        api.set_stats(uid, STAT.GOLD, -gold_cost, additive=True)
-        api.set_stats(uid, STAT.DAMAGE, damage_buff, additive=True)
-        api.add_visual_effect(VisualEffect.SFX, 5, params={'sfx': 'consume'})
-        return ability
-
-    @classmethod
-    def shard(cls, api, uid, target):
-        ability = ABILITIES.SHARD
-        gold_cost = 30
-        attack_speed_buff = 10
-        if api.get_stats(uid, STAT.GOLD) < gold_cost:
-            return FAIL_RESULT.MISSING_COST
-        api.set_stats(uid, STAT.GOLD, -gold_cost, additive=True)
-        api.set_stats(uid, STAT.ATTACK_SPEED, attack_speed_buff, additive=True)
-        api.add_visual_effect(VisualEffect.SFX, 5, params={'sfx': 'consume'})
-        return ability
-
-    @classmethod
-    def moonstone(cls, api, uid, target):
-        ability = ABILITIES.MOONSTONE
-        gold_cost = 25
-        max_hp_buff = 5
-        if api.get_stats(uid, STAT.GOLD) < gold_cost:
-            return FAIL_RESULT.MISSING_COST
-        api.set_stats(uid, STAT.GOLD, -gold_cost, additive=True)
-        api.set_stats(uid, STAT.HP, max_hp_buff, value_name=VALUE.MAX_VALUE, additive=True)
-        api.set_stats(uid, STAT.HP, max_hp_buff, additive=True)
-        api.add_visual_effect(VisualEffect.SFX, 5, params={'sfx': 'consume'})
-        return ability
-
-    @classmethod
-    def branch(cls, api, uid, target):
-        ability = ABILITIES.BRANCH
-        gold_cost = 10
-        move_speed = 0.05
-        if api.get_stats(uid, STAT.GOLD) < gold_cost:
-            return FAIL_RESULT.MISSING_COST
-        api.set_stats(uid, STAT.GOLD, -gold_cost, additive=True)
-        api.set_stats(uid, STAT.MOVE_SPEED, move_speed, additive=True)
-        api.add_visual_effect(VisualEffect.SFX, 5, params={'sfx': 'consume'})
-        return ability
 
 
 ABILITY_TYPES = {

@@ -2,11 +2,12 @@
 import numpy as np
 from logic.encounter.api import EncounterAPI
 from logic.mechanics.common import *
+from logic.mechanics.mechanics import Mechanics
 import nutil
 from nutil import kex
 from nutil.display import make_title
 from nutil.kex import widgets
-from data.load import Assets
+from data.load import Assets, resource_name
 
 
 class HomeGUI(widgets.BoxLayout):
@@ -36,7 +37,7 @@ class NextEncounter(widgets.BoxLayout):
         super().__init__(orientation='vertical', **kwargs)
         self.draft = self.add(Draft())
         self.app.hotkeys.register_dict({
-            'New encounter': (' spacebar', self.start),
+            'New encounter': ('enter', self.start),
         })
 
     def start(self):
@@ -84,7 +85,7 @@ class Draft(widgets.BoxLayout):
         self.ability_viewer.set_ability(aid)
 
     def default_loadout(self):
-        return list(ABILITIES)[:8]
+        return list(ABILITY)[:8]
 
 
 class DraftAllAbilities(widgets.StackLayout):
@@ -95,11 +96,11 @@ class DraftAllAbilities(widgets.StackLayout):
 
     def set_ability_buttons(self, drafted):
         self.clear_widgets()
-        for aid in ABILITIES:
+        for aid in ABILITY:
             if aid in drafted:
                 self.add(AbilityButtonFrame())
             else:
-                self.add(AbilityButton(EncounterAPI.get_abilities()[aid], self.callback, self.mode))
+                self.add(AbilityButton(Mechanics.abilities[aid], self.callback, self.mode))
 
 
 class DraftedAbilities(widgets.GridLayout):
@@ -116,7 +117,7 @@ class DraftedAbilities(widgets.GridLayout):
             if aid is None:
                 self.add(AbilityButtonFrame())
             else:
-                self.add(AbilityButton(EncounterAPI.get_abilities()[aid], self.callback, self.mode))
+                self.add(AbilityButton(Mechanics.abilities[aid], self.callback, self.mode))
 
 
 class AbilityViewer(widgets.AnchorLayout):
@@ -128,7 +129,7 @@ class AbilityViewer(widgets.AnchorLayout):
     def set_ability(self, aid):
         if aid is None:
             return
-        ability = EncounterAPI.get_abilities()[aid]
+        ability = Mechanics.abilities[aid]
         self.make_bg((*ability.color, 0.3))
         self.label.text = f'{make_title(ability.name, length=30, end_line=False)}\n{ability.description}'
         self.label.text_size = self.label.size

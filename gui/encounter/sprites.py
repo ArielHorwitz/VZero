@@ -69,7 +69,7 @@ class Sprites(widgets.RelativeLayout, EncounterViewComponent):
                     self.canvas.add(igroup)
                 igroup.clear()
                 size = cc_int((hitboxes[uid]*2, hp_height))
-                pos = center_position(all_pos[uid] + (0, hitboxes[uid]), size)
+                pos = center_position(all_pos[uid] + (0, hitboxes[uid]/2), size)
                 self.draw_hp_bar(igroup, pos, size, hps[uid])
 
             else:
@@ -82,31 +82,3 @@ class Sprites(widgets.RelativeLayout, EncounterViewComponent):
         hp_size = size[0]*hp, size[1]
         igroup.add(widgets.kvRectangle(pos=pos, size=hp_size))
         igroup.add(widgets.kvColor(1, 1, 1))
-
-    def _draw_units(self):
-        hps = 100 * self.api.get_stats(index=slice(None), stat=STAT.HP) / self.api.get_stats(index=slice(None), stat=STAT.HP, value_name=VALUE.MAX_VALUE)
-        all_positions = self.api.get_position()
-
-        hitboxes = self.api.get_stats(index=slice(None), stat=STAT.HITBOX)
-        for uid, unit in enumerate(self.api.units):
-            with ratecounter(self.egui.timers['graph_unit']):
-                # sprite
-                with ratecounter(self.egui.timers['graph_sprite']):
-                    sprite = self.unit_sprites[uid]
-                    pos = self.real2pix(all_positions[uid])
-                    hitbox_diameter = max(35, round(1.8 * hitboxes[uid] / self.__units_per_pixel))
-                    sprite.size = hitbox_diameter, hitbox_diameter
-                    sprite.pos = center_position(pos, sprite.size)
-
-                # hp bar
-                with ratecounter(self.egui.timers['graph_spritehp']):
-                    hp_ = self.hps[uid].value = hps[uid]
-                    if hp_ > 0 and self.__units_per_pixel < 1.5:
-                        self.hps[uid].set_size(x=hitbox_diameter*2, y=20 / self.__units_per_pixel)
-                        hp_pos = pos + (0, hitbox_diameter/2)
-                        self.hps[uid].pos = center_position(hp_pos, self.hps[uid].size)
-                    else:
-                        self.hps[uid].pos = OUT_OF_DRAW_ZONE
-
-        target_pos = self.api.get_stats(0, (STAT.POS_X, STAT.POS_Y), VALUE.TARGET_VALUE)
-        self.move_crosshair.pos = center_position(self.real2pix(target_pos), self.move_crosshair.size)

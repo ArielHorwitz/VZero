@@ -1,7 +1,7 @@
 
 import math
 import numpy as np
-from logic.units.unit import Unit
+from logic.mechanics.unit import Unit
 from logic.mechanics.common import *
 
 import logging

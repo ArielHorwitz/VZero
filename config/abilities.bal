@@ -1,92 +1,62 @@
 
-
-=== Fireblast
-blast
---- stats
-mana_cost: 35
-cooldown: 100
-range: 300
-radius: 50
-damage: 10
-
-
-=== Blink
-teleport
---- stats
-mana_cost: 30
-range: 300
-cooldown: 200
-
-
-=== Shield
-shield
---- stats
-
-
-
-=== Bloodlust
-lifesteal
---- stats
-mana_cost: 25
-cooldown: 7200
-duration: 960
-percent: 100
-
-
-=== Loot
-loot
-
-=== Move
+=== Walk
 move
 
 
-=== Bash
-slow
+=== Barter
+barter
 
+
+=== Shield
+buff
 --- stats
-mana_cost: 0
-range: 100
-cooldown: 300
-damage_percent: 20
-percent: 40
-duration: 120
-
-
+mana_cost: 40
+cooldown: 5000
+status: armor
+duration: 1500
+stacks: 20
+duration_stat: water
+duration_percent: 0.1
+stacks_stat: earth
+stacks_percent: 2
 
 === Attack
 attack
 
 
+=== Blink
+teleport
 
 
-=== Beam
-slow
+
+=== Dev blink
+teleport
+-- stats
+range: 10000
+cooldown: 0
+mana_cost: 0
+
+
+=== Dev shield
+buff
 --- stats
-mana_cost: 50
-cooldown: 600
-duration: 240
-range: 400
-percent: 50
+mana_cost: 0
+cooldown: 100
+status: armor
+duration: 100
+stacks: 20
+duration_stat: water
+duration_percent: 0.1
+stacks_stat: earth
+stacks_percent: 2
 
 
-
-= Wrath
-wrath
---- stats
-
-
-
-= Mindcontrol
-mindcontrol
---- stats
-
-
-
-=== Nuke
+=== Fireblast
 blast
 --- stats
 mana_cost: 0
 cooldown: 0
-range: 10000
-radius: 300
-damage: 10
+
+
+=== Dev consume
+consume

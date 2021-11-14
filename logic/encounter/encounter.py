@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+# logger.setLevel(logging.DEBUG)
 
 import math, copy
 import numpy as np
@@ -7,19 +10,15 @@ from nutil.random import Seed, SEED
 from nutil.vars import normalize, NP
 from logic.encounter.api import EncounterAPI
 from logic.encounter.stats import UnitStats
-from logic.units import Units
 from logic.mechanics.common import *
-from logic.mechanics.casting import Cast
-
-import logging
-logger = logging.getLogger(__name__)
+from logic.mechanics.mechanics import Mechanics
 
 RNG = np.random.default_rng()
 
 
 class Encounter:
     DEFAULT_TPS = 120
-    SPAWN_MULTIPLIER = 2
+    SPAWN_MULTIPLIER = 3
     MAP_SIZE = (5_000, 5_000)
     AGENCY_PHASE_COUNT = 10
 
@@ -45,7 +44,7 @@ class Encounter:
         self.api = EncounterAPI(self)
         self.monster_camps = self._find_camps()
         if player_abilities is None or len(player_abilities) == 0:
-            player_abilities = set(Cast.ABILITY_INSTANCES.keys())
+            player_abilities = set(Mechanics.abilities_names)
         self._create_player(player_abilities)
         self._create_monsters()
 
@@ -63,6 +62,7 @@ class Encounter:
             auto = not self.auto_tick
         self.auto_tick = auto
         self.__last_tick = ping()
+        logger.info(f'Set auto tick: {self.auto_tick}')
         return self.auto_tick
 
     def set_tps(self, tps=None):
@@ -134,6 +134,7 @@ class Encounter:
 
     # VFX
     def add_visual_effect(self, *args, **kwargs):
+        logger.debug(f'Adding visual effect with: {args} {kwargs}')
         self._visual_effects.append(VisualEffect(*args, **kwargs))
 
     def get_visual_effects(self):
@@ -149,27 +150,27 @@ class Encounter:
         out_box_mask = np.invert(NP.in_box_mask(camps, bl, tr))
         return camps[out_box_mask]
 
-    def _create_unit(self, unit_type, location, allegience):
+    def _create_unit(self, unit_type, location, allegiance):
         # Create stats
-        stats = Units.get_starting_stats(unit_type)
+        stats = Mechanics.get_starting_stats(unit_type)
         uid = self.stats.add_unit(stats)
         assert uid == len(self.units)
         # Set spawn location
         self.api.set_position(uid, location, value_name=(VALUE.CURRENT, VALUE.TARGET_VALUE))
         # Create agency
-        unit = Units.new_unit(unit_type, api=self.api, uid=uid, allegience=allegience)
+        unit = Mechanics.get_new_unit(unit_type, api=self.api, uid=uid, allegiance=allegiance)
         self.units.append(unit)
 
     def _create_player(self, player_abilities):
         logger.info(f'Player abilities: {player_abilities}')
         spawn = self.map_size/2
-        self._create_unit('player', spawn, allegience=0)
+        self._create_unit('player', spawn, allegiance=0)
         self.units[0].set_abilities(player_abilities)
 
     def _create_monsters(self):
         i = -1
         cluster_index = -1
-        for type_index, d in enumerate(Units.SPAWN_WEIGHTS.items()):
+        for type_index, d in enumerate(Mechanics.spawn_weights.items()):
             unit_type, (spawn_weight, cluster_size) = d
             if spawn_weight == 0:
                 cluster_count = 1
@@ -182,12 +183,13 @@ class Encounter:
                     self._create_unit(
                         unit_type=unit_type,
                         location=self.monster_camps[cluster_index],
-                        allegience=1,
+                        allegiance=1,
                     )
             logger.info(f'Spawned {(c+1)*(u+1)} {unit_type}')
 
     # UTILITY
     def debug_action(self, *args, **kwargs):
+        logger.debug(f'Debug action: {args} {kwargs}')
         if 'dmod' in kwargs:
             self.stats.add_dmod(5, self.mask_enemies(0), -3)
         if 'tick' in kwargs:
@@ -206,7 +208,7 @@ class Encounter:
         if (target > self.map_size).any() or (target < 0).any():
             return FAIL_RESULT.OUT_OF_BOUNDS
 
-        r = Cast.cast_ability(ability, self.api, uid, target)
+        r = Mechanics.cast_ability(ability, self.api, uid, target)
 
         if r is None:
             logger.warning(f'Ability method {callback_name} return result not implemented.')

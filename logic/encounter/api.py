@@ -5,8 +5,7 @@ from nutil.random import SEED
 from nutil.display import njoin
 from nutil.vars import normalize, NP
 from logic.mechanics.common import *
-from logic.mechanics.mechanics import Mechanics as Mech
-from logic.mechanics.casting import Cast as APICAST
+from logic.mechanics.mechanics import Mechanics
 
 
 RNG = np.random.default_rng()
@@ -14,33 +13,6 @@ RNG = np.random.default_rng()
 
 class EncounterAPI:
     # UTILITY
-    def find_enemy_target(self, uid, target,
-            range=None, include_hitbox=True,
-            draw_miss_vfx=True, mask=None,
-        ):
-        pos = self.get_position(uid)
-        if range is None:
-            range = self.get_stats(uid, STAT.RANGE)
-        enemies = self.mask_enemies(uid)
-        if mask is not None:
-            enemies = np.logical_and(enemies, mask)
-        target_uid, dist = self.nearest_uid(target, enemies)
-        if target_uid is None:
-            return None
-        attack_pos = self.get_position(target_uid)
-        attack_target = self.units[target_uid]
-        if include_hitbox:
-            range += self.get_stats(target_uid, STAT.HITBOX)
-        if math.dist(pos, attack_pos) > range:
-            if uid == 0 and draw_miss_vfx:
-                self.add_visual_effect(VisualEffect.LINE, 10, {
-                    'p1': pos,
-                    'p2': pos + normalize(attack_pos - pos, range),
-                    'color': self.units[uid].color,
-                })
-            return None
-        return target_uid
-
     def mask_alive(self):
         return self.get_stats(slice(None), STAT.HP) > 0
 
@@ -54,12 +26,11 @@ class EncounterAPI:
     def mask_enemies(self, uid):
         return np.invert(self.mask_allies(uid))
 
-    def nearest_uid(self, point, mask=None, alive=True):
+    def nearest_uid(self, point, mask=None, alive_only=True):
         if mask is None:
             mask = np.ones(len(self.units), dtype=np.int)
-        if alive:
-            alive = self.get_stats(slice(None), STAT.HP) > 0
-            mask = np.logical_and(mask, alive)
+        if alive_only:
+            mask = np.logical_and(mask, self.get_stats(slice(None), STAT.HP) > 0)
         if mask.sum() == 0:
             return None, None
         distances = self.e.stats.get_distances(point)
@@ -72,10 +43,6 @@ class EncounterAPI:
     def random_location(self):
         return np.array(tuple(SEED.r*_ for _ in self.map_size))
 
-    @property
-    def attack_speed_to_cooldown(self):
-        return Mech.attack_speed_to_cooldown
-
     def get_live_monster_count(self):
         return (self.get_stats(slice(None), STAT.HP)>0).sum()
 
@@ -84,19 +51,17 @@ class EncounterAPI:
         return self.e.add_visual_effect
 
     # PROPERTIES
-    ALL_ABILITIES = list(APICAST.ABILITY_INSTANCES[_] for _ in ABILITIES)
+    @property
+    def dev_mode(self):
+        return True
 
     @classmethod
     def get_ability(cls, index):
-        return cls.ALL_ABILITIES[index]
-
-    @classmethod
-    def get_abilities(cls):
-        return cls.ALL_ABILITIES
+        return Mechanics.abilities[index]
 
     @property
     def abilities(self):
-        return self.ALL_ABILITIES
+        return Mechanics.abilities
 
     @property
     def map_size(self):
@@ -160,6 +125,10 @@ class EncounterAPI:
         return self.e.stats.set_position
 
     @property
+    def get_velocity(self):
+        return self.e.stats.get_velocity
+
+    @property
     def get_distances(self):
         return self.e.stats.get_distances
 
@@ -205,7 +174,11 @@ class EncounterAPI:
         if stats is None:
             stats = STAT
         stat_table = self.e.stats.table
-        s = [f'Allegience: {unit.allegience}']
+        velocity = self.get_velocity(uid)
+        s = [
+            f'Allegience: {unit.allegience}',
+            f'Speed: {self.s2ticks(velocity):.2f}/s ({velocity:.2f}/t)',
+        ]
         for stat in stats:
             current = stat_table[uid, stat, VALUE.CURRENT]
             delta = self.s2ticks()*stat_table[uid, stat, VALUE.DELTA]
@@ -222,15 +195,15 @@ class EncounterAPI:
             duration = self.ticks2s(v[STATUS_VALUE.DURATION])
             if duration > 0:
                 name_ = status.name.lower().capitalize()
-                amplitude = v[STATUS_VALUE.AMPLITUDE]
-                s.append(f'{name_}: {duration:.2f} *{amplitude:.2f}')
+                stacks = v[STATUS_VALUE.STACKS]
+                s.append(f'{name_}: {duration:.2f} × {stacks:.2f}')
         return njoin(s)
 
     def pretty_cooldowns(self, uid):
         s = []
-        for ability in ABILITIES:
+        for ability in ABILITY:
             v = self.get_cooldown(uid, ability)
             if v > 0:
                 name_ = ability.name.lower().capitalize()
-                s.append(f'{name_}: {self.ticks2s(v):.2f}')
+                s.append(f'{name_}: {self.ticks2s(v):.2f} ({round(v)})')
         return njoin(s)

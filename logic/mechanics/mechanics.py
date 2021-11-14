@@ -1,61 +1,148 @@
-
-import numpy as np
-from logic.mechanics.common import *
-from nutil.vars import normalize
-from nutil.random import SEED
-
 import logging
 logger = logging.getLogger(__name__)
+# logger.setLevel(logging.DEBUG)
 
-class Mechanics:
-    @staticmethod
-    def attack_speed_to_cooldown(api, uid, attack_speed):
-        wrath_stacks = api.get_status(uid,STATUS.WRATH)
-        return (100 / (attack_speed + wrath_stacks * 20)) * 120
+import copy
+from collections import defaultdict
+from data.load import LoadMechanics, Assets, resource_name
+from logic.mechanics import import_mod_module
+from logic.mechanics.common import *
+from logic.mechanics.player import Player
+mod_definitions = import_mod_module('definitions')
+logger.debug(f'Imported mod definitions: {mod_definitions}')
+
+
+missing_resources = set()
+
+
+class __Mechanics:
+    def __init__(self):
+        self.abilities = self.__load_abilities(LoadMechanics.RAW_ABILITY_DATA)
+        self.unit_types = self.__load_unit_types(LoadMechanics.RAW_UNIT_DATA)
+        self.spawn_weights = self.__load_spawn_weights(LoadMechanics.RAW_MAP_DATA['Spawn weights'][0])
+
+    def cast_ability(self, aid, api, uid, target):
+        if uid == 0:
+            logger.debug(f'Unit {uid} casting ability {aid.name} to {target}')
+        ability = self.abilities[aid]
+        r = ability.cast(api, uid, target)
+        if r is None:
+            m = f'Ability {ability.__class__} cast() method returned None. Must return FAIL_RESULT on fail or aid on success.'
+            logger.error(m)
+            raise ValueError(m)
+        if isinstance(r, FAIL_RESULT):
+            logger.debug(f'uid {uid} tried casting {aid.name} but failed with {r.name}')
+        else:
+            if aid not in missing_resources and Assets.get_sfx('ability', ability.name, allow_exception=False) is not None:
+                api.add_visual_effect(VisualEffect.SFX, 5, params={'sfx': ability.name, 'call_source': (uid, aid, __name__)})
+        return r
+
+    def get_new_unit(self, unit_type, api, uid, allegiance):
+        internal_name = resource_name(unit_type)
+        unit_data = self.unit_types[internal_name]
+        name = copy.deepcopy(unit_data['name'])
+        params = copy.deepcopy(unit_data['params'])
+        unit_cls = unit_data['cls']
+        unit = unit_cls(api, uid, name, allegiance, params)
+        logger.debug(f'Mechanics created new unit {internal_name} with uid {uid} and params: {params}')
+        return unit
+
+    def get_starting_stats(self, unit_type):
+        name = resource_name(unit_type)
+        stats = self.unit_types[name]['stats']
+        return self._combine_starting_stats(stats)
+
+    @property
+    def default_starting_stats(self):
+        return mod_definitions.DEFAULT_STARTING_STATS
+
+    @property
+    def ability_classes(self):
+        return mod_definitions.ABILITY_CLASSES
+
+    @property
+    def unit_classes(self):
+        return {**mod_definitions.UNIT_CLASSES, 'player': Player}
+
+    def __load_abilities(self, raw_data):
+        abilities = []
+        logger.info('Loading abilities:')
+        raw_items = tuple(raw_data.items())
+        for aid in ABILITY:
+            ability_name, ability_data = raw_items[aid]
+            logger.info(f'{aid} {ability_name} {ability_data}')
+            ability_type = ability_data[0][0][0]
+            stats = {}
+            if 'stats' in ability_data:
+                stats = ability_data['stats']
+                del stats[0]
+            ability_instance = self.ability_classes[ability_type](
+                aid, ability_name, stats)
+            assert len(abilities) == aid
+            abilities.append(ability_instance)
+        return abilities
+
+    def __load_spawn_weights(self, raw_data):
+        logger.info(f'Loading map spawn weights: {raw_data}')
+        spawn_weights = {}
+        for unit_name, spawn_data in raw_data.items():
+            if unit_name == 0:
+                continue
+            internal_name = resource_name(unit_name)
+            a, b = spawn_data.split(', ')
+            logger.info(f'{internal_name} weight: {a}, cluster size: {b}')
+            spawn_weights[internal_name] = float(a), int(b)
+        return spawn_weights
+
+    def __load_unit_types(self, raw_data):
+        logger.info('Loading unit types:')
+        units = {}
+        for unit_name, unit_data in copy.deepcopy(raw_data).items():
+            internal_name = resource_name(unit_name)
+            if internal_name in units:
+                m = f'Unit name duplication: {internal_name}'
+                logger.critical(m)
+                raise ValueError(m)
+            unit_type = unit_data[0][0][0]
+            unit_cls = self.unit_classes[unit_type]
+            raw_stats = unit_data['stats']
+            params = unit_data[0]
+            del params[0]
+            stats = self.__translate_stats(raw_stats)
+            logger.info(f'{unit_name} ({unit_type} - {unit_cls})')
+            units[internal_name] = {
+                'name': unit_name,
+                'cls': unit_cls,
+                'stats': stats,
+                'params': params,
+            }
+        return units
+
+    def _combine_starting_stats(self, custom=None, base=None):
+        stats = copy.deepcopy(self.default_starting_stats if base is None else base)
+        if custom is not None:
+            for stat in STAT:
+                if stat in custom:
+                    for value in VALUE:
+                        if value in custom[stat]:
+                            stats[stat][value] = custom[stat][value]
+        return stats
 
     @staticmethod
-    def apply_move(api, uid, target=None, move_speed=None):
-        if move_speed is None:
-            move_speed = api.get_stats(uid, STAT.MOVE_SPEED)
-            if api.get_status(uid, STATUS.SLOW) > 0:
-                move_speed *= 1-api.get_status(uid, STATUS.SLOW)
-        if target is None:
-            target = api.get_position(uid, value_name=VALUE.TARGET_VALUE)
-        current_pos = api.get_position(uid)
-        target_vector = target - current_pos
-        delta = normalize(target_vector, move_speed)
-        api.set_position(uid, delta, value_name=VALUE.DELTA)
-        api.set_position(uid, target, value_name=VALUE.TARGET_VALUE)
+    def __translate_stats(raw_stats):
+        translated_stats = defaultdict(lambda: {})
+        for stat_and_value, raw_value in raw_stats.items():
+            if stat_and_value == 0:
+                continue
+            value_name = 'current'
+            if '.' in stat_and_value:
+                stat_name, value_name = stat_and_value.split('.')
+            else:
+                stat_name = stat_and_value
+            stat_ = getattr(STAT, stat_name.upper())
+            value_ = getattr(VALUE, value_name.upper())
+            translated_stats[stat_][value_] = float(raw_value)
+        return dict(translated_stats)
 
-    @staticmethod
-    def apply_slow(api, uid, duration, percent):
-        api.set_status(uid, STATUS.SLOW, duration, percent)
-        Mechanics.apply_move(api, uid)
 
-    @staticmethod
-    def do_physical_damage(api, source_uid, target_uid, damage):
-        source = api.units[source_uid]
-        target = api.units[target_uid]
-        block_percent = 0
-        block_chance = api.get_status(target_uid,STATUS.SHIELD_CHANCE)
-        if block_chance >= SEED.r:
-            block_percent = api.get_status(target_uid,STATUS.SHIELD_BLOCK)
-        damage -= block_percent * damage
-        wrath_stacks = api.get_status(source_uid, STATUS.WRATH)
-        damage += (wrath_stacks/3) * damage
-        api.set_stats(target_uid, STAT.HP, -damage, additive=True)
-        lifesteal = api.get_stats(source_uid, STAT.LIFESTEAL)
-        lifesteal += api.get_status(source_uid, STATUS.LIFESTEAL)
-        api.set_stats(source_uid, STAT.HP, damage*lifesteal, additive=True)
-        if target_uid == 0:
-            api.add_visual_effect(VisualEffect.BACKGROUND, 40)
-            api.add_visual_effect(VisualEffect.SFX, 1, params={'sfx': 'ouch', 'category': 'ui'})
-        if target_uid == 0 or source_uid == 0:
-            logger.debug(f'{source.name} applied {damage:.2f} damage to {target.name}')
-
-    @staticmethod
-    def get_aoe_targets(api, point, radius, mask=None):
-        in_radius = api.get_distances(point) < radius
-        if mask is not None:
-            in_radius = np.logical_and(in_radius, mask)
-        return in_radius
+Mechanics = __Mechanics()

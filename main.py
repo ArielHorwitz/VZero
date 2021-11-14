@@ -1,12 +1,16 @@
 from pathlib import Path
-DEBUG_LOGFILE = Path.cwd()/'debug.log'
-
-from nutil.file import file_dump
-file_dump(DEBUG_LOGFILE, 'Roguesque Debug Log\n\n')
+DEBUG_LOGFILE = Path.cwd()/'data'/'debug.log'
 
 # Logging
 import logging
-logging.basicConfig(level=logging.INFO, filename=DEBUG_LOGFILE)
+LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
+LOG_LEVEL = logging.WARNING
+
+from nutil.file import file_dump
+file_dump(DEBUG_LOGFILE, f'Roguesque Debug Log (log level: {LOG_LEVEL})\n\n')
+
+logging.basicConfig(level=LOG_LEVEL, filename=DEBUG_LOGFILE)
 logger = logging.getLogger(__name__)
 logger.info(f'Logging configured.')
 
@@ -18,7 +22,7 @@ import kivy
 
 # Run
 if __name__ == '__main__':
-    from gui.gui import App
     print('Debug log file:', DEBUG_LOGFILE)
+    from gui.gui import App
     app = App()
     app.run()

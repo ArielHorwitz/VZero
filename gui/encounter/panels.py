@@ -58,7 +58,8 @@ class DebugPanel(widgets.AnchorLayout, EncounterViewComponent):
 
         self.info_label.text = njoin([
             make_title('Debug', length=30),
-            f'Game time: {humanize_ms(self.api.elapsed_time_ms)} ({self.api.tick})',
+            f'Game time: {humanize_ms(self.api.elapsed_time_ms)}',
+            f'Tick: {self.api.tick} +{self.api.s2ticks()} t/s',
             f'FPS: {self.app.fps.rate:.1f} ({self.app.fps.mean_elapsed_ms:.1f} ms)',
             *timer_strs,
             f'Map size: {self.api.map_size}',

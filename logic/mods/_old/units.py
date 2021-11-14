@@ -1,6 +1,6 @@
 
 from logic.mechanics.common import *
-from logic.units.unit import Unit
+from logic.mechanics.unit import Unit
 import math
 import numpy as np
 from nutil.time import ping, pong
@@ -33,9 +33,9 @@ class Camper(Unit):
             player_pos = api.get_position(0)
             player_dist = math.dist(player_pos, my_pos)
             if player_dist < api.get_stats(self.uid, STAT.RANGE, VALUE.CURRENT):
-                abilities.append((ABILITIES.ATTACK, player_pos + (SEED.r, SEED.r)))
+                abilities.append((ABILITY.ATTACK, player_pos + (SEED.r, SEED.r)))
             if player_dist < self.__aggro_range and not self.__deaggro:
-                abilities.append((ABILITIES.MOVE, player_pos))
+                abilities.append((ABILITY.MOVE, player_pos))
                 camp_dist = math.dist(my_pos, self.camp)
                 if camp_dist > self.__deaggro_range:
                     self.__deaggro = True
@@ -44,7 +44,7 @@ class Camper(Unit):
                     camp_dist = math.dist(my_pos, self.camp)
                     if camp_dist < self.__reaggro_range:
                         self.__deaggro = False
-                abilities.append((ABILITIES.MOVE, self.camp+RNG.random(2) * self.__camp_spread))
+                abilities.append((ABILITY.MOVE, self.camp+RNG.random(2) * self.__camp_spread))
         return abilities
 
 
@@ -59,7 +59,7 @@ class Roamer(Unit):
 
     def poll_abilities(self, api):
         my_pos = api.get_position(self.uid)
-        abilities = [(ABILITIES.ATTACK, my_pos)]
+        abilities = [(ABILITY.ATTACK, my_pos)]
         player_pos = api.get_position(0)
         if math.dist(player_pos, my_pos) < self.__aggro_range:
             target = player_pos + (SEED.r, SEED.r)
@@ -68,7 +68,7 @@ class Roamer(Unit):
             target = self.__last_move_location = api.random_location()
         else:
             target = self.__last_move_location
-        abilities.append((ABILITIES.MOVE, target))
+        abilities.append((ABILITY.MOVE, target))
         return abilities
 
 
@@ -107,6 +107,7 @@ class DPSMeter(Unit):
         total_damage = self.__sample[:, 1].sum()
         dps = total_damage / total_time
         return f'DPS: {dps*self.__tps:.2f} ({total_damage:.2f} / {total_time:.2f}) [{self.__sample_index}]'
+
 
 UNIT_TYPES = {
     'camper': Camper,
