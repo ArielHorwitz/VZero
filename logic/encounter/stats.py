@@ -15,38 +15,72 @@ DMOD_CACHE_SIZE = 10_000
 
 
 class UnitStats:
-    def __init__(self):
-        self.tick = 0
-        # Base stats table, containing all stats and all values.
-        # See STAT class and VALUE class.
-        self.stat_count = len(STAT)
-        self.values_count = len(VALUE)
-        self.table = np.ndarray(
-            shape=(0, self.stat_count, self.values_count),
-            dtype=np.float64)
-        # Status table, containing all status durations and stacks.
-        self.status_count = len(STATUS)
-        self.status_values_count = len(STATUS_VALUE)
-        self.status_table = np.ndarray(
-            shape=(0, self.status_count, self.status_values_count),
-            dtype=np.float64)
-        # Cooldown table contains a cooldown value (-1 per tick)
-        # For each ability
-        self.ability_count = len(ABILITY)
-        self.cooldowns = np.ndarray(shape=(0, self.ability_count))
-        # Delta modifier table contains temporary effects that can
-        # add to each stat delta (without changing their source),
-        # for a certain number of ticks.
-        self._dmod_index = 0
-        self._dmod_effects_add = np.ndarray(
-            shape=(DMOD_CACHE_SIZE, self.stat_count))
-        self._dmod_ticks = np.zeros(DMOD_CACHE_SIZE)
-        self._dmod_targets = np.zeros(shape=(DMOD_CACHE_SIZE, 0))
+    # STAT VALUES
+    def get_stats(self, index, stat, value_name=None):
+        if value_name is None:
+            value_name = VALUE.CURRENT
+        return self.table[index, stat, value_name]
 
-    def print_table(self):
-        with np.printoptions(precision=2, linewidth=10_000, threshold=10_000):
-            nprint(self.table, 'Stat table')
-            print(self.table.shape)
+    def set_stats(self, index, stat, stat_value, value_name=None,
+                  additive=False, multiplicative=False):
+        if value_name is None:
+            value_name = VALUE.CURRENT
+        cv = self.table[index, stat, value_name]
+        if additive:
+            stat_value += cv
+        elif multiplicative:
+            stat_value *= cv
+        self.table[index, stat, value_name] = stat_value
+
+    def get_status(self, index, status, value_name=None):
+        """
+        Get a status duration/stacks. Passing neither to value_name will return
+        the stacks only if duration > 0.
+        """
+        duration = self.status_table[index, status, STATUS_VALUE.DURATION]
+        amp = self.status_table[index, status, STATUS_VALUE.STACKS]
+        if value_name is STATUS_VALUE.DURATION:
+            return duration
+        elif value_name is STATUS_VALUE.STACKS:
+            return amp
+        elif value_name is None:
+            return amp * (duration > 0)
+        raise ValueError(f'get_status value_name {value_name} unrecognized')
+
+    def set_status(self, index, status, duration, stacks):
+        self.status_table[index, status, STATUS_VALUE.DURATION] = duration
+        self.status_table[index, status, STATUS_VALUE.STACKS] = stacks
+
+    def get_cooldown(self, index, ability=None):
+        if ability is None:
+            ability = slice(None)
+        return self.cooldowns[index, ability]
+
+    def set_cooldown(self, index, ability, value):
+        self.cooldowns[index, ability] = value
+
+    # SPECIAL VALUES
+    def get_position(self, index=None, value_name=None):
+        if index is None:
+            index = slice(None)
+        if value_name is None:
+            value_name = VALUE.CURRENT
+        return self.table[index, (STAT.POS_X, STAT.POS_Y), value_name]
+
+    def set_position(self, index, pos, value_name=None):
+        if value_name is None:
+            value_name = VALUE.CURRENT
+        self.table[index, (STAT.POS_X, STAT.POS_Y), value_name] = pos
+
+    def get_velocity(self, index=None):
+        if index is None:
+            index = slice(None)
+        v = self.get_position(index, value_name=VALUE.DELTA)
+        return math.dist((0, 0), v)
+
+    def get_distances(self, point):
+        positions = self.table[:, (STAT.POS_X, STAT.POS_Y), VALUE.CURRENT]
+        return np.linalg.norm(positions - np.array(point), axis=1)
 
     # ADD/REMOVE UNIT STATS
     def add_unit(self, starting_stats):
@@ -63,16 +97,17 @@ class UnitStats:
         # Cooldowns entry
         unit_cooldowns = np.zeros((1, self.ability_count))
         self.cooldowns = np.concatenate((self.cooldowns, unit_cooldowns), axis=0)
-        assert len(self.status_table) == len(self.table) == len(self.cooldowns) == self._dmod_targets.shape[1]
+        assert len(self.table) == len(self.status_table) == len(self.cooldowns) == self._dmod_targets.shape[1]
         return len(self.table) - 1
 
     def add_dmod(self, ticks, units, stat, delta):
-        i = self._dmod_index
-        # Empty effects for all stats (+0 additive, *1 multiplicative)
+        logger.debug(f'Adding dmod. ticks: {ticks}, stat: {stat.name}, delta: {delta}, units: {units.nonzero()[0]}')
+        i = self._dmod_index % DMOD_CACHE_SIZE
         self._dmod_effects_add[i, stat] = delta
         self._dmod_ticks[i] = ticks
-        self._dmod_targets[i] = np.array(units)
+        self._dmod_targets[i] = units
         self._dmod_index += 1
+        logger.debug(self._dmod_repr(i))
         return i
 
     def kill_stats(self, index):
@@ -86,7 +121,6 @@ class UnitStats:
         self._do_cooldown_deltas(ticks)
 
     def _dmod_deltas(self):
-        DEBUG = False
         active_dmods = self._dmod_ticks > 0
         active_targets = self._dmod_targets[active_dmods]
         active_effects_add = self._dmod_effects_add[active_dmods]
@@ -95,12 +129,10 @@ class UnitStats:
         active_effects_add = active_effects_add[:, np.newaxis, :]
         dmod_add = active_targets * active_effects_add
         delta_add = np.sum(dmod_add, axis=0)
+        return delta_add
 
     def _do_stat_deltas(self, ticks):
-        DEBUG = False
-        # TODO consider target ticks when applying deltas
-        # TODO consider dead units when applying deltas
-
+        # TODO don't consider dead units when applying deltas
         current_values = self.table[:, :, VALUE.CURRENT]
         # Raw deltas, without modifications
         deltas = self.table[:, :, VALUE.DELTA] * ticks
@@ -108,9 +140,8 @@ class UnitStats:
         active_dmods = self._dmod_ticks > 0
         dmod_count = active_dmods.sum()
         if dmod_count > 0:
-            print(f'Found {dmod_count} active dmods')
             delta_add = self._dmod_deltas() * ticks
-            deltas = copy.deepcopy(deltas) + delta_add
+            deltas = copy.copy(deltas) + delta_add
             self._dmod_ticks -= ticks
 
         min_values = self.table[:, :, VALUE.MIN_VALUE]
@@ -129,7 +160,6 @@ class UnitStats:
         current_values[not_at_target] += deltas[not_at_target]
         current_values[at_target] = target_values[at_target]
 
-
         # Cap at min and max value
         below_min_mask = current_values < min_values
         above_max_mask = current_values > max_values
@@ -146,80 +176,44 @@ class UnitStats:
     def _do_cooldown_deltas(self, ticks):
         self.cooldowns -= ticks
 
-    # STAT VALUES
-    def get_stats(self, index, stat, value_name=None, copy=False):
-        if value_name is None:
-            value_name = VALUE.CURRENT
-        view = self.table[index, stat, value_name]
-        if copy:
-            return view.copy()
-        return view
+    # INTERNAL
+    def __init__(self):
+        self.tick = 0
+        # Base stats table, containing all stats and all values.
+        # See STAT class and VALUE class.
+        self.stat_count = len(STAT)
+        self.values_count = len(VALUE)
+        self.table = np.zeros(
+            shape=(0, self.stat_count, self.values_count),
+            dtype=np.float64)
+        # Status table, containing all status durations and stacks.
+        self.status_count = len(STATUS)
+        self.status_values_count = len(STATUS_VALUE)
+        self.status_table = np.zeros(
+            shape=(0, self.status_count, self.status_values_count),
+            dtype=np.float64)
+        # Cooldown table contains a cooldown value (-1 per tick)
+        # For each ability
+        self.ability_count = len(ABILITY)
+        self.cooldowns = np.zeros(shape=(0, self.ability_count))
+        # Delta modifier table contains temporary effects that can
+        # add to each stat delta (without changing their source),
+        # for a certain number of ticks.
+        self._dmod_index = 0
+        self._dmod_effects_add = np.zeros(
+            shape=(DMOD_CACHE_SIZE, self.stat_count), dtype=np.float64)
+        self._dmod_ticks = np.zeros(DMOD_CACHE_SIZE)
+        self._dmod_targets = np.zeros(shape=(DMOD_CACHE_SIZE, 0))
 
-    def set_stats(self, index, stat, stat_value, value_name=None,
-                  additive=False, multiplicative=False):
-        if value_name is None:
-            value_name = VALUE.CURRENT
-        cv = self.table[index, stat, value_name]
-        if additive:
-            stat_value += cv
-        elif multiplicative:
-            stat_value *= cv
-        self.table[index, stat, value_name] = stat_value
+    def print_table(self):
+        with np.printoptions(precision=2, linewidth=10_000, threshold=10_000):
+            nprint(self.table, 'Stat table')
+            print(self.table.shape)
 
-    def get_cooldown(self, index, ability=None):
-        if ability is None:
-            ability = slice(None)
-        return self.cooldowns[index, ability]
-
-    def set_cooldown(self, index, ability, value):
-        self.cooldowns[index, ability] = value
-
-    def get_status(self, index, status, value_name=None):
-        """
-        Get a status duration/stacks. Passing neither to value_name will return
-        the stacks only if duration > 0.
-        """
-        duration = self.status_table[index, status, STATUS_VALUE.DURATION]
-        amp = self.status_table[index, status, STATUS_VALUE.STACKS]
-        if value_name is STATUS_VALUE.DURATION:
-            return duration
-        elif value_name is STATUS_VALUE.STACKS:
-            return amp
-        elif value_name is None:
-            return amp * (duration > 0)
-        raise ValueError(f'value_name unrecognized')
-
-    def set_status(self, index, status, duration, stacks):
-        self.status_table[index, status, STATUS_VALUE.DURATION] = duration
-        self.status_table[index, status, STATUS_VALUE.STACKS] = stacks
-
-    # SPECIAL VALUES
-    def get_position(self, index=None, value_name=None):
-        if index is None:
-            index = slice(None)
-        if value_name is None:
-            value_name = VALUE.CURRENT
-        return self.table[index, (STAT.POS_X, STAT.POS_Y), value_name]
-
-    def set_position(self, index, pos, value_name=None):
-        if value_name is None:
-            value_name = VALUE.CURRENT
-        if not is_iterable(value_name):
-            value_name = value_name,
-        for value in value_name:
-            self.table[index, (STAT.POS_X, STAT.POS_Y), value] = pos
-
-    def get_velocity(self, index=None):
-        if index is None:
-            index = slice(None)
-        v = self.get_position(index, value_name=VALUE.DELTA)
-        return math.dist((0, 0), v)
-
-    def get_distances(self, point):
-        positions = self.table[:, (STAT.POS_X, STAT.POS_Y), VALUE.CURRENT]
-        vectors = positions - np.array(point)
-        dist = np.linalg.norm(vectors, axis=1)
-        return dist
+    def _dmod_repr(self, i):
+        return f'Dmod: {i}, Ticks: {self._dmod_ticks[i]}, ' \
+                f'Delta: {self._dmod_effects_add[i]}, ' \
+                f'Targets: {self._dmod_targets[i].nonzero()[0]}'
 
 
 def _make_unit_stats(data_dict):

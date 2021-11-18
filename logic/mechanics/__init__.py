@@ -13,15 +13,15 @@ MOD_NAME = Settings.get_setting('mod')
 MODS_DIR = Path.cwd()/'logic'/'mods'
 
 
-__mod_name = '_base'
-logger.debug(f'Looking for mod {MOD_NAME} in {MODS_DIR}')
+__mod_name = '_fallback'  # Set to fallback before searching
+logger.info(f'Looking for mod {MOD_NAME} in {MODS_DIR}')
 
 for loader, modname, ispkg in pkgutil.iter_modules([MODS_DIR]):
     logger.debug(f'Qualifying {modname} as mod (ispkg: {ispkg})')
     if not ispkg or modname != MOD_NAME:
-        logger.debug(f'Disqualified {modname}')
+        logger.info(f'Disqualified {modname}')
         continue
-    logger.debug(f'Found mod: {modname}')
+    logger.info(f'Found mod: {modname}')
     __mod_name = modname
     break
 else:
@@ -43,7 +43,7 @@ def ability_internal_name(name):
 # We must know the count and names of abilities (as loaded from config).
 # This requires a particular import sequence, since mods require to know
 # the abilities and stats as defined here. Hence we must do this before
-# the logic.mechanics.mod module is imported as it will import us.
+# the logic.mods package is imported as it will import us for these names.
 ABILITY = AutoIntEnum('ABILITY', [
     *[f'{ability_internal_name(a)}' for a in LoadMechanics.RAW_ABILITY_DATA.keys()]
 ])
@@ -53,11 +53,11 @@ STAT = AutoIntEnum('STAT', [
     'POS_Y',
     'HITBOX',
     'HP',
-    *MOD_PKG.STATS,
+    *(_.upper() for _ in MOD_PKG.STATS),
 ])
 
 STATUS = AutoIntEnum('STATUS', [
-    *MOD_PKG.STATUSES,
+    *(_.upper() for _ in MOD_PKG.STATUSES),
 ])
 
 
@@ -137,4 +137,4 @@ for enumerator in (STAT, VALUE, STATUS, STATUS_VALUE, ABILITY):
     __DEBUG = f'Using {enumerator.__name__} indices:'
     for stat in enumerator:
         __DEBUG += f'{stat.value} {stat.name}; '
-    logger.debug(__DEBUG)
+    logger.info(__DEBUG)

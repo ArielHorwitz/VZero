@@ -1,31 +1,119 @@
 
-=== Walk
-move
+=== Attack
+attack
+-- stats
+color: white
 
 
-=== Barter
-barter
+=== Blink
+teleport
+--- stats
+color: green
+mana_cost: 30
+cooldown: 800
+range: 150
+range_stat: air
+range_bonus: 1
 
 
 === Shield
 buff
 --- stats
+color: blue
+status: armor
+target: self
 mana_cost: 40
 cooldown: 5000
-status: armor
 duration: 1500
-stacks: 20
 duration_stat: water
-duration_percent: 0.1
+duration_bonus: 0.1
+stacks: 5
 stacks_stat: earth
-stacks_percent: 2
-
-=== Attack
-attack
+stacks_bonus: 1
 
 
-=== Blink
-teleport
+=== Fireblast
+blast
+-- stats
+color: red
+
+
+------------------------------ -
+
+
+
+=== Barter
+barter
+-- stats
+color: 0.5, 0.5, 0
+range: 150
+cooldown: 10000
+loot_multi: 2
+loot_multi_stat: physical
+loot_multi_bonus: 2
+
+
+=== Walk
+move
+-- stats
+color: black
+
+
+
+=== Radiance
+regen aura
+-- stats
+color: yellow
+destat: hp
+degen: 0.01
+degen_stat: fire
+degen_bonus: 1
+radius: 150
+radius_stat: water
+radius_bonus: 1
+
+
+
+=== Dunder Beam
+buff
+-- stats
+color: purple
+status: slow
+target: other
+mana_cost: 20
+cooldown: 600
+range: 100
+range_stat: water
+range_bonus: 1
+stacks: 5
+stacks_stat: air
+stacks_bonus: 1
+duration: 480
+
+
+
+------------------------------- -
+
+=== Shopkeeper
+shopkeeper
+
+
+
+
+
+
+
+
+------------------------------ -
+
+
+
+
+
+
+
+=== Dev consume
+consume
 
 
 
@@ -37,26 +125,14 @@ cooldown: 0
 mana_cost: 0
 
 
-=== Dev shield
-buff
---- stats
-mana_cost: 0
-cooldown: 100
-status: armor
-duration: 100
-stacks: 20
-duration_stat: water
-duration_percent: 0.1
-stacks_stat: earth
-stacks_percent: 2
-
-
-=== Fireblast
+=== Dev Fireblast
 blast
---- stats
+
+- stats
 mana_cost: 0
 cooldown: 0
 
 
-=== Dev consume
-consume
+
+=== Test
+test

@@ -1,19 +1,11 @@
 from logic.mechanics import import_mod_module
 from logic.mechanics.common import *
-abilities = import_mod_module('abilities')
+abilities = import_mod_module('abilities._release')
 units = import_mod_module('units')
 
 
-ABILITY_CLASSES = {
-    'move': abilities.Move,
-    'loot': abilities.Loot,
-    'attack': abilities.Attack,
-    'teleport': abilities.Teleport,
-    'slow': abilities.Slow,
-    'lifesteal': abilities.Lifesteal,
-    'shield': abilities.Shield,
-    'blast': abilities.Blast,
-}
+ABILITY_CLASSES = abilities.ABILITY_CLASSES
+
 
 UNIT_CLASSES = {
     'camper': units.Camper,
@@ -22,47 +14,43 @@ UNIT_CLASSES = {
     'dps_meter': units.DPSMeter,
 }
 
-
 DEFAULT_STARTING_STATS = {
+    # BUILTIN STATS
     STAT.POS_X: {
         VALUE.CURRENT: 0,
         VALUE.MIN_VALUE: -1_000_000_000,
         VALUE.MAX_VALUE: 1_000_000_000,
         VALUE.DELTA: 0,
-        VALUE.TARGET_VALUE: -1,
-        VALUE.TARGET_TICK: 0,
+        VALUE.TARGET_VALUE: -1_000_000,
     },
     STAT.POS_Y: {
         VALUE.CURRENT: 0,
         VALUE.MIN_VALUE: -1_000_000_000,
         VALUE.MAX_VALUE: 1_000_000_000,
         VALUE.DELTA: 0,
-        VALUE.TARGET_VALUE: -1,
-        VALUE.TARGET_TICK: 0,
+        VALUE.TARGET_VALUE: -1_000_000,
     },
     STAT.HITBOX: {
         VALUE.CURRENT: 20,
         VALUE.MIN_VALUE: 0,
-        VALUE.MAX_VALUE: 1_000_000,
+        VALUE.MAX_VALUE: 1_000,
         VALUE.DELTA: 0,
         VALUE.TARGET_VALUE: -1_000_000,
-        VALUE.TARGET_TICK: 0,
     },
     STAT.HP: {
-        VALUE.CURRENT: 0,
+        VALUE.CURRENT: 1_000_000,
         VALUE.MIN_VALUE: 0,
         VALUE.MAX_VALUE: 1_000_000,
         VALUE.DELTA: 0,
         VALUE.TARGET_VALUE: 0,
-        VALUE.TARGET_TICK: 0,
     },
+    # CUSTOM STATS
     STAT.MANA: {
-        VALUE.CURRENT: 0,
+        VALUE.CURRENT: 1_000_000,
         VALUE.MIN_VALUE: 0,
-        VALUE.MAX_VALUE: 1_000_00,
+        VALUE.MAX_VALUE: 1_000_000,
         VALUE.DELTA: 0,
-        VALUE.TARGET_VALUE: -1,
-        VALUE.TARGET_TICK: 0,
+        VALUE.TARGET_VALUE: -1_000_000,
     },
     STAT.GOLD: {
         VALUE.CURRENT: 0,
@@ -70,46 +58,40 @@ DEFAULT_STARTING_STATS = {
         VALUE.MAX_VALUE: 1_000_000,
         VALUE.DELTA: 0,
         VALUE.TARGET_VALUE: -1_000_000,
-        VALUE.TARGET_TICK: 0,
     },
-    STAT.MOVE_SPEED: {
-        VALUE.CURRENT: 1,
-        VALUE.MIN_VALUE: 0,
-        VALUE.MAX_VALUE: 1_000_000,
-        VALUE.DELTA: 0,
-        VALUE.TARGET_VALUE: -1,
-        VALUE.TARGET_TICK: 0,
-    },
-    STAT.RANGE: {
-        VALUE.CURRENT: 0,
-        VALUE.MIN_VALUE: 0,
-        VALUE.MAX_VALUE: 1_000_000,
-        VALUE.DELTA: 0,
-        VALUE.TARGET_VALUE: -1,
-        VALUE.TARGET_TICK: 0,
-    },
-    STAT.DAMAGE: {
-        VALUE.CURRENT: 0,
-        VALUE.MIN_VALUE: 0,
-        VALUE.MAX_VALUE: 1_000_000,
-        VALUE.DELTA: 0,
-        VALUE.TARGET_VALUE: -1,
-        VALUE.TARGET_TICK: 0,
-    },
-    STAT.ATTACK_SPEED: {
-        VALUE.CURRENT: 100,
-        VALUE.MIN_VALUE: 10,
+    STAT.PHYSICAL: {
+        VALUE.CURRENT: 10,
+        VALUE.MIN_VALUE: 2,
         VALUE.MAX_VALUE: 1_000_000,
         VALUE.DELTA: 0,
         VALUE.TARGET_VALUE: -1_000_000,
-        VALUE.TARGET_TICK: 0,
     },
-    STAT.LIFESTEAL: {
-        VALUE.CURRENT: 0,
-        VALUE.MIN_VALUE: 0,
+    STAT.FIRE: {
+        VALUE.CURRENT: 10,
+        VALUE.MIN_VALUE: 2,
         VALUE.MAX_VALUE: 1_000_000,
         VALUE.DELTA: 0,
         VALUE.TARGET_VALUE: -1_000_000,
-        VALUE.TARGET_TICK: 0,
+    },
+    STAT.EARTH: {
+        VALUE.CURRENT: 10,
+        VALUE.MIN_VALUE: 2,
+        VALUE.MAX_VALUE: 1_000_000,
+        VALUE.DELTA: 0,
+        VALUE.TARGET_VALUE: -1_000_000,
+    },
+    STAT.AIR: {
+        VALUE.CURRENT: 10,
+        VALUE.MIN_VALUE: 2,
+        VALUE.MAX_VALUE: 1_000_000,
+        VALUE.DELTA: 0,
+        VALUE.TARGET_VALUE: -1_000_000,
+    },
+    STAT.WATER: {
+        VALUE.CURRENT: 10,
+        VALUE.MIN_VALUE: 2,
+        VALUE.MAX_VALUE: 1_000_000,
+        VALUE.DELTA: 0,
+        VALUE.TARGET_VALUE: -1_000_000,
     },
 }

@@ -1,23 +1,22 @@
+import logging
+logger = logging.getLogger(__name__)
+# logger.setLevel(logging.DEBUG)
+
 
 from pathlib import Path
 import nutil
 from nutil.kex import widgets
 from nutil.time import RateCounter, pingpong
+from data import TITLE, FPS
 from gui.home import HomeGUI
 from gui.encounter.encounter import Encounter
 from logic.encounter.encounter import Encounter as LogicAPI
 
 
 
-VERSION = 0.004
-NAME = f'Roguesque'
-TITLE = f'{NAME} v{VERSION}'
-FPS = 60
-
-
 class App(widgets.App):
     def __init__(self, **kwargs):
-        print(f'Starting {TITLE} @ {FPS} fps.')
+        logger.info(f'Initializing GUI @ {FPS} fps.')
         super().__init__(make_bg=False, make_menu=False, **kwargs)
         self.hotkeys.register_dict({
             'Tab: Home': (' f1', lambda: self.switch.switch_screen('home')),

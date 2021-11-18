@@ -53,7 +53,7 @@ class EncounterAPI:
     # PROPERTIES
     @property
     def dev_mode(self):
-        return True
+        return self.e.dev_mode
 
     @classmethod
     def get_ability(cls, index):
@@ -131,6 +131,10 @@ class EncounterAPI:
     @property
     def get_distances(self):
         return self.e.stats.get_distances
+
+    @property
+    def add_dmod(self):
+        return self.e.stats.add_dmod
 
     def debug_stats_table(self):
         return str(self.e.stats.table)

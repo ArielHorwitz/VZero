@@ -6,17 +6,21 @@ from nutil.time import RateCounter, humanize_ms
 
 
 class InfoPanel(widgets.AnchorLayout, EncounterViewComponent):
+    BAR_WIDTH = 250
+    PIC_SIZE = 175
+    BOTTOM_MARGIN = 100
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        panel = self.add(widgets.BoxLayout(orientation='vertical'))
-        panel.set_size(x=250, y=700)
+        self.panel = panel = self.add(widgets.BoxLayout(orientation='vertical'))
+        self.panel.set_size(x=self.BAR_WIDTH)
 
-        pic_panel = panel.add(widgets.BoxLayout()).set_size(250, 250)
+        pic_panel = panel.add(widgets.BoxLayout()).set_size(self.PIC_SIZE, self.PIC_SIZE)
         with panel.canvas:
-            self.info_pic = widgets.Image(allow_stretch=True, size=(250, 250))
+            self.info_pic = widgets.Image(allow_stretch=True, size=(self.PIC_SIZE, self.PIC_SIZE))
 
-        self.info_label = panel.add(widgets.Label()).set_size(x=250)
+        self.info_label = panel.add(widgets.Label(text_size=(self.BAR_WIDTH, None)))
 
         self.selected_unit = 0
 
@@ -24,8 +28,10 @@ class InfoPanel(widgets.AnchorLayout, EncounterViewComponent):
         self.selected_unit = uid
 
     def update(self):
-        unit = self.api.units[self.selected_unit]
+        self.panel.set_size(x=self.BAR_WIDTH, y=self.height-self.BOTTOM_MARGIN)
+        self.panel.pos = self.info_label.pos = self.x+5, self.y+self.BOTTOM_MARGIN
 
+        unit = self.api.units[self.selected_unit]
         self.info_label.text = njoin([
             make_title(f'{unit.name} (#{unit.uid})', length=30),
             f'{self.api.pretty_stats(self.selected_unit)}',
@@ -33,12 +39,11 @@ class InfoPanel(widgets.AnchorLayout, EncounterViewComponent):
             f'{self.api.pretty_statuses(self.selected_unit)}',
             make_title(f'Cooldown', length=30),
             f'{self.api.pretty_cooldowns(self.selected_unit)}',
-            f'unit.debug_str >>',
-            f'{unit.debug_str[:30]}',
+            make_title(f'Debug', length=30),
+            f'{unit.debug_str}',
         ])
 
-        self.info_pic.pos=(self.to_local(
-            self.pos[0], self.pos[1]+self.size[1]-self.info_pic.size[1]))
+        self.info_pic.pos = self.to_local(self.x, self.y+self.height-self.info_pic.height)
         self.info_pic.source = Assets.get_sprite('unit', unit.sprite)
 
 

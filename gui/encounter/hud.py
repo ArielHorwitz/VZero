@@ -1,4 +1,5 @@
 from nutil.kex import widgets
+from nutil.vars import modify_color
 from gui.encounter import EncounterViewComponent
 from data.load import Assets, resource_name
 from logic.mechanics.common import *
@@ -76,28 +77,25 @@ class AbilityPanel(AbilityPanelFrame):
     def __init__(self, ability, **kwargs):
         super().__init__(**kwargs)
         self.ability = ability
-        self.make_bg()
-        self._bg_color.rgba = (*ability.color, 0.4)
+        # self.make_bg()
+        # self._bg_color.rgba = (*ability.color, 0.4)
         res_name = resource_name(ability.aid.name)
         self.im = self.add(widgets.Image(
             source=Assets.get_sprite('ability', res_name),
             allow_stretch=True,
-        )).set_size(hx=0.5)
-        self.label = self.add(widgets.Label(text=f'{ability.name}'))
-        with self.im.canvas.after:
+        )).set_size(hy=0.5)
+        self.add(widgets.Label(text=f'{ability.name}')).set_size(hy=0.25)
+        self.state_label = self.add(widgets.Label()).set_size(hy=0.25)
+        with self.im.canvas.before:
             self.color = widgets.kvColor(0, 0, 0, 0)
             self.rect = widgets.kvRectangle(pos=(0, 0), size=self.size)
 
     def update(self, api):
         cd = api.get_cooldown(0, self.ability.aid)
-        text = f'{self.ability.name}'
-        if cd > 0:
-            color = (0, 0, 0, 0.7)
-            text += f' ({api.ticks2s(cd):.1f})'
-        else:
-            color = (0, 0, 0, 0)
-        # self.im.pos =
-        self.color.rgba = color
-        self.label.text = text
+        cast_state = self.ability.gui_state(api, 0)
+        text = f'{cast_state.string}'
+        # self.im.pos = self.pos
+        self.color.rgba = modify_color(cast_state.color, a=0.4)
+        self.state_label.text = text
         self.rect.pos = self.pos
         self.rect.size = self.size

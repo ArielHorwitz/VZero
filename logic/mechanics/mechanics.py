@@ -9,7 +9,7 @@ from logic.mechanics import import_mod_module
 from logic.mechanics.common import *
 from logic.mechanics.player import Player
 mod_definitions = import_mod_module('definitions')
-logger.debug(f'Imported mod definitions: {mod_definitions}')
+logger.info(f'Imported mod definitions: {mod_definitions}')
 
 
 missing_resources = set()
@@ -23,7 +23,7 @@ class __Mechanics:
 
     def cast_ability(self, aid, api, uid, target):
         if uid == 0:
-            logger.debug(f'Unit {uid} casting ability {aid.name} to {target}')
+            logger.debug(f'uid {uid} casting ability {aid.name} to {target}')
         ability = self.abilities[aid]
         r = ability.cast(api, uid, target)
         if r is None:
@@ -83,14 +83,14 @@ class __Mechanics:
         return abilities
 
     def __load_spawn_weights(self, raw_data):
-        logger.info(f'Loading map spawn weights: {raw_data}')
+        logger.info(f'Loading map spawn weights:')
         spawn_weights = {}
         for unit_name, spawn_data in raw_data.items():
             if unit_name == 0:
                 continue
             internal_name = resource_name(unit_name)
             a, b = spawn_data.split(', ')
-            logger.info(f'{internal_name} weight: {a}, cluster size: {b}')
+            logger.info(f'{internal_name} *{a}, cluster size: {b}')
             spawn_weights[internal_name] = float(a), int(b)
         return spawn_weights
 
@@ -139,8 +139,8 @@ class __Mechanics:
                 stat_name, value_name = stat_and_value.split('.')
             else:
                 stat_name = stat_and_value
-            stat_ = getattr(STAT, stat_name.upper())
-            value_ = getattr(VALUE, value_name.upper())
+            stat_ = str2stat(stat_name)
+            value_ = str2value(value_name)
             translated_stats[stat_][value_] = float(raw_value)
         return dict(translated_stats)
 

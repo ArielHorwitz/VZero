@@ -1,10 +1,20 @@
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+import itertools
+import math
+import numpy as np
+import random
+from nutil.time import ping, pong
+from nutil.random import SEED
 
 from logic.mechanics.common import *
 from logic.mechanics.unit import Unit
-import math
-import numpy as np
-from nutil.time import ping, pong
-from nutil.random import SEED
+from logic.mechanics import import_mod_module as import_
+ITEM = import_('items.items').ITEM
+item_repr = import_('items.items').item_repr
+
 
 RNG = np.random.default_rng()
 
@@ -26,25 +36,24 @@ class Camper(Unit):
         self.camp = api.get_position(self.uid)
 
     def poll_abilities(self, api):
-        abilities = []
-        if pong(self.last_move) > 500:
-            self.last_move = ping()
-            my_pos = api.get_position(self.uid)
-            player_pos = api.get_position(0)
-            player_dist = math.dist(player_pos, my_pos)
-            if player_dist < api.get_stats(self.uid, STAT.RANGE, VALUE.CURRENT):
-                abilities.append((ABILITY.ATTACK, player_pos + (SEED.r, SEED.r)))
-            if player_dist < self.__aggro_range and not self.__deaggro:
-                abilities.append((ABILITY.MOVE, player_pos))
+        if pong(self.last_move) < 500:
+            return None
+        player_pos = api.get_position(0)
+        abilities = [(ABILITY.ATTACK, player_pos)]
+        self.last_move = ping()
+        my_pos = api.get_position(self.uid)
+        player_dist = math.dist(player_pos, my_pos)
+        if player_dist < self.__aggro_range and not self.__deaggro:
+            abilities.append((ABILITY.WALK, player_pos))
+            camp_dist = math.dist(my_pos, self.camp)
+            if camp_dist > self.__deaggro_range:
+                self.__deaggro = True
+        else:
+            if self.__deaggro is True:
                 camp_dist = math.dist(my_pos, self.camp)
-                if camp_dist > self.__deaggro_range:
-                    self.__deaggro = True
-            else:
-                if self.__deaggro is True:
-                    camp_dist = math.dist(my_pos, self.camp)
-                    if camp_dist < self.__reaggro_range:
-                        self.__deaggro = False
-                abilities.append((ABILITY.MOVE, self.camp+RNG.random(2) * self.__camp_spread))
+                if camp_dist < self.__reaggro_range:
+                    self.__deaggro = False
+            abilities.append((ABILITY.WALK, self.camp+RNG.random(2) * self.__camp_spread))
         return abilities
 
 
@@ -58,6 +67,8 @@ class Roamer(Unit):
         self.__last_move_location = api.random_location()
 
     def poll_abilities(self, api):
+        if pong(self.last_move) < 500:
+            return None
         my_pos = api.get_position(self.uid)
         abilities = [(ABILITY.ATTACK, my_pos)]
         player_pos = api.get_position(0)
@@ -68,18 +79,52 @@ class Roamer(Unit):
             target = self.__last_move_location = api.random_location()
         else:
             target = self.__last_move_location
-        abilities.append((ABILITY.MOVE, target))
+        abilities.append((ABILITY.WALK, target))
         return abilities
 
 
 class Treasure(Unit):
-    def setup(self, api, name='Loot me!'):
-        self.name = name
+    pass
+
+
+class Shopkeeper(Unit):
+    switch_interval = 20_000
+
+    def setup(self, api):
+        self.name = f'Friendly shopkeeper'
+        api.set_stats(self.uid, STAT.HP, 1_000_000, value_name=VALUE.MAX_VALUE)
+        api.set_stats(self.uid, STAT.HP, 1_000_000, value_name=VALUE.DELTA)
+        item_list = list(ITEM)
+        random.shuffle(item_list)
+        self.item_iter = itertools.cycle(item_list)
+        self.reset_item(api)
+        self.last_iter += random.random() * self.switch_interval
+
+    def reset_item(self, api):
+        self.last_iter = api.tick
+        self.current_item = next(self.item_iter)
+        self.item_str = self.current_item.name.lower().capitalize().replace('_', ' ')
+
+    def poll_abilities(self, api):
+        next_switch = api.tick - self.last_iter
+        if next_switch > self.switch_interval:
+            self.reset_item(api)
+        s = api.ticks2s(self.switch_interval - next_switch)
+        self.__debug_str = f'Selling: {self.item_str}\n{item_repr(self.current_item)}\n\nNext item in ~{round(s)} s'
+        api.set_status(self.uid, STATUS.SHOP, 0, self.current_item.value)
+        return [(ABILITY.SHOPKEEPER, api.get_position(self.uid))]
+
+    @property
+    def sprite(self):
+        return 'shop'
+
+    @property
+    def debug_str(self):
+        return self.__debug_str
 
 
 class DPSMeter(Unit):
     def setup(self, api, name='Hit me!'):
-        self.name = name
         api.set_stats(self.uid, STAT.HP, 10**12, value_name=VALUE.MAX_VALUE)
         api.set_stats(self.uid, STAT.HP, 10**12)
         api.set_stats(self.uid, STAT.HP, 0, value_name=VALUE.DELTA)
@@ -107,11 +152,3 @@ class DPSMeter(Unit):
         total_damage = self.__sample[:, 1].sum()
         dps = total_damage / total_time
         return f'DPS: {dps*self.__tps:.2f} ({total_damage:.2f} / {total_time:.2f}) [{self.__sample_index}]'
-
-
-UNIT_TYPES = {
-    'camper': Camper,
-    'roamer': Roamer,
-    'treasure': Treasure,
-    'dps_meter': DPSMeter,
-}

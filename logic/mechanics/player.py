@@ -1,11 +1,11 @@
+import logging
+logger = logging.getLogger(__name__)
+# setLevel(logging.DEBUG)
 
 import math
 import numpy as np
 from logic.mechanics.unit import Unit
 from logic.mechanics.common import *
-
-import logging
-logger = logging.getLogger(__name__)
 
 class Player(Unit):
     def setup(self, api, **params):
@@ -24,17 +24,9 @@ class Player(Unit):
                 logger.info(aid.name.lower().capitalize())
                 self.abilities.append(aid)
 
-    def poll_abilities(self, api):
-        return None
-
     def use_ability(self, api, aid, target):
         if aid not in self.abilities:
-            logger.warning(f'{self.name} trying to use ability {aid} without access:\nAbility access: {tuple(_.name for _ in self.abilities)}')
+            logger.warning(f'{self.name} trying to use ability {aid.name} without access:\nAbility access: {tuple(_.name for _ in self.abilities)}')
             return
         r = api.use_ability(aid, target, self.uid)
         return r
-
-
-UNIT_TYPES = {
-    'player': Player,
-}

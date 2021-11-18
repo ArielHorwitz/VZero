@@ -26,8 +26,8 @@ class Mechanics:
         looted_gold = api.get_stats(loot_target, STAT.GOLD)
         api.set_stats(loot_target, STAT.GOLD, 0)
         api.set_stats(loot_target, (STAT.POS_X, STAT.POS_Y), (-1_000_000, -1_000_000))
-        logger.debug(f'{api.units[uid].name} removed {looted_gold} gold from {api.units[loot_target].name}')
-        return looted_gold, loot_pos
+        logger.debug(f'{api.units[uid].name} removed {looted_gold} gold from {api.units[loot_target]}')
+        return looted_gold, loot_target
 
     @staticmethod
     def apply_move(api, uid, target=None, move_speed=None):
@@ -57,7 +57,7 @@ class Mechanics:
         if not isinstance(targets_mask, np.ndarray):
             uid = targets_mask
             targets_mask = np.full(api.unit_count, False)
-            targets_mask[uid] = 1
+            targets_mask[uid] = True
         # Stop if no targets
         if targets_mask.sum() == 0:
             logger.debug(f'{source.name} wished to apply {damage:.2f} brute damage but no targets in mask')
@@ -85,6 +85,19 @@ class Mechanics:
         if targets_mask.sum() == 1:
             logger.debug(f'{api.units[targets_mask.nonzero()[0][0]].name} took {damages} pure damage.')
 
+
+class Utilities:
+    @classmethod
+    def diminishing_curve(cls, value, spread=100, start_value=0):
+        """
+        Returns a value between 1 and 0 such that higher input values approach 0.
+        Spread represents how slow to approach 0. Lower spread will result in
+        approaching 0 faster, higher step will result in slower approach.
+        In particular, spread is the input value that results in 0.5 (with 0 start value).
+        Start value represents at what minimum value the result begins to drop from 1.
+        """
+        return (cap * spread) / (spread + max(0, value-start_reduction))
+
     @classmethod
     def find_target(cls, api, uid, target_point,
             range=None, include_hitbox=True,
@@ -98,7 +111,7 @@ class Mechanics:
             mask_ = np.logical_and(mask_, mask)
         target_uid, dist = api.nearest_uid(target_point, mask=mask_, alive_only=alive_only)
         if target_uid is None:
-            return None
+            return FAIL_RESULT.MISSING_TARGET
         attack_pos = api.get_position(target_uid)
         attack_target = api.units[target_uid]
         if include_hitbox:
@@ -111,8 +124,7 @@ class Mechanics:
                     'p2': pos + normalize(attack_pos - pos, range),
                     'color': api.units[uid].color,
                 })
-            return None
-        logger.debug(f'find_target: {pos} {range} {target_point} {target_uid} {dist}')
+            return FAIL_RESULT.OUT_OF_RANGE
         return target_uid
 
     @classmethod
@@ -120,9 +132,11 @@ class Mechanics:
         return cls.find_target(*args, enemy_only=True, **kwargs)
 
     @classmethod
-    def get_aoe_targets(cls, api, point, radius, mask=None):
+    def find_aoe_targets(cls, api, point, radius, mask=None, alive_only=True):
         dists = api.get_distances(point) - api.get_stats(slice(None), STAT.HITBOX)
         in_radius = dists < radius
         if mask is not None:
             in_radius = np.logical_and(in_radius, mask)
+        if alive_only:
+            in_radius = np.logical_and(in_radius, api.mask_alive())
         return in_radius

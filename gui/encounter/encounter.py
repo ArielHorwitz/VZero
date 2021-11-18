@@ -16,6 +16,7 @@ from gui.encounter.sprites import Sprites
 from gui.encounter.vfx import VFX
 from gui.encounter.hud import HUD
 from gui.encounter.panels import InfoPanel, DebugPanel
+from gui.encounter.menu.menu import Menu
 
 from logic.mechanics.common import *
 
@@ -37,18 +38,35 @@ class Encounter(widgets.RelativeLayout):
         for timer in ('draw/idle', 'frame_total', 'graphics_total'):
             self.timers[timer]
 
+        # DRAW
+        self.redraw()
+        self.sprites = self.add(Sprites(enc=self))
+        self.vfx = self.add(VFX(enc=self))
+        self.hud = self.add(HUD(anchor_y='bottom', enc=self))
+        self.info_panel = self.add(InfoPanel(anchor_x='left', anchor_y='top', enc=self))
+        self.debug_panel = self.add(DebugPanel(anchor_x='right', anchor_y='top', enc=self))
+        self.enc_menu = Menu(enc=self)
+        self.sub_frames = {
+            'sprites': self.sprites,
+            'vfx': self.vfx,
+            'hud': self.hud,
+            'info': self.info_panel,
+            'debug': self.debug_panel,
+            'menu': self.enc_menu,
+        }
+
         self.ability_hotkeys = Settings.get_setting('abilities', 'Hotkeys')
         self.right_click_ability = Settings.get_setting('right_click', 'Hotkeys')
 
         # User input bindings
         self.app.hotkeys.register_dict({
             # encounter management
+            'toggle play/pause dev': (
+                f'{Settings.get_setting("toggle_play_dev", "Hotkeys")}',
+                lambda: self.toggle_play(show_menu=False)),
             'toggle play/pause': (
                 f'{Settings.get_setting("toggle_play", "Hotkeys")}',
                 lambda: self.toggle_play()),
-            'leave encounter': (
-                f'{Settings.get_setting("leave_encounter", "Hotkeys")}',
-                lambda: self.app.end_encounter()),
             # user controls
             **{f'ability {key.upper()}': (
                 f'{key}', lambda *args, x=i: self.quickcast(x)
@@ -66,28 +84,14 @@ class Encounter(widgets.RelativeLayout):
                 f'{Settings.get_setting("map_view", "Hotkeys")}',
                 lambda: self.toggle_map_zoom()),
             # debug
-            'debug': (f'^+ d', lambda: self.debug()),
-            'normal tps': (f'^+ t', lambda: self.debug(tps=None)),
-            'high tps': (f'^!+ t', lambda: self.debug(tps=920)),
-            'single tick': (f'^ t', lambda: self.debug(tick=1)),
+            # 'debug': (f'^+ d', lambda: self.debug()),
+            'toggle dev mode': (f'^+ d', lambda: self.api.debug(dev_mode=None)),
+            'normal tps': (f'^+ t', lambda: self.api.debug(tps=None)),
+            'high tps': (f'^!+ t', lambda: self.api.debug(tps=920)),
+            'single tick': (f'^ t', lambda: self.api.debug(tick=1)),
             })
         self.bind(on_touch_down=self.do_mouse_down)
         self.bind(on_touch_move=self.check_mouse_move)
-
-        # DRAW
-        self.redraw()
-        self.sprites = self.add(Sprites(enc=self))
-        self.vfx = self.add(VFX(enc=self))
-        self.hud = self.add(HUD(anchor_y='bottom', enc=self))
-        self.info_panel = self.add(InfoPanel(anchor_x='left', anchor_y='top', enc=self))
-        self.debug_panel = self.add(DebugPanel(anchor_x='right', anchor_y='top', enc=self))
-        self.sub_frames = {
-            'sprites': self.sprites,
-            'vfx': self.vfx,
-            'hud': self.hud,
-            'info': self.info_panel,
-            'debug': self.debug_panel,
-        }
 
     def redraw(self):
         self.canvas.clear()
@@ -109,10 +113,15 @@ class Encounter(widgets.RelativeLayout):
                 source=Assets.get_sprite('ability', 'crosshair2'),
                 allow_stretch=True, size=(15, 15))
 
-    def toggle_play(self, *args, **kwargs):
+    def toggle_play(self, show_menu=True):
         logger.debug(f'GUI toggling play/pause')
-        self.api.set_auto_tick(*args, **kwargs)
+        self.api.set_auto_tick()
         self.toggle_play_sounds()
+        # Toggle menu
+        if self.api.auto_tick:
+            self.enc_menu.set_view(False)
+        elif show_menu and not self.api.auto_tick:
+            self.enc_menu.set_view(True)
 
     def toggle_play_sounds(self):
         logger.debug(f'Toggling theme music, autotick: {self.api.auto_tick}')
@@ -136,6 +145,9 @@ class Encounter(widgets.RelativeLayout):
                     with ratecounter(self.timers[timer]):
                         frame.pos = 0, 0
                         frame.update()
+                if not self.api.auto_tick:
+                    with ratecounter(self.timers['graphics_menu']):
+                        self.enc_menu.update()
 
         self.timers['draw/idle'].ping()
 
@@ -164,7 +176,7 @@ class Encounter(widgets.RelativeLayout):
 
     def do_mouse_down(self, w, m):
         if not self.collide_point(*m.pos):
-            return
+            return False
         real_pos = self.mouse_real_pos
         if m.button == 'right':
             self.use_right_click()
@@ -181,12 +193,6 @@ class Encounter(widgets.RelativeLayout):
 
     # Utility
     def quickcast(self, key_index):
-        self.api.add_visual_effect(VisualEffect.SPRITE, 15, {
-            'point': self.mouse_real_pos,
-            'fade': 30,
-            'source': 'crosshair',
-            'size': (40, 40),
-        })
         ao = self.api.units[0].ability_order
         if key_index >= len(ao):
             return
@@ -195,21 +201,22 @@ class Encounter(widgets.RelativeLayout):
             return
         self.use_ability(ao[key_index], self.mouse_real_pos)
 
-    def use_ability(self, aid, target, supress_sfx=False):
-        if not self.api.auto_tick and not self.api.dev_mode:
-            return
+    def use_ability(self, aid, target):
         r = self.api.units[0].use_ability(self.api, aid, target)
-        if supress_sfx == False:
-            if r is FAIL_RESULT.MISSING_COST:
-                Assets.play_sfx('ui', 'cost', volume=Settings.get_volume('feedback'))
-            if r is FAIL_RESULT.MISSING_TARGET:
-                Assets.play_sfx('ui', 'target', volume=Settings.get_volume('feedback'))
-            if r is FAIL_RESULT.OUT_OF_BOUNDS:
-                Assets.play_sfx('ui', 'range', volume=Settings.get_volume('feedback'))
-            if r is FAIL_RESULT.OUT_OF_RANGE:
-                Assets.play_sfx('ui', 'range', volume=Settings.get_volume('feedback'))
-            if r is FAIL_RESULT.ON_COOLDOWN:
-                Assets.play_sfx('ui', 'cooldown', volume=Settings.get_volume('feedback'))
+        if r is None:
+            logger.warning(f'Ability {self.api.abilities[aid].__class__} failed to return a result!')
+        if isinstance(r, FAIL_RESULT):
+            if r in FAIL_SFX:
+                Assets.play_sfx('ui', FAIL_SFX[r], replay=False,
+                                volume=Settings.get_volume('feedback'),
+                                )
+        if r is not FAIL_RESULT.INACTIVE:
+            self.api.add_visual_effect(VisualEffect.SPRITE, 15, {
+                'point': self.mouse_real_pos,
+                'fade': 30,
+                'source': 'crosshair',
+                'size': (40, 40),
+            })
         return r
 
     def real2pix(self, pos):
@@ -237,8 +244,9 @@ class Encounter(widgets.RelativeLayout):
     def toggle_map_zoom(self):
         if self.__units_per_pixel == self.DEFAULT_UPP:
             upp_to_fit_axes = np.array(self.api.map_size) / self.size
-            v = sum(upp_to_fit_axes) / 2
-            logger.debug(f'Fitting map size into widget size, ratio: {self.api.map_size}/{self.size} = {upp_to_fit_axes} upp, average: {v}')
+            v = max(upp_to_fit_axes)
+            logger.debug(f'Fitting map size into widget size, ratio: ' \
+                         f'{self.api.map_size}/{self.size} = {upp_to_fit_axes} upp. Using: {v}')
             self.zoom(v=v)
         else:
             logger.debug(f'Setting to default upp')
@@ -255,3 +263,11 @@ class Encounter(widgets.RelativeLayout):
 
 
 OUT_OF_DRAW_ZONE = (-1_000_000, -1_000_000)
+FAIL_SFX = {
+    FAIL_RESULT.INACTIVE: 'pause',
+    FAIL_RESULT.MISSING_COST: 'cost',
+    FAIL_RESULT.MISSING_TARGET: 'target',
+    FAIL_RESULT.OUT_OF_BOUNDS: 'range',
+    FAIL_RESULT.OUT_OF_RANGE: 'range',
+    FAIL_RESULT.ON_COOLDOWN: 'cooldown',
+}

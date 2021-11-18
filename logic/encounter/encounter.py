@@ -27,6 +27,7 @@ class Encounter:
         return cls(**kwargs).api
 
     def __init__(self, player_abilities=None):
+        self.dev_mode = False
         self.timers = defaultdict(RateCounter)
         self.timers['agency'] = defaultdict(RateCounter)
         self.__seed = Seed()
@@ -106,6 +107,8 @@ class Encounter:
         self._visual_effects = active_effects
 
     def _do_agency(self):
+        if not self.auto_tick:
+            return
         next_agency = self.__last_agency_tick + self.agency_resolution
         # Player abilities
         if self.api.mask_alive()[0]:
@@ -156,14 +159,15 @@ class Encounter:
         uid = self.stats.add_unit(stats)
         assert uid == len(self.units)
         # Set spawn location
-        self.api.set_position(uid, location, value_name=(VALUE.CURRENT, VALUE.TARGET_VALUE))
+        self.api.set_position(uid, location)
+        self.api.set_position(uid, location, value_name=VALUE.TARGET_VALUE)
         # Create agency
         unit = Mechanics.get_new_unit(unit_type, api=self.api, uid=uid, allegiance=allegiance)
         self.units.append(unit)
 
     def _create_player(self, player_abilities):
         logger.info(f'Player abilities: {player_abilities}')
-        spawn = self.map_size/2
+        spawn = (100, 100)
         self._create_unit('player', spawn, allegiance=0)
         self.units[0].set_abilities(player_abilities)
 
@@ -190,8 +194,8 @@ class Encounter:
     # UTILITY
     def debug_action(self, *args, **kwargs):
         logger.debug(f'Debug action: {args} {kwargs}')
-        if 'dmod' in kwargs:
-            self.stats.add_dmod(5, self.mask_enemies(0), -3)
+        if 'dev_mode' in kwargs:
+            self.dev_mode = not self.dev_mode
         if 'tick' in kwargs:
             self._do_ticks(kwargs['tick'])
         if 'tps' in kwargs:
@@ -201,16 +205,19 @@ class Encounter:
 
     # ABILITIES
     def use_ability(self, ability, target, uid=0):
-        if self.stats.get_stats(uid, STAT.HP, VALUE.CURRENT) <= 0:
-            logger.warning(f'Unit {uid} is dead and requested ability {ability.name}')
+        if not self.auto_tick and not self.dev_mode:
             return FAIL_RESULT.INACTIVE
+        with ratecounter(self.timers['ability_single']):
+            r = self._use_ability(ability, target, uid)
+        return r
+
+    def _use_ability(self, aid, target, uid):
+        if self.stats.get_stats(uid, STAT.HP, VALUE.CURRENT) <= 0:
+            logger.warning(f'Unit {uid} is dead and requested ability {aid.name}')
+            return FAIL_RESULT.INACTIVE
+
         target = np.array(target)
         if (target > self.map_size).any() or (target < 0).any():
             return FAIL_RESULT.OUT_OF_BOUNDS
 
-        r = Mechanics.cast_ability(ability, self.api, uid, target)
-
-        if r is None:
-            logger.warning(f'Ability method {callback_name} return result not implemented.')
-            r = FAIL_RESULT.CRITICAL_ERROR
-        return r
+        return Mechanics.cast_ability(aid, self.api, uid, target)

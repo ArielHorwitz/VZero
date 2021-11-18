@@ -5,9 +5,10 @@ from logic.mechanics.common import *
 from logic.mechanics.mechanics import Mechanics
 import nutil
 from nutil import kex
+from nutil.vars import modify_color
 from nutil.display import make_title
 from nutil.kex import widgets
-from data.load import Assets, resource_name
+from data.load import Assets, Settings
 
 
 class HomeGUI(widgets.BoxLayout):
@@ -130,7 +131,10 @@ class AbilityViewer(widgets.AnchorLayout):
         if aid is None:
             return
         ability = Mechanics.abilities[aid]
-        self.make_bg((*ability.color, 0.3))
+        Assets.play_sfx('ability', ability.name,
+                        volume=Settings.get_volume('ui'),
+                        allow_exception=False)
+        self.make_bg(modify_color(ability.color, 0.3))
         self.label.text = f'{make_title(ability.name, length=30, end_line=False)}\n{ability.description}'
         self.label.text_size = self.label.size
 

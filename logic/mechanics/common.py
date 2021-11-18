@@ -12,5 +12,13 @@ def str2stat(name):
     return getattr(STAT, name.upper())
 
 
+def str2value(name):
+    return getattr(VALUE, name.upper())
+
+
 def str2status(name):
     return getattr(STATUS, name.upper())
+
+
+def str2status_value(name):
+    return getattr(STATUS_VALUE, name.upper())

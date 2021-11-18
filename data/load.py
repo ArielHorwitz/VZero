@@ -108,7 +108,7 @@ class Settings:
     DEFAULT_SETTINGS = {
         'General': {
             0: {
-                'mod': '_base',
+                'mod': '_fallback',
                 'default_zoom': 1.7,
             }
         },
@@ -123,15 +123,15 @@ class Settings:
         },
         'Hotkeys': {
             0: {
-                'toggle_play': 'spacebar',
-                'leave_encounter': 'escape',
+                'toggle_play': 'escape',
+                'toggle_play_dev': 'spacebar',
                 'map_view': 'm',
                 'right_click': 'q',
                 'abilities': 'qwerasdf',
                 'enable_hold_mouse': '1',
                 'zoom_default': '0',
-                'zoom_in': '-',
-                'zoom_out': '=',
+                'zoom_in': '=',
+                'zoom_out': '-',
             }
         },
     }
@@ -222,20 +222,21 @@ class Assets:
             return cls.SFX[category][sound_name]
         except KeyError:
             cls.missing_sfx.add(sound_name)
-            if not allow_exception:
-                return None
             m = f'Failed to find sfx {sound_name} from category {category}'
+            if not allow_exception:
+                logger.info(m)
+                return None
             logger.critical(m)
             raise KeyError(m)
 
     @classmethod
-    def play_sfx(cls, category, sound_name, volume=1, allow_exception=True):
+    def play_sfx(cls, category, sound_name, allow_exception=True, **kwargs):
         sound_name = resource_name(sound_name)
         s = cls.get_sfx(category, sound_name, allow_exception)
         if s is None:
             return
         logger.debug(f'Playing sfx {sound_name} from category {category}')
-        s.play(volume=volume)
+        s.play(**kwargs)
 
     @classmethod
     def get_sprite(cls, category, sprite_name):
@@ -276,48 +277,3 @@ class LoadMechanics:
     RAW_ABILITY_DATA = LoadBalFile.load_toplevel(ABILITIES_FILE)
     RAW_UNIT_DATA = LoadBalFile.load_toplevel(UNITS_FILE)
     RAW_MAP_DATA = LoadBalFile.load_toplevel(MAP_FILE)
-
-#
-# def load_units(unit_types):
-#     raw = file_load(CONFIG_DIR/'units.bal')
-#     all_units = {}
-#     line_number = 0
-#     lines = raw.split('\n')
-#     while line_number < len(lines):
-#         if lines[line_number].startswith('='):
-#             name = lines[line_number].split('= ', 1)[1]
-#             unit_type = lines[line_number + 1]
-#             if unit_type not in unit_types:
-#                 raise ValueError(f'Unrecognized unit type: {unit_type}')
-#             unit_type = unit_types[unit_type]
-#             line_number += 2
-#             unit_data = {
-#                 'type': unit_type,
-#                 'name': name,
-#                 'params': {},
-#                 'stats': defaultdict(lambda: {}),
-#             }
-#             while line_number < len(lines) and not lines[line_number].startswith('-'):
-#                 if ':' not in lines[line_number]:
-#                     line_number += 1
-#                     continue
-#                 param, value = lines[line_number].split(':')
-#                 line_number += 1
-#                 unit_data['params'][param] = value
-#             while line_number < len(lines) and not lines[line_number].startswith('='):
-#                 if ':' not in lines[line_number]:
-#                     line_number += 1
-#                     continue
-#                 stat, value = lines[line_number].split(':')
-#                 line_number += 1
-#                 if '.' in stat:
-#                     stat_name, value_name = stat.split('.')
-#                 else:
-#                     stat_name = stat
-#                     value_name = 'current'
-#                 unit_data['stats'][stat_name][value_name] = value
-#             internal_name = name.lower().replace(' ', '-')
-#             all_units[internal_name] = unit_data
-#         else:
-#             line_number += 1
-#     return all_units
