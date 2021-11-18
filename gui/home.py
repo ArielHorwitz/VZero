@@ -18,7 +18,7 @@ class HomeGUI(widgets.BoxLayout):
         self.menu = self.add(Menu(buttons={
             'Start Encounter': lambda: self.next_encounter.start(),
             'Restart': nutil.restart_script,
-            'Quit': quit,
+            'Quit': lambda *a: quit(),
         }))
         self.next_encounter = self.add(NextEncounter())
 
@@ -39,6 +39,7 @@ class NextEncounter(widgets.BoxLayout):
         self.draft = self.add(Draft())
         self.app.hotkeys.register_dict({
             'New encounter': ('enter', self.start),
+            'New encounter (2nd)': ('numpadenter', self.start),
         })
 
     def start(self):

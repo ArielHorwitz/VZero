@@ -14,7 +14,7 @@ ABILITIES_FILE = CONFIG_DIR/'abilities.bal'
 UNITS_FILE = CONFIG_DIR/'units.bal'
 MAP_FILE = CONFIG_DIR/'map.bal'
 
-FALLBACK_SPRITE = Path.cwd() / 'data' / 'error.png'
+FALLBACK_SPRITE = Path.cwd() / 'assets' / 'error.png'
 GRAPHICS_DIR = Path.cwd() / 'assets' / 'graphics'
 GRAPHICS_UI_DIR = GRAPHICS_DIR / 'ui'
 GRAPHICS_UNIT_DIR = GRAPHICS_DIR / 'units'

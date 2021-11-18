@@ -1,6 +1,6 @@
 VERSION = 0.005
 
-NAME = f'Roguesque'
+NAME = f'VZero'
 
 TITLE = f'{NAME} v{VERSION}'
 

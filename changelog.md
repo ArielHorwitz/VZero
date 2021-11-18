@@ -2,7 +2,10 @@
 # v0.005
 ###### Engine
 - Encounter pause menu, with ability descriptions
-- Temporarily removed leaving encounters (bugs to be fixed)
+- Temporarily disabled leaving encounters (bugs to be fixed)
+- Renamed project/engine to `VZero`
+- Integrated nutil library
+- Automated release procedure - expecting binaries on a regular basis
 
 ###### Mods
 - Abilities can now determine how the GUI represents them.
@@ -31,3 +34,10 @@ You may now create new and change existing units and abilities without code!
 - Beware and make a backup, as misformatting may break game loading.
 
 > With great power comes great responsibility.
+
+
+# v0.002
+- Code cleaning
+
+# v0.001
+- Realtime play

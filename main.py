@@ -1,11 +1,9 @@
 from pathlib import Path
-DEBUG_LOGFILE = Path.cwd()/'data'/'debug.log'
+DEBUG_LOGFILE = Path.cwd() / 'debug.log'
 
 
 import logging
 logger = logging.getLogger(__name__)
-# I am so lazy I can't bother to retype the default log level,
-#   so I choose an index.
 LOG_LEVELS = (logging.CRITICAL, logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG)
 LOG_LEVEL = LOG_LEVELS[3]
 
