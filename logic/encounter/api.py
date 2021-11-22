@@ -20,8 +20,8 @@ class EncounterAPI:
         return np.invert(self.mask_alive())
 
     def mask_allies(self, uid):
-        a = self.units[uid].allegience
-        return np.array([_u.allegience == a for _u in self.units])
+        a = self.units[uid].allegiance
+        return np.array([_u.allegiance == a for _u in self.units])
 
     def mask_enemies(self, uid):
         return np.invert(self.mask_allies(uid))
@@ -65,7 +65,7 @@ class EncounterAPI:
 
     @property
     def map_size(self):
-        return self.e.map_size
+        return self.e.mod_api.map_size
 
     @property
     def map_center(self):
@@ -136,6 +136,10 @@ class EncounterAPI:
     def add_dmod(self):
         return self.e.stats.add_dmod
 
+    @property
+    def add_unit(self):
+        return self.e.add_unit
+
     def debug_stats_table(self):
         return str(self.e.stats.table)
 
@@ -151,6 +155,10 @@ class EncounterAPI:
 
     def get_visual_effects(self):
         return self.e.get_visual_effects()
+
+    @property
+    def map_image_source(self):
+        return self.e.mod_api.map_image_source
 
     def use_ability(self, *args, **kwargs):
         return self.e.use_ability(*args, **kwargs)
@@ -180,7 +188,7 @@ class EncounterAPI:
         stat_table = self.e.stats.table
         velocity = self.get_velocity(uid)
         s = [
-            f'Allegience: {unit.allegience}',
+            f'Allegience: {unit.allegiance}',
             f'Speed: {self.s2ticks(velocity):.2f}/s ({velocity:.2f}/t)',
         ]
         for stat in stats:

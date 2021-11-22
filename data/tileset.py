@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 
 import numpy as np
 import collections, tempfile
@@ -5,11 +8,8 @@ from PIL import Image
 from pathlib import Path
 from nutil.random import Seed
 
-import logging
-logger = logging.getLogger(__name__)
 
-
-TILESET_DIR = Path.cwd()/'assets'/'graphics'/'tiles'
+TILESET_DIR = Path.cwd() / 'assets' / 'graphics' / 'tiles'
 TILESET_METADATA = {
     'tiles1': {
         'tile_size': 16,

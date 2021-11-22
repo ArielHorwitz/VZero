@@ -7,6 +7,10 @@ import numpy as np
 from logic.mechanics.unit import Unit
 from logic.mechanics.common import *
 
+
+PASSIVE_RESOLUTION = 60
+
+
 class Player(Unit):
     def setup(self, api, **params):
         self.color = (0, 1, 0)
@@ -23,6 +27,12 @@ class Player(Unit):
             if aid not in self.abilities and aid is not None:
                 logger.info(aid.name.lower().capitalize())
                 self.abilities.append(aid)
+
+    def do_passive(self, api):
+        dt = api.tick - self._last_passive
+        if dt < PASSIVE_RESOLUTION:
+            return
+        super().do_passive(api)
 
     def use_ability(self, api, aid, target):
         if aid not in self.abilities:

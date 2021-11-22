@@ -6,11 +6,13 @@ import pkgutil, importlib
 import enum
 from pathlib import Path
 from nutil.vars import AutoIntEnum
-from data.load import LoadMechanics, Settings
+from data import ROOT_DIR
+from data.load import RDF
+from data.settings import Settings
 
 
 MOD_NAME = Settings.get_setting('mod')
-MODS_DIR = Path.cwd()/'logic'/'mods'
+MODS_DIR = ROOT_DIR / 'logic' / 'mods'
 
 
 __mod_name = '_fallback'  # Set to fallback before searching
@@ -45,7 +47,7 @@ def ability_internal_name(name):
 # the abilities and stats as defined here. Hence we must do this before
 # the logic.mods package is imported as it will import us for these names.
 ABILITY = AutoIntEnum('ABILITY', [
-    *[f'{ability_internal_name(a)}' for a in LoadMechanics.RAW_ABILITY_DATA.keys()]
+    *[f'{ability_internal_name(a)}' for a in RDF.load(RDF.CONFIG_DIR / 'abilities.bal').keys()]
 ])
 
 STAT = AutoIntEnum('STAT', [

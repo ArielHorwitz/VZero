@@ -9,8 +9,8 @@ from nutil.vars import nsign
 from nutil.time import RateCounter, ratecounter
 from nutil.kex import widgets
 
-from data.load import Settings, Assets
-from data.tileset import TileMap
+from data.assets import Assets
+from data.settings import Settings
 from gui import cc_int, center_position
 from gui.encounter.sprites import Sprites
 from gui.encounter.vfx import VFX
@@ -96,14 +96,12 @@ class Encounter(widgets.RelativeLayout):
     def redraw(self):
         self.canvas.clear()
 
-        tilemap_source = self.__tilemap_source = TileMap(
-            ['tiles1']).make_map(100, 100)
+        tilemap_source = self.api.map_image_source
         tilemap_size = list(self.api.map_size / self.__units_per_pixel)
         with self.canvas.before:
             # Tilemap
             self.tilemap = widgets.Image(
-               source=tilemap_source,
-               size=cc_int(tilemap_size),
+               source=str(tilemap_source),
                allow_stretch=True)
 
         # Move target indicator
@@ -142,11 +140,11 @@ class Encounter(widgets.RelativeLayout):
             self._update()
             with ratecounter(self.timers['graphics_total']):
                 for timer, frame in self.sub_frames.items():
-                    with ratecounter(self.timers[timer]):
+                    with ratecounter(self.timers[f'graph_{timer}']):
                         frame.pos = 0, 0
                         frame.update()
                 if not self.api.auto_tick:
-                    with ratecounter(self.timers['graphics_menu']):
+                    with ratecounter(self.timers['graph_menu']):
                         self.enc_menu.update()
 
         self.timers['draw/idle'].ping()

@@ -1,17 +1,20 @@
 
 # v0.005
 ###### Engine
+- Renamed project/engine to `VZero`
 - Encounter pause menu, with ability descriptions
 - Temporarily disabled leaving encounters (bugs to be fixed)
-- Renamed project/engine to `VZero`
-- Integrated nutil library
+- Integrated nutil library, organized settings and assets
 - Automated release procedure - expecting binaries on a regular basis
+- RDF format utility - for parsing from a human-readable format
 
 ###### Mods
+- Mods now generate the map (background and units)
 - Abilities can now determine how the GUI represents them.
   - Override the `gui_state` method and return a string and rgba color.
 - Exposed the `dmod` feature to API (temporary extra deltas on stats).
   - This should allow basic temporary regen/degen mechanics.
+  - This feature probably requires more to make it interestingly usable.
 
 
 # v0.004

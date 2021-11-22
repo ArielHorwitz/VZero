@@ -1,7 +1,7 @@
 from nutil.kex import widgets
 from nutil.vars import modify_color
 from gui.encounter import EncounterViewComponent
-from data.load import Assets, resource_name
+from data.assets import Assets
 from logic.mechanics.common import *
 
 
@@ -79,9 +79,8 @@ class AbilityPanel(AbilityPanelFrame):
         self.ability = ability
         # self.make_bg()
         # self._bg_color.rgba = (*ability.color, 0.4)
-        res_name = resource_name(ability.aid.name)
         self.im = self.add(widgets.Image(
-            source=Assets.get_sprite('ability', res_name),
+            source=Assets.get_sprite('ability', ability.aid.name),
             allow_stretch=True,
         )).set_size(hy=0.5)
         self.add(widgets.Label(text=f'{ability.name}')).set_size(hy=0.25)

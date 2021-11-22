@@ -73,8 +73,11 @@ physical: 20
 
 
 ====== Folphin
-roamer
-aggro_range: 150
+camper
+aggro_range: 200
+deaggro_range: 800
+reaggro_range: 600
+camp_spread: 800
 
 --- stats
 gold: 25
@@ -86,8 +89,11 @@ air: 40
 
 
 ====== Fire Elemental
-roamer
-aggro_range: 250
+camper
+aggro_range: 300
+deaggro_range: 800
+reaggro_range: 450
+camp_spread: 150
 
 --- stats
 gold: 35
@@ -98,14 +104,17 @@ air: 25
 
 
 ====== Robot
-roamer
-aggro_range: 1200
+camper
+aggro_range: 800
+deaggro_range: 1000
+reaggro_range: 500
+camp_spread: 600
 
 --- stats
 gold: 100
 hp.max_value: 400
 hp.delta: 0.001
-physical: 60
+physical: 90
 air: 1
 
 
@@ -121,7 +130,7 @@ hitbox: 50
 gold: 150
 hp.max_value: 800
 hp.delta: 0.05
-physical: 80
+physical: 120
 air: 50
 
 
@@ -129,10 +138,15 @@ air: 50
 
 ------------------------------------- -
 
+
+===== Fort
+fort
+--- stats
+
+
 ====== Shopkeeper
 shopkeeper
 --- stats
-
 
 
 ====== DPS Meter

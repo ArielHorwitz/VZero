@@ -4,8 +4,11 @@ from nutil.time import ratecounter
 from nutil.kex import widgets
 from gui import cc_int, center_position
 from gui.encounter import EncounterViewComponent
-from data.load import Assets
+from data.assets import Assets
 from logic.mechanics.common import *
+
+
+MIN_SPRITE_SIZE = 20
 
 
 class Sprites(widgets.RelativeLayout, EncounterViewComponent):
@@ -43,7 +46,7 @@ class Sprites(widgets.RelativeLayout, EncounterViewComponent):
         hps = self.api.get_stats(slice(None), STAT.HP) / max_hps
         hp_height = max(3, 5 / self.enc.upp)
         hitboxes = self.api.get_stats(slice(None), STAT.HITBOX) * 2 / self.enc.upp
-        hitboxes[hitboxes<30] = 30
+        hitboxes[hitboxes<MIN_SPRITE_SIZE] = MIN_SPRITE_SIZE
 
         for uid in np.argwhere(newly_visible):
             uid = uid[0] # np.argwhere returns some nd-shape

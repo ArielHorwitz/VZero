@@ -5,7 +5,8 @@ from nutil.kex import widgets
 from nutil.time import ratecounter
 from gui.encounter import EncounterViewComponent
 from gui import center_position, cc_int
-from data.load import Settings, Assets
+from data.settings import Settings
+from data.assets import Assets
 
 
 class VFX(widgets.RelativeLayout, EncounterViewComponent):

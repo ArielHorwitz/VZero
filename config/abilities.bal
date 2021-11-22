@@ -98,7 +98,22 @@ duration: 480
 shopkeeper
 
 
+=== Fountain HP
+regen aura
+--- stats
+color: cyan
+restat: hp
+regen: 0.1
+radius: 300
 
+
+=== Fountain Mana
+regen aura
+--- stats
+color: cyan
+restat: mana
+regen: 0.1
+radius: 300
 
 
 
@@ -132,6 +147,10 @@ blast
 mana_cost: 0
 cooldown: 0
 
+
+
+=== Dev Midas
+midas
 
 
 === Test

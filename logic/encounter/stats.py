@@ -83,10 +83,11 @@ class UnitStats:
         return np.linalg.norm(positions - np.array(point), axis=1)
 
     # ADD/REMOVE UNIT STATS
-    def add_unit(self, starting_stats):
+    def add_unit(self, unit_stats):
         # Base stats entry
-        unit_matrix = _make_unit_stats(starting_stats)
-        self.table = np.concatenate((self.table, unit_matrix), axis=0)
+        logger.debug(f'Adding new unit stats: {unit_stats}')
+        unit_stats = unit_stats[None, :, :]
+        self.table = np.concatenate((self.table, unit_stats), axis=0)
         # Dmod entry
         new_column = np.zeros((DMOD_CACHE_SIZE, 1))
         self._dmod_targets = np.concatenate((self._dmod_targets, new_column), axis=1)
@@ -111,7 +112,8 @@ class UnitStats:
         return i
 
     def kill_stats(self, index):
-        self.table[index, :, [VALUE.DELTA, VALUE.TARGET_VALUE]] = 0
+        self.table[index, :, VALUE.DELTA] = 0
+        self.table[index, :, VALUE.TARGET_VALUE] = 0
 
     # TICK
     def do_tick(self, ticks):
@@ -227,3 +229,7 @@ def _make_unit_stats(data_dict):
                 raise ValueError(f'Missing starting stat value: {stat.name} {value.name}')
             unit_matrix[0, stat, value] = values[value]
     return unit_matrix
+
+
+def get_unit_stats_template():
+    return np.zeros(shape=(len(STAT), len(VALUE)))

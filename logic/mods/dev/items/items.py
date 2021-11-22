@@ -24,7 +24,7 @@ class ITEM(enum.IntEnum):
 
 ITEM_STATS = {
     ITEM.BRANCH: {
-        'cost': 50,
+        'cost': 25,
         'stats': {
             STAT.HP: {VALUE.DELTA: 0.0005, VALUE.MAX_VALUE: 1},
             STAT.MANA: {VALUE.DELTA: 0.0005, VALUE.MAX_VALUE: 1},
@@ -35,13 +35,13 @@ ITEM_STATS = {
             STAT.WATER: {VALUE.CURRENT: 1},
         },
     },
-    ITEM.PHYSICAL_LEAF: {'cost': 250, 'stats': {STAT.PHYSICAL: {VALUE.CURRENT: 5}}},
-    ITEM.FIRE_LEAF: {'cost': 250, 'stats': {STAT.FIRE: {VALUE.CURRENT: 5}}},
-    ITEM.EARTH_LEAF: {'cost': 250, 'stats': {STAT.EARTH: {VALUE.CURRENT: 5}}},
-    ITEM.AIR_LEAF: {'cost': 250, 'stats': {STAT.AIR: {VALUE.CURRENT: 5}}},
-    ITEM.WATER_LEAF: {'cost': 250, 'stats': {STAT.WATER: {VALUE.CURRENT: 5}}},
-    ITEM.HEART: {'cost': 350, 'stats': {STAT.HP: {VALUE.DELTA: 0.0030, VALUE.MAX_VALUE: 6}}},
-    ITEM.VIAL: {'cost': 150, 'stats': {STAT.MANA: {VALUE.DELTA: 0.0015, VALUE.MAX_VALUE: 3}}},
+    ITEM.PHYSICAL_LEAF: {'cost': 125, 'stats': {STAT.PHYSICAL: {VALUE.CURRENT: 5}}},
+    ITEM.FIRE_LEAF: {'cost': 125, 'stats': {STAT.FIRE: {VALUE.CURRENT: 5}}},
+    ITEM.EARTH_LEAF: {'cost': 125, 'stats': {STAT.EARTH: {VALUE.CURRENT: 5}}},
+    ITEM.AIR_LEAF: {'cost': 125, 'stats': {STAT.AIR: {VALUE.CURRENT: 5}}},
+    ITEM.WATER_LEAF: {'cost': 125, 'stats': {STAT.WATER: {VALUE.CURRENT: 5}}},
+    ITEM.HEART: {'cost': 225, 'stats': {STAT.HP: {VALUE.DELTA: 0.0030, VALUE.MAX_VALUE: 6}}},
+    ITEM.VIAL: {'cost': 75, 'stats': {STAT.MANA: {VALUE.DELTA: 0.0015, VALUE.MAX_VALUE: 3}}},
 }
 
 

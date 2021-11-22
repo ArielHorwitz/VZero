@@ -143,8 +143,8 @@ class Buff(BaseAbility):
                 'color': api.units[uid].color,
             })
         api.add_visual_effect(VisualEffect.CIRCLE, duration, params={
-            'color': (*self.color, 0.7),
-            'radius': api.get_stats(vfx_target, STAT.HITBOX)*2,
+            'color': (*self.color, 0.4),
+            'radius': api.get_stats(vfx_target, STAT.HITBOX)*1.2,
             'uid': vfx_target,
             'fade': duration*4,
         })
@@ -240,16 +240,22 @@ class RegenAura(BaseAbility):
         'destat': None,  # 'hp', 'earth', etc.
         'degen': 0,
         'radius': 0,
+        'show_aura': 0,
     }
     auto_check = set()
     auto_cost = set()
 
-    def cast(self, api, uid, target):
-        return self.aid
-
     def passive(self, api, uid, dt):
+        pos = api.get_position(uid)
         radius = self.param_value(api, uid, 'radius')
-        targets = Mutil.find_aoe_targets(api, api.get_position(uid), radius, api.mask_enemies(uid))
+        targets = Mutil.find_aoe_targets(api, pos, radius, api.mask_enemies(uid))
+        if self.p.show_aura > 0:
+            api.add_visual_effect(VisualEffect.CIRCLE, dt-2, {
+                'center': pos,
+                'radius': radius,
+                'color': (*self.color, self.p.show_aura),
+                # 'fade': dt/4,
+            })
         if targets.sum() == 0:
             return
         if self.p.restat is not None:
@@ -258,6 +264,7 @@ class RegenAura(BaseAbility):
         if self.p.destat is not None:
             degen = self.param_value(api, uid, 'degen')
             api.add_dmod(dt, targets, str2stat(self.p.destat), -degen)
+
 
     @property
     def info(self):
@@ -268,6 +275,17 @@ class RegenAura(BaseAbility):
             a.append(f'-{self.p.degen} {self.p.destat}')
         a = ' and '.join(a)
         return f'Radiate {a} in a {self.p.radius} radius (per tick).'
+
+
+class Midas(BaseAbility):
+    defaults = {
+        'gold': 0,
+    }
+
+    def passive(self, api, uid):
+        api.set_stats(uid, STAT.GOLD, self.p.gold, additive=True)
+        return self.aid
+
 
 
 class Test(BaseAbility):

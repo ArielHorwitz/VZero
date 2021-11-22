@@ -10,6 +10,7 @@ ABILITY_CLASSES = {
     'consume': base.Consume,
     'teleport': base.Teleport,
     'blast': base.Blast,
+    'midas': base.Midas,
     'regen aura': base.RegenAura,
     'shopkeeper': base.Shopkeeper,
     'test': base.Test,

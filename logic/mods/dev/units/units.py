@@ -1,6 +1,6 @@
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.DEBUG)
 
 import itertools
 import math
@@ -55,6 +55,10 @@ class Camper(Unit):
                     self.__deaggro = False
             abilities.append((ABILITY.WALK, self.camp+RNG.random(2) * self.__camp_spread))
         return abilities
+
+    @property
+    def debug_str(self):
+        return f'Camping at: {self.camp}'
 
 
 class Roamer(Unit):
@@ -121,6 +125,12 @@ class Shopkeeper(Unit):
     @property
     def debug_str(self):
         return self.__debug_str
+
+
+class Fort(Unit):
+    def setup(self, api):
+        self.abilities.append(ABILITY.FOUNTAIN_HP)
+        self.abilities.append(ABILITY.FOUNTAIN_MANA)
 
 
 class DPSMeter(Unit):

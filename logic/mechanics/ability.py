@@ -5,7 +5,7 @@ logger = logging.getLogger(__name__)
 import collections
 import numpy as np
 from nutil.vars import modify_color
-from data.load import resource_name
+from data import resource_name
 
 
 GUI_STATE = collections.namedtuple('GUI_STATE', ('string', 'color'))

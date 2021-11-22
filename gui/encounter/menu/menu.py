@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 import nutil
 from nutil.kex import widgets
 from gui.encounter import EncounterViewComponent
-from data.load import Assets
+from data.assets import Assets
 from logic.mechanics.common import *
 from gui.encounter.menu.ability_info import AbilityInfo
 

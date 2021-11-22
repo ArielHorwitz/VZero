@@ -8,7 +8,8 @@ from nutil import kex
 from nutil.vars import modify_color
 from nutil.display import make_title
 from nutil.kex import widgets
-from data.load import Assets, Settings
+from data.assets import Assets
+from data.settings import Settings
 
 
 class HomeGUI(widgets.BoxLayout):

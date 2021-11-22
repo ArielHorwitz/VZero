@@ -1,7 +1,7 @@
 from nutil.kex import widgets
 from gui.encounter import EncounterViewComponent
 from nutil.display import njoin, make_title
-from data.load import Assets
+from data.assets import Assets
 from nutil.time import RateCounter, humanize_ms
 
 

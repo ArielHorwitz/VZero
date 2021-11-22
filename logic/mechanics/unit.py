@@ -2,42 +2,39 @@ import logging
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
-from data.load import resource_name
-
-
-PASSIVE_RESOLUTION = 60
+from data import resource_name
 
 
 class Unit:
-    def __init__(self, api, uid, name, allegiance, params=None):
+    def __init__(self, api, uid, name, setup_params=None, allegiance=1):
+        setup_params = {} if setup_params is None else setup_params
         self.__uid = uid
         self.name = name
-        self.allegience = allegiance
+        self.allegiance = allegiance
         self.color = (1, 1, 1)
         self.abilities = []
         self._last_passive = -1
-        logger.debug(f'Sending params to agency subclass: {params}')
-        self.setup(api, **params)
+        logger.debug(f'Sending setup params to agency subclass: {setup_params}')
+        self.setup(api, **setup_params)
 
     def set_abilities(self, aids):
         aids = set(aids)
         self.abilities = list(aids)
 
-    def setup(self, api, **params):
+    def setup(self, api, **setup_params):
         pass
 
     def poll_abilities(self, api):
-        self.do_passive(api)
-        return self.do_agency(api)
-
-    def do_agency(self, api):
         return None
 
     def do_passive(self, api):
-        if api.tick > self._last_passive + PASSIVE_RESOLUTION:
-            self._last_passive = api.tick
-            for aid in self.abilities:
-                api.abilities[aid].passive(api, self.uid, PASSIVE_RESOLUTION)
+        if len(self.abilities) == 0:
+            return
+        dt = api.tick - self._last_passive
+        self._last_passive = api.tick
+        for aid in self.abilities:
+            logger.debug(f'{self.uid} doing passive {aid} @ {self._last_passive}, dt: {dt}')
+            api.abilities[aid].passive(api, self.uid, dt)
 
     @property
     def uid(self):

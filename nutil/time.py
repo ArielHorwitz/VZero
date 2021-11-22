@@ -76,7 +76,7 @@ def ratecounter(r):
 class RateCounter:
     """A simple rate counter (such as for FPS)."""
 
-    def __init__(self, sample_size=10, starting_elapsed=1000):
+    def __init__(self, sample_size=120, starting_elapsed=1000):
         super().__init__()
         self.counter = 0
         self.last_count = ping()

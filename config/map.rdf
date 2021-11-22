@@ -1,0 +1,48 @@
+=== Spawn
+--- Default
+fort: 1
+shopkeeper: 1
+dps_meter: 1
+
+
+=== Neutral 1
+--- Shop
+shopkeeper: 3
+
+=== Neutral 2
+--- Fort
+fort: 1
+
+=== Neutral 3
+--- Treasure
+hero treasure: 1
+
+
+=== Monsters 1
+--- Meef pair
+meef: 2
+--- Imp pack
+blood imp: 4
+
+=== Monsters 2
+--- Ratzan hive
+folphin: 1
+ratzan: 5
+--- Phaser
+phaser: 1
+meef: 4
+
+=== Monsters 3
+--- Fire pit
+fire elemental: 1
+blood imp: 3
+
+=== Monsters 4
+--- Fire hole
+fire elemental: 2
+
+=== Monsters 5
+--- Snake Lair
+winged snake: 1
+--- Robot
+robot: 1
