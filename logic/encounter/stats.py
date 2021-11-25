@@ -134,18 +134,18 @@ class UnitStats:
         return delta_add
 
     def _do_stat_deltas(self, ticks):
-        # TODO don't consider dead units when applying deltas
         current_values = self.table[:, :, VALUE.CURRENT]
-        # Raw deltas, without modifications
+        # Find deltas
         deltas = self.table[:, :, VALUE.DELTA] * ticks
-        # Find active modifications
         active_dmods = self._dmod_ticks > 0
         dmod_count = active_dmods.sum()
         if dmod_count > 0:
             delta_add = self._dmod_deltas() * ticks
             deltas = copy.copy(deltas) + delta_add
             self._dmod_ticks -= ticks
-
+        live_units = self.table[:, STAT.HP, VALUE.CURRENT] > 0
+        deltas *= live_units.reshape(len(self.table), 1)
+        
         min_values = self.table[:, :, VALUE.MIN_VALUE]
         max_values = self.table[:, :, VALUE.MAX_VALUE]
         target_values = self.table[:, :, VALUE.TARGET_VALUE]

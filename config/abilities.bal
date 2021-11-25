@@ -73,6 +73,22 @@ color: black
 
 
 
+=== Dev blink
+teleport
+-- stats
+range: 10000
+cooldown: 0
+mana_cost: 0
+
+
+=== Attack
+attack
+-- stats
+color: white
+
+
+------------------------------- -
+
 === Radiance
 regen aura
 -- stats
@@ -84,13 +100,6 @@ degen_bonus: 1
 radius: 150
 radius_stat: water
 radius_bonus: 1
-
-
-
-=== Attack
-attack
--- stats
-color: white
 
 
 ------------------------------- -
@@ -132,13 +141,6 @@ radius: 300
 consume
 
 
-
-=== Dev blink
-teleport
--- stats
-range: 10000
-cooldown: 0
-mana_cost: 0
 
 
 === Dev Fireblast

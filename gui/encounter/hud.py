@@ -1,3 +1,8 @@
+import logging
+logger = logging.getLogger(__name__)
+# logger.setLevel(logging.DEBUG)
+
+
 from nutil.kex import widgets
 from nutil.vars import modify_color
 from gui.encounter import EncounterViewComponent
@@ -8,17 +13,28 @@ from logic.mechanics.common import *
 class HUD(widgets.AnchorLayout, EncounterViewComponent):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.__updating = False
 
-        main_panel = self.add(widgets.BoxLayout(orientation='vertical'))
-        main_panel.set_size(y=250)
+        self.main_panel = self.add(widgets.BoxLayout(orientation='vertical'))
+        self.main_panel.set_size(y=250)
 
-        ability_panel = main_panel.add(widgets.AnchorLayout(anchor_y='bottom'))
+        ability_panel = self.main_panel.add(widgets.AnchorLayout(anchor_y='bottom'))
         self.ability_bar = ability_panel.add(AbilityBar(enc=self.enc))
 
-        self.hp_bar = main_panel.add(StatBar(STAT.HP, (1, 0, 0, 0.4), 'HP', enc=self.enc))
-        self.mana_bar = main_panel.add(StatBar(STAT.MANA, (0, 0, 1, 0.4), 'Mana', enc=self.enc))
+        self.hp_bar = self.main_panel.add(StatBar(STAT.HP, (1, 0, 0, 0.4), 'HP', enc=self.enc))
+        self.mana_bar = self.main_panel.add(StatBar(STAT.MANA, (0, 0, 1, 0.4), 'Mana', enc=self.enc))
 
     def update(self):
+        if not self.enc.map_mode:
+            self.main_panel.pos = 0, 0
+            self._update()
+            self.__updating = True
+        elif self.__updating:
+            self.main_panel.pos = self.enc.OUT_OF_DRAW_ZONE
+            self._update()
+            self.__updating = False
+
+    def _update(self):
         self.ability_bar.update()
         self.hp_bar.update()
         self.mana_bar.update()
@@ -61,7 +77,7 @@ class AbilityBar(widgets.GridLayout, EncounterViewComponent):
             if aid is None:
                 self.add(AbilityPanelFrame())
             else:
-                self.add(AbilityPanel(self.api.get_ability(aid)))
+                self.add(AbilityPanel(self.api.get_ability(aid), enc=self.enc))
 
 
 class AbilityPanelFrame(widgets.BoxLayout):
@@ -73,12 +89,10 @@ class AbilityPanelFrame(widgets.BoxLayout):
         pass
 
 
-class AbilityPanel(AbilityPanelFrame):
+class AbilityPanel(AbilityPanelFrame, EncounterViewComponent):
     def __init__(self, ability, **kwargs):
         super().__init__(**kwargs)
         self.ability = ability
-        # self.make_bg()
-        # self._bg_color.rgba = (*ability.color, 0.4)
         self.im = self.add(widgets.Image(
             source=Assets.get_sprite('ability', ability.aid.name),
             allow_stretch=True,
@@ -93,8 +107,7 @@ class AbilityPanel(AbilityPanelFrame):
         cd = api.get_cooldown(0, self.ability.aid)
         cast_state = self.ability.gui_state(api, 0)
         text = f'{cast_state.string}'
-        # self.im.pos = self.pos
         self.color.rgba = modify_color(cast_state.color, a=0.4)
         self.state_label.text = text
-        self.rect.pos = self.pos
+        self.rect.pos = self.pos if not self.enc.map_mode else self.enc.OUT_OF_DRAW_ZONE
         self.rect.size = self.size

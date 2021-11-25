@@ -127,6 +127,7 @@ def set_focus(w, delay=0.05):
 def _do_set_focus(w):
     w.focus = True
 
+modify_color = nutil.vars.modify_color
 
 class Config:
     @staticmethod

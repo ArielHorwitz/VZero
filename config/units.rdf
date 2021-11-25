@@ -3,7 +3,7 @@
 player
 
 - stats
-gold: 0
+gold: 2000
 hp.max_value: 200
 hp.delta: 0.02
 mana.max_value: 100
@@ -17,10 +17,10 @@ water: 10
 
 === Meef
 camper
-aggro_range: 600
-deaggro_range: 1000
-reaggro_range: 500
-camp_spread: 400
+aggro_range: 350
+deaggro_range: 600
+reaggro_range: 400
+camp_spread: 200
 
 -- stats
 hitbox: 20
@@ -33,10 +33,10 @@ air: 15
 
 ====== Glob
 camper
-aggro_range: 600
-deaggro_range: 1000
+aggro_range: 400
+deaggro_range: 700
 reaggro_range: 500
-camp_spread: 400
+camp_spread: 200
 
 -- stats
 hitbox: 30
@@ -49,7 +49,7 @@ air: 25
 
 ====== Ratzan
 camper
-aggro_range: 500
+aggro_range: 300
 deaggro_range: 500
 reaggro_range: 150
 camp_spread: 250
@@ -68,7 +68,7 @@ camper
 aggro_range: 550
 deaggro_range: 650
 reaggro_range: 100
-camp_spread: 500
+camp_spread: 300
 
 - stats
 hitbox: 30
@@ -84,7 +84,7 @@ camper
 aggro_range: 400
 deaggro_range: 800
 reaggro_range: 600
-camp_spread: 600
+camp_spread: 300
 
 --- stats
 hitbox: 40
@@ -99,7 +99,7 @@ camper
 aggro_range: 400
 deaggro_range: 800
 reaggro_range: 600
-camp_spread: 600
+camp_spread: 300
 
 --- stats
 hitbox: 40
@@ -115,7 +115,7 @@ camper
 aggro_range: 400
 deaggro_range: 800
 reaggro_range: 600
-camp_spread: 600
+camp_spread: 350
 
 --- stats
 hitbox: 40
@@ -133,7 +133,7 @@ camper
 aggro_range: 600
 deaggro_range: 1000
 reaggro_range: 600
-camp_spread: 600
+camp_spread: 100
 
 - stats
 hitbox: 50
@@ -150,7 +150,7 @@ camper
 aggro_range: 600
 deaggro_range: 1000
 reaggro_range: 600
-camp_spread: 600
+camp_spread: 250
 
 - stats
 hitbox: 60
@@ -169,7 +169,7 @@ reaggro_range: 450
 camp_spread: 50
 
 --- stats
-hitbox: 65
+hitbox: 60
 gold: 40
 hp.max_value: 750
 hp.delta: 0.005
@@ -182,7 +182,7 @@ camper
 aggro_range: 700
 deaggro_range: 800
 reaggro_range: 450
-camp_spread: 250
+camp_spread: 350
 
 --- stats
 hitbox: 80
@@ -208,6 +208,22 @@ hp.max_value: 800
 hp.delta: 0.005
 physical: 190
 air: 18
+
+
+====== Barkshroom
+camper
+aggro_range: 800
+deaggro_range: 1000
+reaggro_range: 500
+camp_spread: 600
+
+--- stats
+hitbox: 100
+gold: 150
+hp.max_value: 5000
+hp.delta: 0.001
+physical: 75
+air: 15
 
 
 ====== Robot
@@ -248,19 +264,34 @@ air: 50
 
 
 ===== Fort
-fort
+fountain
 --- stats
+hitbox: 80
 
+===== Lighthouse
+fountain
+--- stats
+hitbox: 60
 
-====== Shopkeeper
+====== Shopkeeper basic
 shopkeeper
+category: basic
 --- stats
 
+====== Shopkeeper herbal
+shopkeeper
+category: herbal
+--- stats
+
+====== Shopkeeper potion
+shopkeeper
+category: potion
+--- stats
 
 ====== DPS Meter
 dps_meter
 --- stats
-
+hitbox: 30
 
 
 

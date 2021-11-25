@@ -16,6 +16,7 @@ from logic.mechanics.player import Player
 from logic.mechanics.common import *
 abilities = import_mod_module('abilities._release')
 units = import_mod_module('units.units')
+items = import_mod_module('items.items')
 
 
 ABILITY_CLASSES = abilities.ABILITY_CLASSES
@@ -27,7 +28,7 @@ UNIT_CLASSES = {
     'roamer': units.Roamer,
     'treasure': units.Treasure,
     'shopkeeper': units.Shopkeeper,
-    'fort': units.Fort,
+    'fountain': units.Fountain,
     'dps_meter': units.DPSMeter,
 }
 
@@ -52,15 +53,16 @@ def get_default_stats():
     table[ELEMENTAL_STATS, VALUE.MIN_VALUE] = 2
     return table
 
+
 logger.debug(f'Default stats:\n{get_default_stats()}')
-
-
 
 
 class API(ModEncounterAPI):
     RNG = np.random.default_rng()
     TERRITORY_SIZE = 1000
     SPAWN_MULTIPLIER = 3
+    menu_title = 'Shop'
+    menu_texts = [f'{items.item_repr(item)}' for item in items.ITEM]
 
     def __init__(self, api):
         self.api = api
@@ -71,6 +73,7 @@ class API(ModEncounterAPI):
         set_spawn_location(self.player_stats, (self.map_size/2))
         self.map_image_source = TileMap(['tiles1']).make_map(100, 100)
 
+    # Map generation
     def spawn_map(self):
         territory_types = RDF(RDF.CONFIG_DIR / 'map.rdf')
         territories = self.get_territories()
@@ -132,6 +135,7 @@ class API(ModEncounterAPI):
     def random_offset_in_territory(self, location):
         return location + self.RNG.random(2) * self.TERRITORY_SIZE - (self.TERRITORY_SIZE/2)
 
+    # Unit spawn
     def add_unit(self, unit_type, spawn):
         internal_name = resource_name(unit_type)
         unit_data = self.unit_types[internal_name]
@@ -186,6 +190,26 @@ class API(ModEncounterAPI):
             modified_stats.append(f'{stat_.name}.{value_.name}: {raw_value}')
         logger.debug(f'Loaded raw stats: {", ".join(modified_stats)}')
         return stats
+
+    # Shop (mod menu)
+    def menu_click(self, index, right_click):
+        logger.debug(f'Menu click on {index} (right_click: {right_click})')
+        if right_click:
+            r = items.Shop.buy_item(self.api, 0, index)
+            if not isinstance(r, FAIL_RESULT):
+                return 'ability', 'shop'
+        return 'ui', 'target'
+
+    @property
+    def menu_colors(self):
+        return [(0.2, 0.2, 0.2) if a else (0, 0, 0) for a in self.active_shop_items]
+
+    @property
+    def active_shop_items(self):
+        item_categories = np.array([items.ITEM_STATS[item].category.value for item in items.ITEM])
+        active_category = self.api.get_status(0, STATUS.SHOP)
+        active_items = item_categories == active_category
+        return active_items
 
 
 def set_spawn_location(stats, spawn):

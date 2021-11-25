@@ -2,24 +2,24 @@
 --- Default
 isolate
 fort: 1
-shopkeeper: 1
+shopkeeper basic: 1
 dps_meter: 1
 
 
 === Neutral 1
 --- Shop
 isolate
-shopkeeper: 4
+shopkeeper herbal: 1
 
 === Neutral 2
 --- Fort
 isolate
-fort: 1
-shopkeeper: 1
+lighthouse: 1
+shopkeeper potion: 1
 
 --- Shop
 isolate
-shopkeeper: 2
+shopkeeper potion: 1
 
 === Neutral 3
 --- Treasure
@@ -66,3 +66,5 @@ skull: 2
 winged snake: 1
 --- Robot
 robot: 1
+--- Fungal sprout
+barkshroom: 1

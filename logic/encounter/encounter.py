@@ -45,11 +45,15 @@ class Encounter:
         self._create_player(player_abilities)
         # Populate map
         self.mod_api.spawn_map()
+        for uid in range(self.unit_count):
+            self._do_agent_action_phase(uid)
 
     # TIME MANAGEMENT
     def update(self):
         with ratecounter(self.timers['logic_total']):
             ticks = self._check_ticks()
+            if self.tick == 0:
+                ticks = 1
             if ticks > 0:
                 self._do_ticks(ticks)
 
@@ -95,10 +99,13 @@ class Encounter:
             with ratecounter(self.timers['agency_passive_single']):
                 self.units[uid].do_passive(self.api)
                 with ratecounter(self.timers['agency'][uid]):
-                    abilities = self.units[uid].action_phase()
-                    if abilities is None: continue
-                    for ability, target in abilities:
-                        self.use_ability(ability, target, uid)
+                    self._do_agent_action_phase(uid)
+
+    def _do_agent_action_phase(self, uid):
+        abilities = self.units[uid].action_phase()
+        if abilities is None: return
+        for ability, target in abilities:
+            self.use_ability(ability, target, uid)
 
     def _find_units_in_phase(self, ticks):
         if ticks >= self.AGENCY_PHASE_COUNT:

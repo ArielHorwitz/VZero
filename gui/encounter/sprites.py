@@ -75,7 +75,7 @@ class Sprites(widgets.RelativeLayout, EncounterViewComponent):
                 self.cached_sprites[uid].pos = pos
                 # HP bar
                 igroup = self.cached_hpbars[uid]
-                if hps[uid] > 0 and self.enc.upp < 1.5:
+                if hps[uid] > 0 and not self.enc.map_mode:
                     if igroup not in self.canvas.children:
                         self.canvas.add(igroup)
                     igroup.clear()

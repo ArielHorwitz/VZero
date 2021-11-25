@@ -52,6 +52,10 @@ class EncounterAPI:
 
     # PROPERTIES
     @property
+    def mod_api(self):
+        return self.e.mod_api
+
+    @property
     def dev_mode(self):
         return self.e.dev_mode
 

@@ -8,15 +8,10 @@ import numpy as np
 from logic.mechanics.common import *
 from nutil.vars import normalize
 from logic.mechanics import import_mod_module as import_
-Shop = import_('mechanics.shop').Shop
 Mutil = import_('mechanics.utilities').Utilities
 
 
 class Mechanics:
-    @classmethod
-    def do_buy_shop(cls, api, uid):
-        return Shop.do_buy_shop(api, uid)
-
     @classmethod
     def apply_loot(cls, api, uid, target, range):
         pos = api.get_position(uid)

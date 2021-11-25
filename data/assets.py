@@ -11,8 +11,8 @@ ASSETS_DIR = ROOT_DIR / 'assets'
 FALLBACK_SPRITE = ASSETS_DIR / 'error.png'
 GRAPHICS_DIR = ASSETS_DIR / 'graphics'
 GRAPHICS_UI_DIR = GRAPHICS_DIR / 'ui'
-GRAPHICS_UNIT_DIR = GRAPHICS_DIR / 'units'
 GRAPHICS_ABILITIES_DIR = GRAPHICS_DIR / 'abilities'
+GRAPHICS_UNIT_DIR = GRAPHICS_DIR / 'units'
 
 AUDIO_DIR = ASSETS_DIR / 'audio'
 SFX_THEME_DIR = AUDIO_DIR / 'theme'
@@ -106,6 +106,7 @@ class Assets:
         'ability': LoadAssets._load_audio_dir(SFX_ABILITY_DIR),
     }
     SPRITES = {
-        'unit': LoadAssets._load_image_dir(GRAPHICS_UNIT_DIR),
+        'ui': LoadAssets._load_image_dir(GRAPHICS_UI_DIR),
         'ability': LoadAssets._load_image_dir(GRAPHICS_ABILITIES_DIR),
+        'unit': LoadAssets._load_image_dir(GRAPHICS_UNIT_DIR),
     }

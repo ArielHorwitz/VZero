@@ -1,4 +1,4 @@
-from nutil.display import njoin, make_title
+from nutil.display import make_title
 from nutil.vars import modify_color
 from nutil.kex import widgets
 from gui.encounter import EncounterViewComponent
@@ -13,11 +13,9 @@ class AbilityInfo(widgets.BoxLayout, EncounterViewComponent):
         for i in range(len(self.api.units[0].abilities)):
             label = self.grid.add(widgets.Label(halign='left', valign='top'))
             self.labels.append(label)
+        self.update()
 
-        self.refresh()
-
-    def refresh(self):
-        text = []
+    def update(self):
         for i, aid in enumerate(self.api.units[0].abilities):
             label = self.labels[i]
             ability = self.api.abilities[aid]

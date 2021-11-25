@@ -4,12 +4,11 @@ logger = logging.getLogger(__name__)
 
 
 import math
-from nutil.vars import normalize
+from nutil.vars import normalize, modify_color
 from nutil.display import njoin
 from logic.mechanics.common import *
-from logic.mechanics.ability import Ability as BaseAbility
+from logic.mechanics.ability import Ability as BaseAbility, GUI_STATE
 from logic.mechanics import import_mod_module as import_
-Mechanics = import_('mechanics.mechanics').Mechanics
 Mutil = import_('mechanics.utilities').Utilities
 
 
@@ -119,9 +118,23 @@ class Ability(BaseAbility):
         return r
 
     def do_cast(self, api, uid, target):
-        logger.warning(f'{self.name} do_cast not implemented. No effect.')
+        logger.debug(f'{self.name} do_cast not implemented. No effect.')
+        return self.aid
 
     # Properties
+    def gui_state(self, api, uid, target=None):
+        cd = api.get_cooldown(uid, self.aid)
+        excess_mana = api.get_stats(uid, STAT.MANA) - self.p.mana_cost
+        strings = []
+        color = self.color
+        if cd > 0:
+            strings.append(f'CD: {api.ticks2s(cd):.1f}')
+            color = modify_color(self.color, v=0.25)
+        if excess_mana <= 0:
+            strings.append(f'M: {-excess_mana:.1f}')
+            color = modify_color(self.color, v=0.25)
+        return GUI_STATE(', '.join(strings), color)
+
     @property
     def description(self):
         return njoin([
@@ -136,6 +149,7 @@ class Params(dict):
         super().__init__(*args, **kwargs)
 
     def __getattr__(self, x):
+        logger.debug(f'Trying to retrieve: {x} from:\n{self}')
         return self[x]
 
 

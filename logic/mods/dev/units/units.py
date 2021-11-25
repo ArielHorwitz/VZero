@@ -12,8 +12,7 @@ from nutil.random import SEED
 from logic.mechanics.common import *
 from logic.mechanics.unit import Unit
 from logic.mechanics import import_mod_module as import_
-ITEM = import_('items.items').ITEM
-item_repr = import_('items.items').item_repr
+ICAT = import_('items.items').ITEM_CATEGORIES
 
 
 RNG = np.random.default_rng()
@@ -92,43 +91,27 @@ class Treasure(Unit):
 
 
 class Shopkeeper(Unit):
-    switch_interval = 2_000_000
-
-    def setup(self, api):
-        self.name = f'Friendly shopkeeper'
-        self.__debug_str = ''
+    def setup(self, api, category='basic'):
+        for icat in ICAT:
+            if category.upper() == icat.name:
+                self.category = icat
+                break
+        else:
+            raise ValueError(f'Unknown item category: {category}')
+        self.name = f'{icat.name.lower().capitalize()} shop'
         api.set_stats(self.uid, STAT.HP, 1_000_000, value_name=VALUE.MAX_VALUE)
         api.set_stats(self.uid, STAT.HP, 1_000_000, value_name=VALUE.DELTA)
-        item_list = list(ITEM)
-        random.shuffle(item_list)
-        self.item_iter = itertools.cycle(item_list)
-        self.reset_item(api)
-        self.last_iter += random.random() * self.switch_interval
-
-    def reset_item(self, api):
-        self.last_iter = api.tick
-        self.current_item = next(self.item_iter)
-        self.item_str = self.current_item.name.lower().capitalize().replace('_', ' ')
 
     def poll_abilities(self, api):
-        next_switch = api.tick - self.last_iter
-        if next_switch > self.switch_interval:
-            self.reset_item(api)
-        s = api.ticks2s(self.switch_interval - next_switch)
-        self.__debug_str = f'Selling: {self.item_str}\n{item_repr(self.current_item)}\n\nNext item in ~{round(s)} s'
-        api.set_status(self.uid, STATUS.SHOP, 0, self.current_item.value)
+        api.set_status(self.uid, STATUS.SHOP, duration=0, stacks=self.category.value)
         return [(ABILITY.SHOPKEEPER, api.get_position(self.uid))]
 
     @property
     def sprite(self):
-        return 'shop'
-
-    @property
-    def debug_str(self):
-        return self.__debug_str
+        return f'shop-{self.category.name.lower()}'
 
 
-class Fort(Unit):
+class Fountain(Unit):
     def setup(self, api):
         self.abilities.append(ABILITY.FOUNTAIN_HP)
         self.abilities.append(ABILITY.FOUNTAIN_MANA)

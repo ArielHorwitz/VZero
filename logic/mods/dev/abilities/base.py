@@ -14,8 +14,6 @@ from logic.mechanics import import_mod_module as import_
 BaseAbility = import_('abilities.ability').Ability
 Mechanics = import_('mechanics.mechanics').Mechanics
 Mutil = import_('mechanics.utilities').Utilities
-ITEM = import_('items.items').ITEM
-str2item = import_('items.items').str2item
 
 
 class Move(BaseAbility):
@@ -99,13 +97,7 @@ class Barter(BaseAbility):
                 'size': (25, 25),
                 })
             return self.aid
-
-        # otherwise, shop
-        buy_result = Mechanics.do_buy_shop(api, uid)
-        if isinstance(buy_result, FAIL_RESULT):
-            # returning loot result always, a more important feedback for the player
-            return loot_result
-        return self.aid
+        return loot_result
 
 
 class Buff(BaseAbility):
@@ -236,6 +228,7 @@ class Blast(BaseAbility):
 class RegenAura(BaseAbility):
     lore = 'Bright and dark mages are known for their healing and life draining abilities.'
     defaults = {
+        'mana_cost': 0,
         'restat': None,  # 'hp', 'earth', etc.
         'regen': 0,
         'destat': None,  # 'hp', 'earth', etc.
@@ -298,14 +291,14 @@ class Test(BaseAbility):
     debug = True
 
     def do_cast(self, api, uid, target):
-        item = random.choice(list(ITEM))
-        api.set_status(uid, STATUS.SHOP, 1_000_000, item)
+        # item = random.choice(list(ITEM))
+        # api.set_status(uid, STATUS.SHOP, 1_000_000, item)
         return self.aid
 
 
 class Shopkeeper(Buff):
     def cast(self, api, uid, target):
-        radius = 50
+        radius = 200
         targets = Mutil.find_aoe_targets(api, api.get_position(uid), radius)
         duration = 120
         stacks = api.get_status(uid, STATUS.SHOP, value_name=STATUS_VALUE.STACKS)

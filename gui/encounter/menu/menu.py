@@ -9,6 +9,7 @@ from gui.encounter import EncounterViewComponent
 from data.assets import Assets
 from logic.mechanics.common import *
 from gui.encounter.menu.ability_info import AbilityInfo
+from gui.encounter.menu.mod_menu import ModMenu
 
 
 class Menu(widgets.ModalView, EncounterViewComponent):
@@ -19,12 +20,30 @@ class Menu(widgets.ModalView, EncounterViewComponent):
         self.__showing = False
         self.set_size(hx=0.75, hy=0.9)
 
-        self.screen_switch = self.add(widgets.ScreenSwitch())
+        main_frame = self.add(widgets.BoxLayout(orientation='vertical'))
+
+        tabs = main_frame.add(widgets.BoxLayout())
+        tabs.set_size(y=40)
+        self.screens = main_frame.add(widgets.ScreenSwitch())
+        control_frame = main_frame.add(widgets.BoxLayout())
+        control_frame.set_size(y=40)
+
+        # Screens / tabs
         self.ability_info = AbilityInfo(enc=self.enc)
-        self.screen_switch.add_screen('ability-info', self.ability_info)
+        self.screens.add_screen('Abilities', self.ability_info)
+        tabs.add(widgets.Button(
+            text='Abilities',
+            on_release=lambda *a: self.screens.switch_screen('Abilities')
+        ))
+        self.mod_menu = ModMenu(enc=self.enc)
+        mod_menu_title = self.api.mod_api.menu_title
+        self.screens.add_screen(mod_menu_title, self.mod_menu)
+        tabs.add(widgets.Button(
+            text=mod_menu_title,
+            on_release=lambda *a: self.screens.switch_screen(mod_menu_title)
+        ))
 
         # Control buttons
-        control_frame = self.add(widgets.BoxLayout())
         for t, f in {
             # 'Leave encounter': lambda *a: self.app.end_encounter(),
             'Resume': lambda *a: self.enc.toggle_play(),
@@ -32,7 +51,6 @@ class Menu(widgets.ModalView, EncounterViewComponent):
             'Quit': lambda *a: quit(),
         }.items():
             btn = control_frame.add(widgets.Button(text=t, on_release=f))
-            btn.set_size(y=40)
 
     @property
     def showing(self):
@@ -49,5 +67,7 @@ class Menu(widgets.ModalView, EncounterViewComponent):
             self.dismiss()
 
     def update(self):
-        if self.showing:
-            self.ability_info.refresh()
+        if self.api.auto_tick:
+            return
+        self.ability_info.update()
+        self.mod_menu.update()

@@ -22,6 +22,7 @@ from logic.mechanics.common import *
 
 
 class Encounter(widgets.RelativeLayout):
+    OUT_OF_DRAW_ZONE = (-1_000_000, -1_000_000)
     DEFAULT_UPP = 1 / Settings.get_setting('default_zoom')
 
     def __init__(self, api, **kwargs):
@@ -146,9 +147,6 @@ class Encounter(widgets.RelativeLayout):
                     with ratecounter(self.timers[f'graph_{timer}']):
                         frame.pos = 0, 0
                         frame.update()
-                if not self.api.auto_tick:
-                    with ratecounter(self.timers['graph_menu']):
-                        self.enc_menu.update()
 
         self.timers['draw/idle'].ping()
 
@@ -235,6 +233,10 @@ class Encounter(widgets.RelativeLayout):
         return real_position
 
     @property
+    def map_mode(self):
+        return self.upp > 2.5
+
+    @property
     def view_size(self):
         return np.array(self.size) * self.upp
 
@@ -269,7 +271,6 @@ class Encounter(widgets.RelativeLayout):
             self.__units_per_pixel *= abs(d)**(-1*nsign(d))
 
 
-OUT_OF_DRAW_ZONE = (-1_000_000, -1_000_000)
 FAIL_SFX = {
     FAIL_RESULT.INACTIVE: 'pause',
     FAIL_RESULT.MISSING_COST: 'cost',
