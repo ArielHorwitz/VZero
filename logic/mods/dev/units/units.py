@@ -53,7 +53,7 @@ class Camper(Unit):
                 camp_dist = math.dist(my_pos, self.camp)
                 if camp_dist < self.__reaggro_range:
                     self.__deaggro = False
-            abilities.append((ABILITY.WALK, self.camp+RNG.random(2) * self.__camp_spread))
+            abilities.append((ABILITY.WALK, self.camp+(RNG.random(2) * self.__camp_spread*2 - self.__camp_spread)))
         return abilities
 
     @property
@@ -92,10 +92,11 @@ class Treasure(Unit):
 
 
 class Shopkeeper(Unit):
-    switch_interval = 20_000
+    switch_interval = 2_000_000
 
     def setup(self, api):
         self.name = f'Friendly shopkeeper'
+        self.__debug_str = ''
         api.set_stats(self.uid, STAT.HP, 1_000_000, value_name=VALUE.MAX_VALUE)
         api.set_stats(self.uid, STAT.HP, 1_000_000, value_name=VALUE.DELTA)
         item_list = list(ITEM)

@@ -1,8 +1,21 @@
 
-=== Attack
-attack
+
+=== Dunder Beam
+buff
 -- stats
-color: white
+color: purple
+status: slow
+target: other
+mana_cost: 20
+cooldown: 600
+range: 100
+range_stat: water
+range_bonus: 1
+stacks: 5
+stacks_stat: air
+stacks_bonus: 1
+duration: 480
+
 
 
 === Blink
@@ -74,22 +87,10 @@ radius_bonus: 1
 
 
 
-=== Dunder Beam
-buff
+=== Attack
+attack
 -- stats
-color: purple
-status: slow
-target: other
-mana_cost: 20
-cooldown: 600
-range: 100
-range_stat: water
-range_bonus: 1
-stacks: 5
-stacks_stat: air
-stacks_bonus: 1
-duration: 480
-
+color: white
 
 
 ------------------------------- -

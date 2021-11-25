@@ -8,12 +8,15 @@ from data import resource_name
 class Unit:
     def __init__(self, api, uid, name, setup_params=None, allegiance=1):
         setup_params = {} if setup_params is None else setup_params
+        self.api = api
         self.__uid = uid
         self.name = name
         self.allegiance = allegiance
         self.color = (1, 1, 1)
         self.abilities = []
         self._last_passive = -1
+        self.__debug_str = f'{self} debug str undefined.'
+        self._debug_last_action = 0
         logger.debug(f'Sending setup params to agency subclass: {setup_params}')
         self.setup(api, **setup_params)
 
@@ -36,6 +39,10 @@ class Unit:
             logger.debug(f'{self.uid} doing passive {aid} @ {self._last_passive}, dt: {dt}')
             api.abilities[aid].passive(api, self.uid, dt)
 
+    def action_phase(self):
+        self._debug_last_action = self.api.tick
+        return self.poll_abilities(self.api)
+
     @property
     def uid(self):
         return self.__uid
@@ -46,4 +53,4 @@ class Unit:
 
     @property
     def debug_str(self):
-        return f'{self} debug str undefined.'
+        return self.__debug_str

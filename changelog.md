@@ -1,4 +1,8 @@
 
+# v0.006
+###### Engine
+- Agent and draw optimizations
+
 # v0.005
 ###### Engine
 - Renamed project/engine to `VZero`

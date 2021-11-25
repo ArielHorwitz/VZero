@@ -54,14 +54,15 @@ class Ability(BaseAbility):
     def check_range_target_enemy(self, api, uid, target_point):
         range = None
         if 'range' in self.p:
-            range = self.p.range
+            range = self.p.range + api.get_stats(uid, STAT.HITBOX)
         target_uid = f = mutil.find_target_enemy(api, uid, target_point, range=range)
         if isinstance(target_uid, FAIL_RESULT):
             return f
         return True
 
     def check_range_point(self, api, uid, target_point):
-        if math.dist(api.get_position(uid), target_point) > self.p.range:
+        range = self.p.range + api.get_stats(uid, STAT.HITBOX)
+        if math.dist(api.get_position(uid), target_point) > range:
             return FAIL_RESULT.OUT_OF_RANGE
         return True
 
@@ -128,7 +129,6 @@ class Ability(BaseAbility):
             f'< Class: {self.__class__.__name__} >',
             *(f'{k}: {v}' for k, v in self.p.items()),
         ])
-
 
 
 class Params(dict):

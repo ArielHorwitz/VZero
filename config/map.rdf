@@ -1,5 +1,6 @@
 === Spawn
 --- Default
+isolate
 fort: 1
 shopkeeper: 1
 dps_meter: 1
@@ -7,11 +8,18 @@ dps_meter: 1
 
 === Neutral 1
 --- Shop
-shopkeeper: 3
+isolate
+shopkeeper: 4
 
 === Neutral 2
 --- Fort
+isolate
 fort: 1
+shopkeeper: 1
+
+--- Shop
+isolate
+shopkeeper: 2
 
 === Neutral 3
 --- Treasure
@@ -23,23 +31,35 @@ hero treasure: 1
 meef: 2
 --- Imp pack
 blood imp: 4
-
-=== Monsters 2
 --- Ratzan hive
 folphin: 1
 ratzan: 5
+--- Globs
+glob: 4
+
+=== Monsters 2
+--- Infestation
+infester: 4
+--- Crab patch
+crab: 3
+folphin: 2
 --- Phaser
 phaser: 1
 meef: 4
 
 === Monsters 3
---- Fire pit
-fire elemental: 1
-blood imp: 3
+--- Spike pit
+spiker: 1
+infester: 2
+--- Zombies
+zombie: 3
 
 === Monsters 4
 --- Fire hole
 fire elemental: 2
+--- Skull nest
+isolate
+skull: 2
 
 === Monsters 5
 --- Snake Lair

@@ -7,6 +7,7 @@ import random
 import itertools
 import numpy as np
 import math
+from nutil.vars import normalize
 from nutil.display import njoin
 from logic.mechanics.common import *
 from logic.mechanics import import_mod_module as import_
@@ -287,7 +288,6 @@ class Midas(BaseAbility):
         return self.aid
 
 
-
 class Test(BaseAbility):
     info = 'Developer experimental stuff.'
     lore = 'Don\'t ask.'
@@ -305,9 +305,9 @@ class Test(BaseAbility):
 
 class Shopkeeper(Buff):
     def cast(self, api, uid, target):
-        radius = 150
+        radius = 50
         targets = Mutil.find_aoe_targets(api, api.get_position(uid), radius)
-        duration = 240
+        duration = 120
         stacks = api.get_status(uid, STATUS.SHOP, value_name=STATUS_VALUE.STACKS)
         Mechanics.apply_debuff(api, targets, STATUS.SHOP, duration, stacks)
         return self.aid

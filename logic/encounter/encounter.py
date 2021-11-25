@@ -15,8 +15,7 @@ from logic.mechanics.mechanics import Mechanics
 
 class Encounter:
     DEFAULT_TPS = 120
-    AGENCY_PHASE_COUNT = 10
-    AGENCY_PHASE_INTERVAL = 60
+    AGENCY_PHASE_COUNT = 60
 
     @classmethod
     def new_encounter(cls, **kwargs):
@@ -27,15 +26,12 @@ class Encounter:
         self.eid = SEED.r
         self.dev_mode = False
         self.timers = defaultdict(RateCounter)
-        self.timers['agency'] = defaultdict(RateCounter)
+        self.timers['agency'] = defaultdict(lambda: RateCounter(sample_size=10))
         self.__seed = Seed()
         self.auto_tick = True
         self.__tps = self.DEFAULT_TPS
         self.ticktime = 1000 / self.__tps
-        self.agency_resolution = self.AGENCY_PHASE_INTERVAL / self.AGENCY_PHASE_COUNT
-        self.__agency_phase = 0
-        self.__last_agency_tick = 0
-        self.__t0 = self.__last_tick = ping()
+        self.__t0 = self.__last_tick = ping()  # This will jumpstart the game by however long the loading time is
         self.stats = UnitStats()
         self.units = []
         self._visual_effects = []
@@ -43,44 +39,19 @@ class Encounter:
 
         # Call mod to define map
         self.mod_api = Mechanics.mod_encounter_api_cls(self.api)
-
         # Create player
         if player_abilities is None or len(player_abilities) == 0:
             player_abilities = set(Mechanics.abilities_names)
         self._create_player(player_abilities)
-
-        # Call mod to populate map
+        # Populate map
         self.mod_api.spawn_map()
 
-    @property
-    def tick(self):
-        return self.stats.tick
-
-    @property
-    def target_tps(self):
-        return self.__tps
-
-    # TIME
-    def set_auto_tick(self, auto=None):
-        if auto is None:
-            auto = not self.auto_tick
-        self.auto_tick = auto
-        self.__last_tick = ping()
-        logger.info(f'Set auto tick: {self.auto_tick}')
-        return self.auto_tick
-
-    def set_tps(self, tps=None):
-        if tps is None:
-            tps = self.DEFAULT_TPS
-        self.__tps = tps
-        self.ticktime = 1000 / self.__tps
-
+    # TIME MANAGEMENT
     def update(self):
         with ratecounter(self.timers['logic_total']):
-            with ratecounter(self.timers['tick_total']):
-                ticks = self._check_ticks()
-            with ratecounter(self.timers['agency_total']):
-                self._do_agency()
+            ticks = self._check_ticks()
+            if ticks > 0:
+                self._do_ticks(ticks)
 
     def _check_ticks(self):
         dt = pong(self.__last_tick)
@@ -90,14 +61,15 @@ class Encounter:
         self.__last_tick = ping()
         dt -= ticks * self.ticktime
         self.__last_tick -= dt
-        self._do_ticks(ticks)
         return ticks
 
     def _do_ticks(self, ticks):
-        with ratecounter(self.timers['tick_stats']):
+        with ratecounter(self.timers['logic_stats']):
             self.stats.do_tick(ticks)
-        with ratecounter(self.timers['tick_vfx']):
+        with ratecounter(self.timers['logic_vfx']):
             self._iterate_visual_effects(ticks)
+        with ratecounter(self.timers['logic_agency']):
+            self._do_agency(ticks)
 
     def _iterate_visual_effects(self, ticks):
         if len(self._visual_effects) == 0:
@@ -109,51 +81,53 @@ class Encounter:
                 active_effects.append(effect)
         self._visual_effects = active_effects
 
-    def _do_agency(self):
-        if not self.auto_tick:
+    def _do_agency(self, ticks):
+        if ticks == 0:
             return
-        next_agency = self.__last_agency_tick + self.agency_resolution
-        # Player abilities
-        if self.api.mask_alive()[0]:
-            self.units[0].do_passive(self.api)
-            abilities = self.units[0].poll_abilities(self.api)
-            if abilities is not None:
-                for ability, target in abilities:
-                    self.use_ability(ability, target, uid=0)
-        # Monster abilities
-        if self.tick < next_agency:
-            return
-        self.__last_agency_tick = self.tick
-        self.__agency_phase += 1
-        self.__agency_phase %= self.AGENCY_PHASE_COUNT
-        # TODO make this more efficient - numpy can create the list of uids to iterate
-        for uid in range(self.__agency_phase, len(self.units), self.AGENCY_PHASE_COUNT):
-            with ratecounter(self.timers['agency'][uid]):
-                unit = self.units[uid]
-                if self.stats.get_stats(uid, STAT.HP, VALUE.CURRENT) <= 0:
-                    self.stats.kill_stats(uid)
-                    continue
-                unit.do_passive(self.api)
-                abilities = unit.poll_abilities(self.api)
-                if abilities is None:
-                    continue
-                for ability, target in abilities:
-                    self.use_ability(ability, target, uid)
+        # find which uids are in action based on distance from player
+        ACTION_RADIUS = 1500
+        alive = self.stats.get_stats(slice(None), STAT.HP, VALUE.CURRENT) > 0
+        in_phase = alive & self._find_units_in_phase(ticks)
+        in_action_radius = self.stats.get_distances(self.stats.get_position(0)) < ACTION_RADIUS
+        in_action_uids = (in_phase & in_action_radius).nonzero()[0]
+        if len(in_action_uids) == 0: return
+        for uid in in_action_uids:
+            with ratecounter(self.timers['agency_passive_single']):
+                self.units[uid].do_passive(self.api)
+                with ratecounter(self.timers['agency'][uid]):
+                    abilities = self.units[uid].action_phase()
+                    if abilities is None: continue
+                    for ability, target in abilities:
+                        self.use_ability(ability, target, uid)
 
-    # UNITS
-    def _create_unit(self, unit_type, location, allegiance):
-        logger.warning(f'"Encounter._create_unit()" is being phased out. Please use "Encounter.add_unit()"')
-        # Create stats
-        stats = Mechanics.get_starting_stats(unit_type)
-        uid = self.stats.add_unit(stats)
-        assert uid == len(self.units)
-        # Set spawn location
-        self.api.set_position(uid, location)
-        self.api.set_position(uid, location, value_name=VALUE.TARGET_VALUE)
-        # Create agency
-        unit = Mechanics.get_new_unit(unit_type, api=self.api, uid=uid, allegiance=allegiance)
-        self.units.append(unit)
-        return uid
+    def _find_units_in_phase(self, ticks):
+        if ticks >= self.AGENCY_PHASE_COUNT:
+            # Without crashing, assume tick count is lower than phase count
+            # This will not break the engine, but may cause game mechanics to break
+            # Better to adjust the phase count or improve performance of game mechanics,
+            # than to try and overcompute with an FPS deficiency
+            logger.critical(f'Running at extremely low logic update/agency phase count ratio (requested to produce {ticks} ticks worth of agency using only {self.AGENCY_PHASE_COUNT} phases). Things are breaking.')
+
+        # find which uids have agency in the given tick window
+        phase_first = (self.tick - ticks + 1) % self.AGENCY_PHASE_COUNT
+        phase_last = (self.tick) % self.AGENCY_PHASE_COUNT
+        unit_agency_phases = np.arange(self.unit_count) % self.AGENCY_PHASE_COUNT
+        if ticks == 1:
+            return unit_agency_phases == phase_last
+        # unit's phase must be between first and last (logical and)
+        if phase_first < phase_last:
+            return (phase_first <= unit_agency_phases) & (unit_agency_phases <= phase_last)
+        # unless we wrapped around from phase count to 0 (logical or)
+        return (phase_first <= unit_agency_phases) | (unit_agency_phases <= phase_last)
+
+    # UNIT MANAGEMENT
+    @property
+    def tick(self):
+        return self.stats.tick
+
+    @property
+    def target_tps(self):
+        return self.__tps
 
     def add_unit(self, unit_cls, name, stats, setup_params):
         uid = self.stats.add_unit(stats)
@@ -171,6 +145,24 @@ class Encounter:
         logger.info(f'Set player allegiance as {player.allegiance}')
 
     # UTILITY
+    def set_auto_tick(self, auto=None):
+        if auto is None:
+            auto = not self.auto_tick
+        self.auto_tick = auto
+        self.__last_tick = ping()
+        logger.info(f'Set auto tick: {self.auto_tick}')
+        return self.auto_tick
+
+    def set_tps(self, tps=None):
+        if tps is None:
+            tps = self.DEFAULT_TPS
+        self.__tps = tps
+        self.ticktime = 1000 / self.__tps
+
+    @property
+    def unit_count(self):
+        return len(self.units)
+
     def add_visual_effect(self, *args, **kwargs):
         logger.debug(f'Adding visual effect with: {args} {kwargs}')
         self._visual_effects.append(VisualEffect(*args, **kwargs))

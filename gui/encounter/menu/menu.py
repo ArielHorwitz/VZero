@@ -27,6 +27,7 @@ class Menu(widgets.ModalView, EncounterViewComponent):
         control_frame = self.add(widgets.BoxLayout())
         for t, f in {
             # 'Leave encounter': lambda *a: self.app.end_encounter(),
+            'Resume': lambda *a: self.enc.toggle_play(),
             'Restart': lambda *a: nutil.restart_script(),
             'Quit': lambda *a: quit(),
         }.items():
@@ -48,4 +49,5 @@ class Menu(widgets.ModalView, EncounterViewComponent):
             self.dismiss()
 
     def update(self):
-        self.ability_info.refresh()
+        if self.showing:
+            self.ability_info.refresh()

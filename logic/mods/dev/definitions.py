@@ -6,6 +6,7 @@ import copy, random
 import numpy as np
 from collections import defaultdict
 from nutil.vars import NP
+from nutil.random import SEED
 from data import resource_name
 from data.load import RDF
 from data.tileset import TileMap
@@ -41,7 +42,7 @@ def get_default_stats():
     table[:, VALUE.MAX_VALUE] = LARGE_ENOUGH
 
     table[(STAT.POS_X, STAT.POS_Y), VALUE.MIN_VALUE] = -LARGE_ENOUGH
-    table[STAT.HITBOX, VALUE.CURRENT] = 20
+    table[STAT.HITBOX, VALUE.CURRENT] = 50
     table[STAT.HP, VALUE.CURRENT] = LARGE_ENOUGH
     table[STAT.HP, VALUE.TARGET_VALUE] = 0
     table[STAT.MANA, VALUE.CURRENT] = LARGE_ENOUGH
@@ -68,7 +69,7 @@ class API(ModEncounterAPI):
         self.unit_types = self.__load_unit_types()
         self.player_stats = self.unit_types['player']['stats']
         set_spawn_location(self.player_stats, (self.map_size/2))
-        self.map_image_source = TileMap(['tiles1']).make_map(10, 10)
+        self.map_image_source = TileMap(['tiles1']).make_map(100, 100)
 
     def spawn_map(self):
         territory_types = RDF(RDF.CONFIG_DIR / 'map.rdf')
@@ -78,9 +79,12 @@ class API(ModEncounterAPI):
             camp_names = tuple(camps.keys())
             camp_name = random.choice(camp_names)
             logger.debug(f'Chose camp: {camp_name} from options: {camp_names}')
+            isolate = 'isolate' in camps[camp_name].positional
             spawn = self.random_offset_in_territory(location)
             for utype, amount in camps[camp_name].items():
                 for i in range(int(amount)):
+                    if isolate:
+                        spawn = self.random_offset_in_territory(location)
                     self.add_unit(utype, spawn)
 
     def get_territories(self):
@@ -94,25 +98,34 @@ class API(ModEncounterAPI):
         return territories
 
     def get_territories_quadrant(self, flipx=False, flipy=False, offset=None):
+        def territory_offset(x, y):
+            return np.array([x*self.TERRITORY_SIZE+self.TERRITORY_SIZE/2,
+                             y*self.TERRITORY_SIZE+self.TERRITORY_SIZE/2])
         if offset is None:
             offset = self.map_size/2
         sx = -1 if flipx else 1
         sy = -1 if flipy else 1
+        TIER1_NEUTRALS = 2
+        TIER2_NEUTRALS = 2
+        TIER3_NEUTRALS = 1
+        neutrals = {
+            # Tier 1
+            *[SEED.choice([(2, 0), (3, 0), (4, 0), (0, 2), (0, 3), (0, 4)]) for _ in range(TIER1_NEUTRALS)],
+            # Tier 2
+            *[SEED.choice([(3, 1), (4, 1), (1, 3), (1, 4)]) for _ in range(TIER2_NEUTRALS)],
+            # Tier 3
+            *[SEED.choice([(4, 2), (2, 4)]) for _ in range(TIER3_NEUTRALS)],
+        }
+        logger.debug(f'Chose neutrals: {neutrals}')
         t = []
         for x in range(5):
             for y in range(5):
-                if x == y == 0:
-                    continue
+                if x == y == 0: continue
                 for tier in range(5):
                     if x == tier or y == tier:
-                        camp = f'Monsters {tier+1}'
+                        camp = f'Neutral {tier+1}' if (x, y) in neutrals else f'Monsters {tier+1}'
                         break
-                location = np.array([
-                    x*self.TERRITORY_SIZE+self.TERRITORY_SIZE/2,
-                    y*self.TERRITORY_SIZE+self.TERRITORY_SIZE/2,
-                    ])
-                location *= (sx, sy)
-                location += offset
+                location = territory_offset(x, y) * (sx, sy) + offset
                 t.append((camp, location))
         return t
 

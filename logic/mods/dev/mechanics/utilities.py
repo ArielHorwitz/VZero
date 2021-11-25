@@ -37,10 +37,9 @@ class Utilities:
             return FAIL_RESULT.MISSING_TARGET
         attack_pos = api.get_position(target_uid)
         attack_target = api.units[target_uid]
-        if include_hitbox:
-            range += api.get_stats(target_uid, STAT.HITBOX)
+        total_range = range + api.get_stats(target_uid, STAT.HITBOX) if include_hitbox else range
         dist = math.dist(pos, attack_pos)
-        if dist > range:
+        if dist > total_range:
             if draw_miss_vfx and uid == 0:
                 api.add_visual_effect(VisualEffect.LINE, 10, {
                     'p1': pos,

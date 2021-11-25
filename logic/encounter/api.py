@@ -77,7 +77,7 @@ class EncounterAPI:
 
     @property
     def unit_count(self):
-        return len(self.units)
+        return self.e.unit_count
 
     @property
     def tick(self):

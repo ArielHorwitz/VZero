@@ -57,6 +57,9 @@ class Encounter(widgets.RelativeLayout):
 
         self.ability_hotkeys = Settings.get_setting('abilities', 'Hotkeys')
         self.right_click_ability = Settings.get_setting('right_click', 'Hotkeys')
+        self.menu_button = self.add(widgets.Button(
+            text='Menu', on_release=lambda *a: self.toggle_play()))
+        self.menu_button.set_size(50, 20)
 
         # User input bindings
         self.app.hotkeys.register_dict({
@@ -158,6 +161,8 @@ class Encounter(widgets.RelativeLayout):
         self.__player_pos = player_pos
         self.__anchor_offset = np.array(self.size) / 2
 
+        self.menu_button.pos = cc_int(np.array(self.size) - np.array(self.menu_button.size))
+
         self.tilemap.size = cc_int(np.array(self.api.map_size) / self.__units_per_pixel)
         self.tilemap.pos = cc_int(self.real2pix(np.zeros(2)))
 
@@ -230,6 +235,10 @@ class Encounter(widgets.RelativeLayout):
         return real_position
 
     @property
+    def view_size(self):
+        return np.array(self.size) * self.upp
+
+    @property
     def upp(self):
         return self.__units_per_pixel
 
@@ -242,7 +251,7 @@ class Encounter(widgets.RelativeLayout):
     def toggle_map_zoom(self):
         if self.__units_per_pixel == self.DEFAULT_UPP:
             upp_to_fit_axes = np.array(self.api.map_size) / self.size
-            v = max(upp_to_fit_axes)
+            v = max(upp_to_fit_axes) / 2
             logger.debug(f'Fitting map size into widget size, ratio: ' \
                          f'{self.api.map_size}/{self.size} = {upp_to_fit_axes} upp. Using: {v}')
             self.zoom(v=v)
