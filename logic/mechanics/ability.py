@@ -47,5 +47,8 @@ class Ability:
         pass
 
     @property
-    def description(self):
-        return f'No description available (#{self.aid})'
+    def general_description(self):
+        return f'No general description available ({self} #{self.aid})'
+
+    def description(self, api, uid):
+        return f'No description available ({self} #{self.aid})'

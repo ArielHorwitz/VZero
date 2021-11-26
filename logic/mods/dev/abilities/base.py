@@ -28,7 +28,7 @@ class Move(BaseAbility):
     }
 
     def do_cast(self, api, uid, target):
-        speed = self.param_value(api, uid, 'speed')
+        speed = self.p.get_speed(api, uid)
         Mechanics.apply_move(api, uid, target=target, move_speed=speed)
         return self.aid
 
@@ -47,13 +47,13 @@ class Attack(BaseAbility):
 
     def do_cast(self, api, uid, target):
         # check range (find target)
-        range = self.param_value(api, uid, 'range')
+        range = self.p.get_range(api, uid)
         target_uid = f = Mutil.find_target_enemy(api, uid, target, range)
         if isinstance(f, FAIL_RESULT):
             return f
 
         # get damage percent multiplier from elemental stats
-        damage = self.param_value(api, uid, 'damage')
+        damage = self.p.get_damage(api, uid)
 
         # damage effect
         Mechanics.do_brute_damage(api, uid, target_uid, damage)
@@ -78,7 +78,7 @@ class Barter(BaseAbility):
 
     def cast(self, api, uid, target):
         # loot nearest target regardless of check
-        range = self.param_value(api, uid, 'range')
+        range = self.p.get_range(api, uid)
         loot_result, loot_target = Mechanics.apply_loot(api, uid, api.get_position(uid), range)
         # apply loot with bonus if success
         if not isinstance(loot_result, FAIL_RESULT):
@@ -86,7 +86,7 @@ class Barter(BaseAbility):
             # check cooldown and mana for bonus gold
             if self.check_many(api, uid, checks=self.auto_check) is True:
                 self.cost_many(api, uid, costs=self.auto_cost)
-                looted_gold *= self.param_value(api, uid, 'loot_multi')
+                looted_gold *= self.p.get_loot_multi(api, uid)
 
             # gold income effect
             api.set_stats(uid, STAT.GOLD, looted_gold, additive=True)
@@ -117,15 +117,15 @@ class Buff(BaseAbility):
         if self.p.target == 'self':
             vfx_target = target_uid = uid
         else:
-            range = self.param_value(api, uid, 'range')
+            range = self.p.get_range(api, uid)
             vfx_target = target_uid = f = Mutil.find_target_enemy(api, uid, target, range)
             if isinstance(f, FAIL_RESULT):
                 return f
 
         # status effect
         status = str2status(self.p.status)
-        duration = self.param_value(api, uid, 'duration')
-        stacks = self.param_value(api, uid, 'stacks')
+        duration = self.p.get_duration(api, uid)
+        stacks = self.p.get_stacks(api, uid)
         Mechanics.apply_debuff(api, target_uid, status, duration, stacks)
 
         # vfx
@@ -180,7 +180,7 @@ class Teleport(BaseAbility):
 
     def do_cast(self, api, uid, target):
         pos = api.get_position(uid)
-        range = self.param_value(api, uid, 'range')
+        range = self.p.get_range(api, uid)
         target = self.fix_vector(api, uid, target, range)
         # teleport effect
         api.set_position(uid, target)
@@ -211,8 +211,8 @@ class Blast(BaseAbility):
     debug = True
 
     def do_cast(self, api, uid, target):
-        damage = self.param_value(api, uid, 'damage')
-        radius = self.param_value(api, uid, 'radius')
+        damage = self.p.get_damage(api, uid)
+        radius = self.p.get_radius(api, uid)
         targets_mask = Mutil.find_aoe_targets(api, target, radius, api.mask_enemies(uid))
         Mechanics.do_brute_damage(api, uid, targets_mask, damage)
 
@@ -229,9 +229,9 @@ class RegenAura(BaseAbility):
     lore = 'Bright and dark mages are known for their healing and life draining abilities.'
     defaults = {
         'mana_cost': 0,
-        'restat': None,  # 'hp', 'earth', etc.
+        'target_restat': None,  # 'hp', 'earth', etc.
         'regen': 0,
-        'destat': None,  # 'hp', 'earth', etc.
+        'target_destat': None,  # 'hp', 'earth', etc.
         'degen': 0,
         'radius': 0,
         'show_aura': 0,
@@ -241,7 +241,7 @@ class RegenAura(BaseAbility):
 
     def passive(self, api, uid, dt):
         pos = api.get_position(uid)
-        radius = self.param_value(api, uid, 'radius')
+        radius = self.p.get_radius(api, uid)
         targets = Mutil.find_aoe_targets(api, pos, radius, api.mask_enemies(uid))
         if self.p.show_aura > 0:
             api.add_visual_effect(VisualEffect.CIRCLE, dt-2, {
@@ -252,23 +252,23 @@ class RegenAura(BaseAbility):
             })
         if targets.sum() == 0:
             return
-        if self.p.restat is not None:
-            regen = self.param_value(api, uid, 'regen')
-            api.add_dmod(dt, targets, str2stat(self.p.restat), regen)
-        if self.p.destat is not None:
-            degen = self.param_value(api, uid, 'degen')
-            api.add_dmod(dt, targets, str2stat(self.p.destat), -degen)
+        if self.p.target_restat is not None:
+            regen = self.p.get_regen(api, uid)
+            api.add_dmod(dt, targets, str2stat(self.p.target_restat), regen)
+        if self.p.target_destat is not None:
+            degen = self.p.get_degen(api, uid)
+            api.add_dmod(dt, targets, str2stat(self.p.target_destat), -degen)
 
 
     @property
     def info(self):
         a = []
-        if self.p.restat is not None:
-            a.append(f'{self.p.regen} {self.p.restat}')
-        if self.p.destat is not None:
-            a.append(f'-{self.p.degen} {self.p.destat}')
+        if self.p.target_restat is not None:
+            a.append(f'+{self.p.target_restat}')
+        if self.p.target_destat is not None:
+            a.append(f'-{self.p.target_destat}')
         a = ' and '.join(a)
-        return f'Radiate {a} in a {self.p.radius} radius (per tick).'
+        return f'Radiate {a}.'
 
 
 class Midas(BaseAbility):
@@ -297,6 +297,7 @@ class Test(BaseAbility):
 
 
 class Shopkeeper(Buff):
+    lore = f'Running a mom and pop shop is tough business.'
     def cast(self, api, uid, target):
         radius = 200
         targets = Mutil.find_aoe_targets(api, api.get_position(uid), radius)
@@ -304,3 +305,7 @@ class Shopkeeper(Buff):
         stacks = api.get_status(uid, STATUS.SHOP, value_name=STATUS_VALUE.STACKS)
         Mechanics.apply_debuff(api, targets, STATUS.SHOP, duration, stacks)
         return self.aid
+
+    @property
+    def info(self):
+        return f'Offer wares for sale.'

@@ -57,6 +57,7 @@ class Draft(widgets.BoxLayout):
         self.selected_abilities = self.default_loadout()
 
         self.ability_viewer = self.add(AbilityViewer()).set_size(x=400)
+        widgets.Clock.schedule_once(lambda *a: self.ability_viewer.set_ability(0), 0.5)
         draft_frame = self.add(widgets.BoxLayout(orientation='vertical'))
         self.choice_frame = draft_frame.add(DraftAllAbilities(self.click_ability, True))
         self.loadout_frame = draft_frame.add(DraftedAbilities(self.click_ability, False))
@@ -126,7 +127,10 @@ class DraftedAbilities(widgets.GridLayout):
 class AbilityViewer(widgets.AnchorLayout):
     def __init__(self, **kwargs):
         super().__init__(anchor_x='left', anchor_y='top', **kwargs)
-        self.label = self.add(widgets.Label(halign='left', valign='top'))
+
+        box = self.add(widgets.BoxLayout(orientation='vertical'))
+        self.im = box.add(widgets.Image(allow_stretch=True)).set_size(100, 100)
+        self.label = box.add(widgets.Label(halign='left', valign='top'))
         self.label.text_size = self.label.size
 
     def set_ability(self, aid):
@@ -137,8 +141,9 @@ class AbilityViewer(widgets.AnchorLayout):
                         volume=Settings.get_volume('ui'),
                         allow_exception=False)
         self.make_bg(modify_color(ability.color, 0.3))
-        self.label.text = f'{make_title(ability.name, length=30, end_line=False)}\n{ability.description}'
+        self.label.text = f'{make_title(ability.name, length=30, end_line=False)}\n{ability.general_description}'
         self.label.text_size = self.label.size
+        self.im.source = Assets.get_sprite('ability', ability.sprite)
 
 
 class AbilityButtonFrame(widgets.BoxLayout):

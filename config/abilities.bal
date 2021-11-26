@@ -93,7 +93,7 @@ color: white
 regen aura
 -- stats
 color: yellow
-destat: hp
+target_destat: hp
 degen: 0.01
 degen_stat: fire
 degen_bonus: 1
@@ -112,7 +112,7 @@ shopkeeper
 regen aura
 --- stats
 color: cyan
-restat: hp
+target_restat: hp
 regen: 0.1
 radius: 300
 
@@ -121,7 +121,7 @@ radius: 300
 regen aura
 --- stats
 color: cyan
-restat: mana
+target_restat: mana
 regen: 0.1
 radius: 300
 

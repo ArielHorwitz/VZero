@@ -3,8 +3,9 @@ logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
 
+import collections
 import math
-from nutil.vars import normalize, modify_color
+from nutil.vars import normalize, modify_color, is_floatable
 from nutil.display import njoin
 from logic.mechanics.common import *
 from logic.mechanics.ability import Ability as BaseAbility, GUI_STATE
@@ -26,10 +27,10 @@ class Ability(BaseAbility):
             getattr(self, f'cost_{cost}')(api, uid)
 
     def cost_cooldown(self, api, uid, cost=None):
-        api.set_cooldown(uid, self.aid, self.param_value(api, uid, 'cooldown') if cost is None else cost)
+        api.set_cooldown(uid, self.aid, self.p.get_cooldown(api, uid) if cost is None else cost)
 
     def cost_mana(self, api, uid, cost=None):
-        api.set_stats(uid, STAT.MANA, -(self.param_value(api, uid, 'mana_cost') if cost is None else cost), additive=True)
+        api.set_stats(uid, STAT.MANA, -(self.p.get_mana_cost(api, uid) if cost is None else cost), additive=True)
 
     # Check methods
     def check_many(self, api, uid, target=None, checks=None):
@@ -41,7 +42,7 @@ class Ability(BaseAbility):
         return True
 
     def check_mana(self, api, uid, target=None):
-        if api.get_stats(uid, STAT.MANA) < self.p.mana_cost:
+        if api.get_stats(uid, STAT.MANA) < self.p.get_mana_cost(api, uid):
             return FAIL_RESULT.MISSING_COST
         return True
 
@@ -65,20 +66,6 @@ class Ability(BaseAbility):
             return FAIL_RESULT.OUT_OF_RANGE
         return True
 
-    # Parameter values
-    def param_value(self, api, uid, value_name):
-        param_name = f'{value_name}_stat'
-        if param_name not in self.p:
-            return self.p[value_name]
-        stat_value = api.get_stats(uid, str2stat(self.p[param_name]))
-        for s, f in STAT_MODS.items():
-            factor = f'{value_name}_{s}'
-            if factor in self.p:
-                value = f(self.p[value_name], stat_value, self.p[factor])
-                if self.debug:
-                    logger.debug(f'{self.name} found {value_name} value: {self.p[value_name]} -> {value} (using {s}, factor {self.p[factor]})')
-        return value
-
     # Utilities
     def fix_vector(self, api, uid, target, range):
         pos = api.get_position(uid)
@@ -89,6 +76,9 @@ class Ability(BaseAbility):
 
     # Parameters
     def setup(self, **params):
+        if self.defaults is None:
+            logger.error(f'{self.__class__} missing defaults')
+            self.defaults = {}
         for k, v in params.items():
             if k == 'color':
                 if hasattr(COLOR, v.upper()):
@@ -98,10 +88,7 @@ class Ability(BaseAbility):
                     assert len(rgb) == 3
                     self.color = rgb
             if k not in tuple(self.defaults.keys()):
-                logger.info(f'Setting up parameter {k} for ability {self.name} but no existing default')
-        if self.defaults is None:
-            logger.error(f'{self.__class__} missing defaults')
-            self.defaults = {}
+                logger.debug(f'Setting up parameter {k} for ability {self.name} but no existing default')
         self.p = Params({**self.defaults, **params})
         logger.debug(f'Created ability {self.name} with arguments: {params}. ' \
                      f'Defaults: {self.defaults}')
@@ -136,44 +123,160 @@ class Ability(BaseAbility):
         return GUI_STATE(', '.join(strings), color)
 
     @property
-    def description(self):
-        return njoin([
-            f'{self.info}\n\n{self.lore}\n',
+    def general_description(self):
+        return '\n'.join([
+            f'{self.info}\n',
+            f'Class: < {self.__class__.__name__} >',
+            *(self.p.repr_universal(p) for p in self.p.params),
+            f'\n> {self.lore}',
+        ])
+
+    def description(self, api, uid):
+        return '\n'.join([
+            f'{self.info}\n',
             f'< Class: {self.__class__.__name__} >',
-            *(f'{k}: {v}' for k, v in self.p.items()),
+            *(f'{self.p.repr(p, api, uid)}' for p in self.p.params),
+            f'\n> {self.lore}',
         ])
 
 
-class Params(dict):
+ExpandedParam = collections.namedtuple('ExpandedParam', ['base', 'stat', 'mods'])
+ExpandedMod = collections.namedtuple('ExpandedMod', ['cls', 'factor'])
+
+
+class Params:
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        self.__raw_params = dict(*args, **kwargs)
+        self._params = {}
+        self.params = []
+        for base_name, v in self.__raw_params.items():
+            # skip any non-base parameter, or anything with an equivalent internal name
+            if any([base_name.endswith(f'_{suf}') for suf in ['stat', *PARAM_MODS.keys()]]):
+                continue
+            if getattr(self, base_name) is not None:
+                logger.warning(f'Skipping ability parameter {base_name}, as it overwrites internal name.')
+                continue
+            self._params[base_name] = self.__expand_base(base_name)
+            self.params.append(base_name)
+        logger.debug(f'AbilityParams:')
+        for k, v in self._params.items():
+            logger.debug(f'{k}: {v}')
+
+    def repr(self, param_name, api, uid):
+        formula = ''
+        param = self._params[param_name]
+        if isinstance(param, ExpandedParam):
+            stat_value = api.get_stats(uid, param.stat)
+            stat_name = f'{stat_value:.1f} {param.stat.name.lower().capitalize()}'
+            formula = f'   = {self._formula_repr(param_name, stat_name)}'
+        pval = self._param_value(param_name, api, uid)
+        if is_floatable(pval):
+            pval = f'{pval:.1f}'
+        return f'{param_name.capitalize()}: {pval}{formula}'
+
+    def repr_universal(self, param_name):
+        return f'{param_name.capitalize()}: {self._formula_repr(param_name)}'
+
+    def _formula_repr(self, param_name, stat_name=None):
+        param = self._params[param_name]
+        if not isinstance(param, ExpandedParam):
+            s = str(param)
+        else:
+            s = f'{param.base}'
+            for mod in param.mods:
+                stat_name = param.stat.name.lower().capitalize() if stat_name is None else stat_name
+                s = mod.cls.repr(s, stat_name, mod.factor)
+        return s
+
+    def __expand_base(self, base_name):
+        base = self.__raw_params[base_name]
+        stat_name = f'{base_name}_stat'
+        if stat_name not in self.__raw_params:
+            return base
+        stat_name = self.__raw_params[stat_name]
+        mods = []
+        for mod_name, mod_cls in PARAM_MODS.items():
+            mod_param = f'{base_name}_{mod_name}'
+            if mod_param not in self.__raw_params:
+                continue
+            factor = self.__raw_params[mod_param]
+            mods.append(ExpandedMod(mod_cls, factor))
+        assert len(mods) > 0
+        return ExpandedParam(base, str2stat(stat_name), mods)
+
+    def _param_value(self, value_name, api=None, uid=None):
+        param = self._params[value_name]
+        if not isinstance(param, ExpandedParam):
+            return param
+        if api is None or uid is None:
+            return param.base
+        stat_value = api.get_stats(uid, param.stat)
+        value = param.base
+        for mod in param.mods:
+            value = mod.cls.calc(value, stat_value, mod.factor)
+            # logger.debug(f'Found {value_name} value: {param.base:.1f} -> {value:.1f} (using {stat_value:.1f} {param.stat.name}, {mod.cls.name} factor {mod.factor:.1f})')
+        return value
 
     def __getattr__(self, x):
-        logger.debug(f'Trying to retrieve: {x} from:\n{self}')
-        return self[x]
+        if x.startswith('get_'):
+            return lambda a, u, n=x[4:]: self._param_value(n, a, u)
+        if x in self.params:
+            return self._param_value(x)
 
 
-class StatMods:
+
+class ModReduction:
+    name = 'Reduction'
+
     @classmethod
-    def reduction(cls, base, stat, factor):
+    def calc(cls, base, stat, factor):
         return base * Mutil.diminishing_curve(stat*factor, 50, 20)
 
     @classmethod
-    def bonus_percent(cls, base, stat, factor):
+    def repr(cls, base, stat, factor):
+        return f'{base} - ({factor} • {stat}) %'
+
+
+class ModPercent:
+    name = 'Percent'
+
+    @classmethod
+    def calc(cls, base, stat, factor):
         return base * (1 + (stat * factor / 100))
 
     @classmethod
-    def mul(cls, base, stat, factor):
+    def repr(cls, base, stat, factor):
+        return f'{base} + {factor}% × {stat}'
+
+
+
+class ModMul:
+    name = 'Mul'
+
+    @classmethod
+    def calc(cls, base, stat, factor):
         return base * stat * factor
 
     @classmethod
-    def add(cls, base, stat, factor):
+    def repr(cls, base, stat, factor):
+        return f'{base} × {factor} × {stat}'
+
+
+class ModAdd:
+    name = 'Add'
+
+    @classmethod
+    def calc(cls, base, stat, factor):
         return base + (stat * factor)
 
+    @classmethod
+    def repr(cls, base, stat, factor):
+        return f'{base} + {factor} × {stat}'
 
-STAT_MODS = {
-    'reduc': StatMods.reduction,  # Multiply by diminishing curve, e.g. for cooldown reduction
-    'bonus': StatMods.bonus_percent,  # Add a percentage bonus
-    'mul': StatMods.mul,  # Multiply by factor
-    'add': StatMods.add,  # Flat addition
+
+PARAM_MODS = {
+    'reduc': ModReduction,
+    'bonus': ModPercent,
+    'mul': ModMul,
+    'add': ModAdd,
 }
