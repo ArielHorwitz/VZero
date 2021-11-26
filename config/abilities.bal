@@ -112,6 +112,7 @@ shopkeeper
 regen aura
 --- stats
 color: cyan
+status: fountain
 target_restat: hp
 regen: 0.1
 radius: 300
@@ -121,6 +122,7 @@ radius: 300
 regen aura
 --- stats
 color: cyan
+status: fountain
 target_restat: mana
 regen: 0.1
 radius: 300

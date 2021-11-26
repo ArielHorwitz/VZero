@@ -81,7 +81,8 @@ class VFX(widgets.RelativeLayout, EncounterViewComponent):
                         angle = 0
                         offset = (0, 0)
                         scale = (1,1)
-                        sprite_name = Assets.get_sprite('ability', effect.params['source'])
+                        sprite_category = effect.params['category'] if 'category' in effect.params else 'ability'
+                        sprite_name = Assets.get_sprite(sprite_category, effect.params['source'])
 
                         if 'tint' in effect.params:
                             tint = effect.params['tint']

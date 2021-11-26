@@ -2,7 +2,7 @@ import logging
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
-import copy, random
+import math, copy, random
 import numpy as np
 from collections import defaultdict
 from nutil.vars import NP
@@ -47,6 +47,7 @@ def get_default_stats():
     table[STAT.HP, VALUE.CURRENT] = LARGE_ENOUGH
     table[STAT.HP, VALUE.TARGET_VALUE] = 0
     table[STAT.MANA, VALUE.CURRENT] = LARGE_ENOUGH
+    table[STAT.MANA, VALUE.MAX_VALUE] = 20
 
     ELEMENTAL_STATS = [STAT.PHYSICAL, STAT.FIRE, STAT.EARTH, STAT.AIR, STAT.WATER]
     table[ELEMENTAL_STATS, VALUE.CURRENT] = 10
@@ -59,10 +60,6 @@ logger.debug(f'Default stats:\n{get_default_stats()}')
 
 class API(ModEncounterAPI):
     RNG = np.random.default_rng()
-    TERRITORY_SIZE = 1000
-    SPAWN_MULTIPLIER = 3
-    menu_title = 'Shop'
-    menu_texts = [f'{items.item_repr(item)}' for item in items.ITEM]
 
     def __init__(self, api):
         self.api = api
@@ -74,6 +71,9 @@ class API(ModEncounterAPI):
         self.map_image_source = TileMap(['tiles1']).make_map(100, 100)
 
     # Map generation
+    TERRITORY_SIZE = 1000
+    SPAWN_MULTIPLIER = 3
+
     def spawn_map(self):
         territory_types = RDF(RDF.CONFIG_DIR / 'map.rdf')
         territories = self.get_territories()
@@ -191,7 +191,11 @@ class API(ModEncounterAPI):
         logger.debug(f'Loaded raw stats: {", ".join(modified_stats)}')
         return stats
 
+    # GUI API
+
     # Shop (mod menu)
+    menu_title = 'Shop'
+    menu_texts = [f'{items.item_repr(item)}' for item in items.ITEM]
     def menu_click(self, index, right_click):
         logger.debug(f'Menu click on {index} (right_click: {right_click})')
         if right_click:
@@ -210,6 +214,44 @@ class API(ModEncounterAPI):
         active_category = self.api.get_status(0, STATUS.SHOP)
         active_items = item_categories == active_category
         return active_items
+
+    # Agent panel
+    def agent_panel_bars(self, uid):
+        hp = self.api.get_stats(uid, STAT.HP)
+        max_hp = self.api.get_stats(uid, STAT.HP, value_name=VALUE.MAX_VALUE)
+        mana = self.api.get_stats(uid, STAT.MANA)
+        max_mana = self.api.get_stats(uid, STAT.MANA, value_name=VALUE.MAX_VALUE)
+        return [
+            (hp/max_hp, (1, 0, 0), f'HP: {hp:.1f}/{max_hp:.1f}'),
+            (mana/max_mana, (0, 0, 1), f'Mana: {mana:.1f}/{max_mana:.1f}'),
+        ]
+
+    def agent_panel_boxes_labels(self, uid):
+        stats = self.api.get_stats(uid, [
+            STAT.GOLD, STAT.PHYSICAL, STAT.FIRE,
+            STAT.EARTH, STAT.AIR, STAT.WATER,
+        ])
+        return tuple(f'{_:.1f}' for _ in stats)
+
+    def agent_panel_boxes_sprites(self, uid):
+        return [
+            ('ability', 'gold'),
+            ('ability', 'physical'),
+            ('ability', 'fire'),
+            ('ability', 'earth'),
+            ('ability', 'air'),
+            ('ability', 'water'),
+        ]
+
+    def agent_panel_label(self, uid):
+        dist = math.dist(self.api.get_position(0), self.api.get_position(uid))
+        v = self.api.s2ticks(self.api.get_velocity(uid))
+        return '\n'.join([
+            f'Speed: {v:.1f}',
+            f'Distance: {dist:.1f}',
+            '',
+            self.api.pretty_statuses(uid),
+        ])
 
 
 def set_spawn_location(stats, spawn):

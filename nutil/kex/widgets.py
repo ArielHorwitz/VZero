@@ -4,6 +4,7 @@ logger = logging.getLogger(__name__)
 
 
 import collections
+import numpy as np
 
 import kivy
 from kivy.app import App as kvApp
@@ -266,10 +267,6 @@ class Slider(kvSlider, KexWidget):
     pass
 
 
-class ProgressBar(kvProgressBar, KexWidget):
-    pass
-
-
 class ListBox(BoxLayout, KexWidget):
     def __init__(self, *args, bg_color=None, **kwargs):
         super().__init__(*args, orientation='vertical', **kwargs)
@@ -432,3 +429,69 @@ class ScreenSwitch(kvScreenManager, KexWidget):
 
 class Screen(kvScreen, KexWidget):
     pass
+
+
+class Progress(Widget):
+    def __init__(self,
+            bg_color=(0, 0, 0), fg_color=(1, 0, 1),
+            **kwargs):
+        super().__init__(**kwargs)
+        self.__bg_color = bg_color
+        self.__fg_color = fg_color
+        self.__progress = 0
+        self.__text = None
+
+    @property
+    def text(self):
+        return self.__text
+
+    @text.setter
+    def text(self, x):
+        self.__text = x
+        self.draw_instructions()
+
+    @property
+    def bg_color(self):
+        return self.__bg_color
+
+    @bg_color.setter
+    def bg_color(self, x):
+        self.__bg_color = x
+        self.draw_instructions()
+
+    @property
+    def fg_color(self):
+        return self.__fg_color
+
+    @fg_color.setter
+    def fg_color(self, x):
+        self.__fg_color = x
+        self.draw_instructions()
+
+    @property
+    def progress(self):
+        return self.__progress
+
+    @progress.setter
+    def progress(self, x):
+        self.__progress = x
+        self.draw_instructions()
+
+    def draw_instructions(self):
+        self.canvas.clear()
+        with self.canvas:
+            kvColor(*self.__bg_color)
+            kvRectangle(pos=self.pos, size=self.size)
+            kvColor(*self.__fg_color)
+            progress_size = self.size[0]*self.__progress, self.size[1]
+            kvRectangle(pos=self.pos, size=progress_size)
+            kvColor(1, 1, 1)
+            if self.__text is not None:
+                texture = text_texture(self.__text)
+                kvRectangle(pos=(self.pos[0]+5, self.pos[1]), size=texture.size, texture=texture)
+
+
+def text_texture(text, font_size=16):
+    label = CoreLabel(text=text, font_size=font_size)
+    label.refresh()
+    return label.texture

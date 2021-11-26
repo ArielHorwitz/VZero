@@ -126,7 +126,7 @@ class Ability(BaseAbility):
     def general_description(self):
         return '\n'.join([
             f'{self.info}\n',
-            f'Class: < {self.__class__.__name__} >',
+            f'Class: « {self.__class__.__name__} »',
             *(self.p.repr_universal(p) for p in self.p.params),
             f'\n> {self.lore}',
         ])
@@ -134,7 +134,7 @@ class Ability(BaseAbility):
     def description(self, api, uid):
         return '\n'.join([
             f'{self.info}\n',
-            f'< Class: {self.__class__.__name__} >',
+            f'Class: « {self.__class__.__name__} »',
             *(f'{self.p.repr(p, api, uid)}' for p in self.p.params),
             f'\n> {self.lore}',
         ])

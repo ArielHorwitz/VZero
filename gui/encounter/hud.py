@@ -21,9 +21,6 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
         ability_panel = self.main_panel.add(widgets.AnchorLayout(anchor_y='bottom'))
         self.ability_bar = ability_panel.add(AbilityBar(enc=self.enc))
 
-        self.hp_bar = self.main_panel.add(StatBar(STAT.HP, (1, 0, 0, 0.4), 'HP', enc=self.enc))
-        self.mana_bar = self.main_panel.add(StatBar(STAT.MANA, (0, 0, 1, 0.4), 'Mana', enc=self.enc))
-
     def update(self):
         if not self.enc.map_mode:
             self.main_panel.pos = 0, 0
@@ -36,34 +33,13 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
 
     def _update(self):
         self.ability_bar.update()
-        self.hp_bar.update()
-        self.mana_bar.update()
-
-
-class StatBar(widgets.BoxLayout, EncounterViewComponent):
-    def __init__(self, stat, color, text, **kwargs):
-        super().__init__(**kwargs)
-        self.stat = stat
-        self.label_text = text
-        self.set_size(y=35)
-        self.make_bg(color)
-
-        self.label = self.add(widgets.Label()).set_size(x=200)
-        self.bar = self.add(widgets.ProgressBar())
-
-    def update(self):
-        stat_current, stat_max, stat_delta = self.api.get_stats(0, self.stat, value_name=(VALUE.CURRENT, VALUE.MAX_VALUE, VALUE.DELTA))
-        stat_delta *= self.api.s2ticks()
-        stat_delta_str = f'(+ {stat_delta:.2f})' if stat_delta > 0 else ''
-        self.label.text = f'{self.label_text}: {stat_current:.2f} / {stat_max:.2f}{stat_delta_str}'
-        self.bar.value = 100 * stat_current / stat_max
 
 
 class AbilityBar(widgets.GridLayout, EncounterViewComponent):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.cols = 4
-        self.set_size(hx=0.4, y=150)
+        self.set_size(x=800, y=150)
         self.make_bg((0.5, 0, 0.8, 0.1))
         self.reload_abilities()
 

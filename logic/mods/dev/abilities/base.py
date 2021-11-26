@@ -229,6 +229,7 @@ class RegenAura(BaseAbility):
     lore = 'Bright and dark mages are known for their healing and life draining abilities.'
     defaults = {
         'mana_cost': 0,
+        'status': None,
         'target_restat': None,  # 'hp', 'earth', etc.
         'regen': 0,
         'target_destat': None,  # 'hp', 'earth', etc.
@@ -252,13 +253,16 @@ class RegenAura(BaseAbility):
             })
         if targets.sum() == 0:
             return
+        status = self.p.status
+        if status is not None:
+            status = str2status(status)
+            Mechanics.apply_debuff(api, targets, status, dt, 1)
         if self.p.target_restat is not None:
             regen = self.p.get_regen(api, uid)
             api.add_dmod(dt, targets, str2stat(self.p.target_restat), regen)
         if self.p.target_destat is not None:
             degen = self.p.get_degen(api, uid)
             api.add_dmod(dt, targets, str2stat(self.p.target_destat), -degen)
-
 
     @property
     def info(self):

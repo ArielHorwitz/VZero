@@ -28,15 +28,17 @@ class Settings:
         },
         'Hotkeys': {
             0: {
-                'toggle_play': 'escape',
-                'toggle_play_dev': 'spacebar',
-                'map_view': 'm',
+                'start_encounter': 'spacebar',
+                'toggle_play': 'spacebar',
+                'toggle_play2': 'escape',
+                'map_view': 'tab',
                 'right_click': 'q',
                 'abilities': 'qwerasdf',
                 'enable_hold_mouse': '1',
                 'zoom_default': '0',
                 'zoom_in': '=',
                 'zoom_out': '-',
+                'toggle_play_dev': '^ spacebar',
             }
         },
     }

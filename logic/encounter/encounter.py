@@ -177,15 +177,17 @@ class Encounter:
     def get_visual_effects(self):
         return self._visual_effects
 
-    def debug_action(self, *args, **kwargs):
-        logger.debug(f'Debug action: {args} {kwargs}')
-        if 'dev_mode' in kwargs:
-            self.dev_mode = not self.dev_mode
-        if 'tick' in kwargs:
-            self._do_ticks(kwargs['tick'])
-        if 'tps' in kwargs:
-            v = kwargs['tps']
-            self.set_tps(v)
+    def debug_action(self, *args, dev_mode=-1, tick=None, tps=None, **kwargs):
+        logger.debug(f'Debug action called (extra args: {args} {kwargs})')
+        if dev_mode == -1:
+            dev_mode = self.dev_mode
+        elif dev_mode == None:
+            dev_mode = not self.dev_mode
+        self.dev_mode = dev_mode
+        if tick is not None:
+            self._do_ticks(tick)
+        if tps is not None:
+            self.set_tps(tps)
             logger.debug('set tps', self.__tps)
 
     # ABILITIES

@@ -1,8 +1,7 @@
 
 # v0.006
 ###### Engine
-- GUI improvements
-- Agent and draw optimizations
+- GUI improvements and optimizations
 
 ###### Mods
 - New menu for mods (shops and items!)

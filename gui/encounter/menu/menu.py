@@ -52,6 +52,12 @@ class Menu(widgets.ModalView, EncounterViewComponent):
         }.items():
             btn = control_frame.add(widgets.Button(text=t, on_release=f))
 
+        self.bind(on_touch_down=self.click)
+
+    def click(self, w, m):
+        if not self.collide_point(*m.pos):
+            self.enc.toggle_play(True)
+
     @property
     def showing(self):
         return self.__showing

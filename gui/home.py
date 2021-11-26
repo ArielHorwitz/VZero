@@ -39,8 +39,9 @@ class NextEncounter(widgets.BoxLayout):
         super().__init__(orientation='vertical', **kwargs)
         self.draft = self.add(Draft())
         self.app.hotkeys.register_dict({
-            'New encounter': ('enter', self.start),
-            'New encounter (2nd)': ('numpadenter', self.start),
+            'New encounter': (
+                f'{Settings.get_setting("start_encounter", "Hotkeys")}',
+                lambda: self.start()),
         })
 
     def start(self):
@@ -57,7 +58,6 @@ class Draft(widgets.BoxLayout):
         self.selected_abilities = self.default_loadout()
 
         self.ability_viewer = self.add(AbilityViewer()).set_size(x=400)
-        widgets.Clock.schedule_once(lambda *a: self.ability_viewer.set_ability(0), 0.5)
         draft_frame = self.add(widgets.BoxLayout(orientation='vertical'))
         self.choice_frame = draft_frame.add(DraftAllAbilities(self.click_ability, True))
         self.loadout_frame = draft_frame.add(DraftedAbilities(self.click_ability, False))

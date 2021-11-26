@@ -9,10 +9,6 @@ from data.tileset import TileMap
 
 
 class ModEncounterAPI:
-    menu_title = 'Mod menu not implemented'
-    menu_texts = ['Click me (left or right) and check log']
-    menu_colors = [(0, 0, 0)]
-
     def __init__(self, api):
         self.api = api
         self.map_size = np.full(2, 5_000)
@@ -21,7 +17,41 @@ class ModEncounterAPI:
     def spawn_map(self):
         logger.warning(f'Base class of ModEncounterAPI does not spawn anything.')
 
+    # GUI API
+    menu_title = 'Mod menu not implemented'
+    menu_texts = ['Mod menu has no items']
+    menu_colors = [(0, 0, 0)]
+
     def menu_click(self, index, right_click):
         logger.warning(f'{self.__class__}.menu_click() not implemented.')
-        logger.debug(f'Mod menu clicked: {index} (right click: {right_click})')
         return 'ui', 'target'
+
+    def agent_panel_bars(self, uid):
+        return [
+            (0.5, (1, 0, 1), f'{self.__class__}.agent_panel_bar() not implemented.'),
+            (0, (1, 1, 1), None),
+        ]
+
+    def agent_panel_boxes_labels(self, uid):
+        return [
+            f'{self.__class__}.agent_panel_boxes_labels() not implemented.',
+            '',
+            '',
+            '',
+            '',
+            '',
+        ]
+
+    def agent_panel_boxes_sprites(self, uid):
+        logger.warning(f'{self.__class__}.agent_panel_boxes_sprites() not implemented.')
+        return [
+            ('error', 'error'),
+            ('error', 'error'),
+            ('error', 'error'),
+            ('error', 'error'),
+            ('error', 'error'),
+            ('error', 'error'),
+        ]
+
+    def agent_panel_label(self, uid):
+        return f'{self.__class__}.agent_panel_label() not implemented.'

@@ -3,8 +3,8 @@
 player
 
 - stats
-gold: 2000
-hp.max_value: 200
+gold: 100
+hp.max_value: 100
 hp.delta: 0.02
 mana.max_value: 100
 mana.delta: 0.02

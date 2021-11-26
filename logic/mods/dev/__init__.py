@@ -11,6 +11,7 @@ STATS = [
 ]
 
 STATUSES = [
+    'FOUNTAIN',
     'SHOP',
     'ARMOR',
     'SLOW',

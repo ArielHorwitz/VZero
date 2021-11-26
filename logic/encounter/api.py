@@ -213,7 +213,7 @@ class EncounterAPI:
                 name_ = status.name.lower().capitalize()
                 stacks = v[STATUS_VALUE.STACKS]
                 s.append(f'{name_}: {duration:.2f} × {stacks:.2f}')
-        return njoin(s)
+        return njoin(s) if len(s) > 0 else 'No statuses'
 
     def pretty_cooldowns(self, uid):
         s = []
@@ -222,4 +222,4 @@ class EncounterAPI:
             if v > 0:
                 name_ = ability.name.lower().capitalize()
                 s.append(f'{name_}: {self.ticks2s(v):.2f} ({round(v)})')
-        return njoin(s)
+        return njoin(s) if len(s) > 0 else 'No cooldowns'

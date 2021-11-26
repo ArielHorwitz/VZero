@@ -36,6 +36,10 @@ class App(widgets.App):
         self.fps = RateCounter(sample_size=FPS)
         self.hook_mainloop(FPS)
 
+    @property
+    def fps_color(self):
+        return (1, 0, 0, (60-self.fps.rate)/30)
+
     def start_encounter(self, aids):
         if self.encounter is not None:
             return
