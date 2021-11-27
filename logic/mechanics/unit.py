@@ -18,13 +18,13 @@ class Unit:
         self.__debug_str = f'{self} debug str undefined.'
         self._debug_last_action = 0
         logger.debug(f'Sending setup params to agency subclass: {setup_params}')
-        self.setup(api, **setup_params)
+        self.setup(**setup_params)
 
     def set_abilities(self, aids):
         aids = set(aids)
         self.abilities = list(aids)
 
-    def setup(self, api, **setup_params):
+    def setup(self, **setup_params):
         pass
 
     def poll_abilities(self, api):

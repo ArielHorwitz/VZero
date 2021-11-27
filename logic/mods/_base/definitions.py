@@ -23,9 +23,8 @@ ABILITY_CLASSES = abilities.ABILITY_CLASSES
 
 
 UNIT_CLASSES = {
-    'player': Player,
+    'player': units.Player,
     'camper': units.Camper,
-    'roamer': units.Roamer,
     'treasure': units.Treasure,
     'shopkeeper': units.Shopkeeper,
     'fountain': units.Fountain,
@@ -67,8 +66,21 @@ class API(ModEncounterAPI):
         # Load unit types from config file
         self.unit_types = self.__load_unit_types()
         self.player_stats = self.unit_types['player']['stats']
+        self.player_class = units.Player
         set_spawn_location(self.player_stats, (self.map_size/2))
         self.map_image_source = TileMap(['tiles1']).make_map(100, 100)
+
+    # Reactions
+    def hp_zero(self, uid):
+        unit = self.api.units[uid]
+        logger.debug(f'Unit {unit.name} died')
+        self.api.units[uid].hp_zero()
+
+    def status_zero(self, uid, status):
+        unit = self.api.units[uid]
+        status = list(STATUS)[status]
+        logger.debug(f'Unit {unit.name} lost status {status.name}')
+        self.api.units[uid].status_zero(status)
 
     # Map generation
     TERRITORY_SIZE = 1000
@@ -196,6 +208,7 @@ class API(ModEncounterAPI):
     # Shop (mod menu)
     menu_title = 'Shop'
     menu_texts = [f'{items.item_repr(item)}' for item in items.ITEM]
+    item_colors = [items.ICAT_COLORS[items.ITEM_STATS[item].category-1] for item in items.ITEM]
     def menu_click(self, index, right_click):
         logger.debug(f'Menu click on {index} (right_click: {right_click})')
         if right_click:
@@ -206,7 +219,13 @@ class API(ModEncounterAPI):
 
     @property
     def menu_colors(self):
-        return [(0.2, 0.2, 0.2) if a else (0, 0, 0) for a in self.active_shop_items]
+        colors = []
+        for i, color in enumerate(self.item_colors):
+            colors.append((*color, 1) if all([
+                self.active_shop_items[i],
+                items.Shop.check_cost(self.api, 0, items.ITEM_LIST[i]),
+            ]) else (*color, 0.1))
+        return colors
 
     @property
     def active_shop_items(self):
@@ -228,19 +247,19 @@ class API(ModEncounterAPI):
 
     def agent_panel_boxes_labels(self, uid):
         stats = self.api.get_stats(uid, [
-            STAT.GOLD, STAT.PHYSICAL, STAT.FIRE,
-            STAT.EARTH, STAT.AIR, STAT.WATER,
+            STAT.PHYSICAL, STAT.FIRE, STAT.EARTH,
+            STAT.AIR, STAT.WATER, STAT.GOLD,
         ])
         return tuple(f'{_:.1f}' for _ in stats)
 
     def agent_panel_boxes_sprites(self, uid):
         return [
-            ('ability', 'gold'),
             ('ability', 'physical'),
             ('ability', 'fire'),
             ('ability', 'earth'),
             ('ability', 'air'),
             ('ability', 'water'),
+            ('ability', 'gold'),
         ]
 
     def agent_panel_label(self, uid):

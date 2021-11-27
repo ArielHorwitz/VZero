@@ -67,10 +67,12 @@ class UnitStats:
             value_name = VALUE.CURRENT
         return self.table[index, (STAT.POS_X, STAT.POS_Y), value_name]
 
-    def set_position(self, index, pos, value_name=None):
+    def set_position(self, index, pos, value_name=None, halt=False):
         if value_name is None:
             value_name = VALUE.CURRENT
         self.table[index, (STAT.POS_X, STAT.POS_Y), value_name] = pos
+        if halt is True:
+            self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.TARGET_VALUE] = pos
 
     def get_velocity(self, index=None):
         if index is None:
@@ -98,7 +100,9 @@ class UnitStats:
         # Cooldowns entry
         unit_cooldowns = np.zeros((1, self.ability_count))
         self.cooldowns = np.concatenate((self.cooldowns, unit_cooldowns), axis=0)
-        assert len(self.table) == len(self.status_table) == len(self.cooldowns) == self._dmod_targets.shape[1]
+        # Live flag
+        self._flags_alive = np.append(self._flags_alive, [False])
+        assert len(self.table) == len(self.status_table) == len(self.cooldowns) == self._dmod_targets.shape[1] == len(self._flags_alive)
         return len(self.table) - 1
 
     def add_dmod(self, ticks, units, stat, delta):
@@ -108,7 +112,6 @@ class UnitStats:
         self._dmod_ticks[i] = ticks
         self._dmod_targets[i] = units
         self._dmod_index += 1
-        logger.debug(self._dmod_repr(i))
         return i
 
     def kill_stats(self, index):
@@ -118,9 +121,10 @@ class UnitStats:
     # TICK
     def do_tick(self, ticks):
         self.tick += ticks
-        self._do_stat_deltas(ticks)
-        self._do_status_deltas(ticks)
+        hp_zero = self._do_stat_deltas(ticks)
+        status_zero = self._do_status_deltas(ticks)
         self._do_cooldown_deltas(ticks)
+        return hp_zero, status_zero
 
     def _dmod_deltas(self):
         active_dmods = self._dmod_ticks > 0
@@ -145,7 +149,7 @@ class UnitStats:
             self._dmod_ticks -= ticks
         live_units = self.table[:, STAT.HP, VALUE.CURRENT] > 0
         deltas *= live_units.reshape(len(self.table), 1)
-        
+
         min_values = self.table[:, :, VALUE.MIN_VALUE]
         max_values = self.table[:, :, VALUE.MAX_VALUE]
         target_values = self.table[:, :, VALUE.TARGET_VALUE]
@@ -168,12 +172,18 @@ class UnitStats:
         current_values[below_min_mask] = min_values[below_min_mask]
         current_values[above_max_mask] = max_values[above_max_mask]
 
+        # Return a list of units that reached 0 HP
+        hp_below_zero = self.table[:, STAT.HP, VALUE.CURRENT] <= 0
+        hp_zero = self._flags_alive & hp_below_zero
+        self._flags_alive = np.invert(hp_below_zero)
+        return hp_zero.nonzero()[0]
+
     def _do_status_deltas(self, ticks):
         already_at_zero = self.status_table[:, :, STATUS_VALUE.DURATION] <= 0
         will_be_at_zero = self.status_table[:, :, STATUS_VALUE.DURATION] - ticks <= 0
-        reaching_zero_now = np.logical_and(already_at_zero == 0, will_be_at_zero == 1)
-        self.status_table[:, :, STATUS_VALUE.ENDED_NOW] = reaching_zero_now
+        reaching_zero_now = np.invert(already_at_zero) & will_be_at_zero
         self.status_table[:, :, STATUS_VALUE.DURATION] -= ticks
+        return np.column_stack(reaching_zero_now.nonzero())
 
     def _do_cooldown_deltas(self, ticks):
         self.cooldowns -= ticks
@@ -206,6 +216,7 @@ class UnitStats:
             shape=(DMOD_CACHE_SIZE, self.stat_count), dtype=np.float64)
         self._dmod_ticks = np.zeros(DMOD_CACHE_SIZE)
         self._dmod_targets = np.zeros(shape=(DMOD_CACHE_SIZE, 0))
+        self._flags_alive = np.array([], dtype=np.bool)
 
     def print_table(self):
         with np.printoptions(precision=2, linewidth=10_000, threshold=10_000):

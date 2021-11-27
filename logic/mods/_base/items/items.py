@@ -12,20 +12,34 @@ def str2item(name):
 
 
 ITEM = AutoIntEnum('ITEM', [
+    # Basic
+    'BOOTS',
+    'SLIPPERS',
+    'STONKS',
+    # Herbal
     'BRANCH',
-    'PHYSICAL_LEAF',
-    'FIRE_LEAF',
-    'EARTH_LEAF',
-    'AIR_LEAF',
-    'WATER_LEAF',
+    'LEAF',
+    'TRUNK',
+    # Ornaments
+    'AMULET',
+    # Potions
     'HEART',
-    'VIAL'
+    'VIAL',
+    'GEM',
 ])
+ITEM_LIST = [item for item in ITEM]
 ICAT = ITEM_CATEGORIES = IntEnum('ITEM_CATEGORIES', [
     'BASIC',
     'HERBAL',
+    'ORNAMENT',
     'POTION',
 ])
+ICAT_COLORS = [
+    (0.5, 0.5, 0),
+    (0.5, 1, 0.25),
+    (0, 0.5, 0.5),
+    (1, 0, 0.5),
+]
 
 class ItemData:
     def __init__(self, category, cost, stats=None):
@@ -34,22 +48,20 @@ class ItemData:
         self.stats = stats if stats is not None else {}
 
 ITEM_STATS = {
-    ITEM.BRANCH: ItemData(category=ICAT.BASIC, cost=25, stats={
-            STAT.HP: {VALUE.DELTA: 0.0005, VALUE.MAX_VALUE: 1},
-            STAT.MANA: {VALUE.DELTA: 0.0005, VALUE.MAX_VALUE: 1},
-            STAT.PHYSICAL: {VALUE.CURRENT: 1},
-            STAT.FIRE: {VALUE.CURRENT: 1},
-            STAT.EARTH: {VALUE.CURRENT: 1},
-            STAT.AIR: {VALUE.CURRENT: 1},
-            STAT.WATER: {VALUE.CURRENT: 1},
-        }),
-    ITEM.PHYSICAL_LEAF: ItemData(category=ICAT.HERBAL, cost=125, stats={STAT.PHYSICAL: {VALUE.CURRENT: 5}}),
-    ITEM.FIRE_LEAF: ItemData(category=ICAT.HERBAL, cost=125, stats={STAT.FIRE: {VALUE.CURRENT: 5}}),
-    ITEM.EARTH_LEAF: ItemData(category=ICAT.HERBAL, cost=125, stats={STAT.EARTH: {VALUE.CURRENT: 5}}),
-    ITEM.AIR_LEAF: ItemData(category=ICAT.HERBAL, cost=125, stats={STAT.AIR: {VALUE.CURRENT: 5}}),
-    ITEM.WATER_LEAF: ItemData(category=ICAT.HERBAL, cost=125, stats={STAT.WATER: {VALUE.CURRENT: 5}}),
-    ITEM.HEART: ItemData(category=ICAT.POTION, cost=225, stats={STAT.HP: {VALUE.DELTA: 0.0030, VALUE.MAX_VALUE: 6}}),
-    ITEM.VIAL: ItemData(category=ICAT.POTION, cost=75, stats={STAT.MANA: {VALUE.DELTA: 0.0015, VALUE.MAX_VALUE: 3}}),
+    # Basic
+    ITEM.BOOTS: ItemData(ICAT.BASIC, 120, {STAT.AIR: {VALUE.CURRENT: 8}, STAT.EARTH: {VALUE.CURRENT: 5}}),
+    ITEM.SLIPPERS: ItemData(ICAT.BASIC, 155, {STAT.AIR: {VALUE.CURRENT: 12}, STAT.MANA: {VALUE.MAX_VALUE: 5}}),
+    ITEM.STONKS: ItemData(ICAT.BASIC, 100, {STAT.GOLD: {VALUE.DELTA: 0.003}}),
+    # Herbal
+    ITEM.BRANCH: ItemData(ICAT.HERBAL, 85, {STAT.PHYSICAL: {VALUE.CURRENT: 4}, STAT.EARTH: {VALUE.CURRENT: 12}}),
+    ITEM.LEAF: ItemData(ICAT.HERBAL, 125, {STAT.FIRE: {VALUE.CURRENT: 10}, STAT.WATER: {VALUE.CURRENT: 10}}),
+    ITEM.TRUNK: ItemData(ICAT.HERBAL, 215, {STAT.EARTH: {VALUE.CURRENT: 16}, STAT.FIRE: {VALUE.CURRENT: 16}}),
+    # Ornaments
+    ITEM.AMULET: ItemData(ICAT.ORNAMENT, 260, {STAT.PHYSICAL: {VALUE.CURRENT: 22}, STAT.FIRE: {VALUE.CURRENT: 16}}),
+    # Potions
+    ITEM.HEART: ItemData(ICAT.POTION, 225, {STAT.HP: {VALUE.DELTA: 0.003, VALUE.MAX_VALUE: 30}}),
+    ITEM.VIAL: ItemData(ICAT.POTION, 165, {STAT.MANA: {VALUE.DELTA: 0.002, VALUE.MAX_VALUE: 20}}),
+    ITEM.GEM: ItemData(ICAT.POTION, 130, {STAT.WATER: {VALUE.CURRENT: 10}, STAT.HP: {VALUE.MAX_VALUE: 10}}),
 }
 
 
@@ -61,13 +73,23 @@ def item_repr(item):
         v = []
         for value_name, value in values.items():
             value_name = '' if value_name is VALUE.CURRENT else f' {value_name.name.lower()}'
+            if '_' in value_name:
+                value_name = value_name.split('_')[0]
+            elif value_name == 'delta':
+                value = self.api.s2ticks(value)
+                value_name = '/s'
             value = f'{nsign_str(value)}'
             v.append(f'{value}{value_name}')
         stat_name = stat.name.lower().capitalize().replace('_', ' ')
-        s.append(f'> {stat_name}: {", ".join(v)}')
+        s.append(f'{stat_name}: {", ".join(v)}')
     nl = "\n"
     category = ITEM_STATS[item].category.name.lower().capitalize()
-    r = f'{name}: {cost} gold\n{category}\n\n{nl.join(s)}'
+    r = '\n'.join([
+        name,
+        f'Shop: {category}',
+        f'{cost} gold\n',
+        *s,
+    ])
     return r
 
 

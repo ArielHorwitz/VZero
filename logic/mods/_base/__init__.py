@@ -11,8 +11,11 @@ STATS = [
 ]
 
 STATUSES = [
+    # Meta
+    'RESPAWN',
     'FOUNTAIN',
     'SHOP',
+    # Mechanics
     'ARMOR',
     'SLOW',
 ]

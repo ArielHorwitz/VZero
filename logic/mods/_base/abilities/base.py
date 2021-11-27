@@ -256,13 +256,13 @@ class RegenAura(BaseAbility):
         status = self.p.status
         if status is not None:
             status = str2status(status)
-            Mechanics.apply_debuff(api, targets, status, dt, 1)
+            Mechanics.apply_debuff(api, targets, status, dt*2, 1)
         if self.p.target_restat is not None:
             regen = self.p.get_regen(api, uid)
-            api.add_dmod(dt, targets, str2stat(self.p.target_restat), regen)
+            api.add_dmod(dt*2, targets, str2stat(self.p.target_restat), regen)
         if self.p.target_destat is not None:
             degen = self.p.get_degen(api, uid)
-            api.add_dmod(dt, targets, str2stat(self.p.target_destat), -degen)
+            api.add_dmod(dt*2, targets, str2stat(self.p.target_destat), -degen)
 
     @property
     def info(self):
@@ -295,8 +295,7 @@ class Test(BaseAbility):
     debug = True
 
     def do_cast(self, api, uid, target):
-        # item = random.choice(list(ITEM))
-        # api.set_status(uid, STATUS.SHOP, 1_000_000, item)
+        api.set_status(slice(None), STATUS.SLOW, 500, 50)
         return self.aid
 
 

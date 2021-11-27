@@ -283,6 +283,11 @@ shopkeeper
 category: herbal
 --- stats
 
+====== Shopkeeper ornament
+shopkeeper
+category: ornament
+--- stats
+
 ====== Shopkeeper potion
 shopkeeper
 category: potion

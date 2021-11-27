@@ -244,9 +244,10 @@ class Encounter(widgets.RelativeLayout):
         else:
             self.__units_per_pixel *= abs(d)**(-1*nsign(d))
 
-    def toggle_play(self, show_menu=True):
+    def toggle_play(self, set_to=None, show_menu=True):
+        set_to = set_to if set_to is not None else not self.api.auto_tick
         logger.debug(f'GUI toggling play/pause')
-        self.api.set_auto_tick()
+        self.api.set_auto_tick(set_to)
         self.toggle_play_sounds()
         # Toggle menu
         if self.api.auto_tick:

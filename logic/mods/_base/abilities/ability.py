@@ -172,10 +172,10 @@ class Params:
         pval = self._param_value(param_name, api, uid)
         if is_floatable(pval):
             pval = f'{pval:.1f}'
-        return f'{param_name.capitalize()}: {pval}{formula}'
+        return f'{self.pname_repr(param_name)}: {pval}{formula}'
 
     def repr_universal(self, param_name):
-        return f'{param_name.capitalize()}: {self._formula_repr(param_name)}'
+        return f'{self.pname_repr(param_name)}: {self._formula_repr(param_name)}'
 
     def _formula_repr(self, param_name, stat_name=None):
         param = self._params[param_name]
@@ -223,6 +223,9 @@ class Params:
         if x in self.params:
             return self._param_value(x)
 
+    @staticmethod
+    def pname_repr(p):
+        return p.capitalize().replace('_', ' ')
 
 
 class ModReduction:
@@ -247,7 +250,6 @@ class ModPercent:
     @classmethod
     def repr(cls, base, stat, factor):
         return f'{base} + {factor}% × {stat}'
-
 
 
 class ModMul:

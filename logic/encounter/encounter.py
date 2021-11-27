@@ -1,6 +1,6 @@
 import logging
 logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 import numpy as np
 from collections import defaultdict
@@ -69,11 +69,17 @@ class Encounter:
 
     def _do_ticks(self, ticks):
         with ratecounter(self.timers['logic_stats']):
-            self.stats.do_tick(ticks)
+            hp_zero, status_zero = self.stats.do_tick(ticks)
         with ratecounter(self.timers['logic_vfx']):
             self._iterate_visual_effects(ticks)
         with ratecounter(self.timers['logic_agency']):
             self._do_agency(ticks)
+            if len(hp_zero)> 0:
+                for uid in hp_zero:
+                    self.mod_api.hp_zero(uid)
+            if len(status_zero)> 0:
+                for uid, status in status_zero:
+                    self.mod_api.status_zero(uid, status)
 
     def _iterate_visual_effects(self, ticks):
         if len(self._visual_effects) == 0:
@@ -145,7 +151,7 @@ class Encounter:
 
     def _create_player(self, player_abilities):
         stats = self.mod_api.player_stats
-        player = self.add_unit(Player, 'Player', stats, setup_params=None)
+        player = self.add_unit(self.mod_api.player_class, 'Player', stats, setup_params=None)
         logger.info(f'Encounter initializing player abilities: {player_abilities}')
         player.set_abilities(player_abilities)
         player.allegiance = 0
@@ -171,7 +177,7 @@ class Encounter:
         return len(self.units)
 
     def add_visual_effect(self, *args, **kwargs):
-        logger.debug(f'Adding visual effect with: {args} {kwargs}')
+        # logger.debug(f'Adding visual effect with: {args} {kwargs}')
         self._visual_effects.append(VisualEffect(*args, **kwargs))
 
     def get_visual_effects(self):

@@ -16,12 +16,7 @@ class VFX(widgets.RelativeLayout, EncounterViewComponent):
 
     def update(self):
         # Clear
-        for instruction in self.__cached_vfx:
-            if isinstance(instruction,widgets.Image):
-                instruction.canvas.clear()
-                del instruction
-            else:
-                self.canvas.remove(instruction)
+        self.canvas.clear()
         self.__cached_vfx = []
 
         # VFX
@@ -76,68 +71,41 @@ class VFX(widgets.RelativeLayout, EncounterViewComponent):
                 # Draw Sprite
                 if effect.eid is effect.SPRITE:
                     with ratecounter(self.enc.timers['vfx_sprite_single']):
-                        size = None
-                        tint = (1, 1, 1)
-                        angle = 0
-                        offset = (0, 0)
-                        scale = (1,1)
+                        size = 100, 100
+                        color = (1, 1, 1)
                         sprite_category = effect.params['category'] if 'category' in effect.params else 'ability'
-                        sprite_name = Assets.get_sprite(sprite_category, effect.params['source'])
-
-                        if 'tint' in effect.params:
-                            tint = effect.params['tint']
-
-                        if 'fade' in effect.params:
-                            if len(tint) == 4:
-                                a = tint[3]
-                            else:
-                                a = 1
-                            a *= 1 - (max(0.0001, effect.elapsed_ticks) / effect.params['fade'])
-                            tint = (*tint[:3], a)
-
-                        if 'angle' in effect.params:
-                            angle = effect.params['angle']
-
-                        if 'offset' in effect.params:
-                            offset = effect.params['offset']
-
-                        if 'scale' in effect.params:
-                            scale = effect.params['scale']
+                        sprite_source = Assets.get_sprite(sprite_category, effect.params['source'])
 
                         if 'size' in effect.params:
                             size = effect.params['size']
 
-                        if 'stretch' in effect.params:
-                            point = cc_int(self.enc.real2pix(effect.params['stretch'][0]))
-                            dest = cc_int(self.enc.real2pix(effect.params['stretch'][1]))
-                            angle += calc_angle(point, dest)
-                        elif 'point' in effect.params:
+                        if 'tint' in effect.params:
+                            color = effect.params['tint']
+
+                        if 'fade' in effect.params:
+                            if len(color) == 4:
+                                a = color[3]
+                            else:
+                                a = 1
+                            a *= 1 - (max(0.0001, effect.elapsed_ticks) / effect.params['fade'])
+                            color = (*color[:3], a)
+
+                        if 'point' in effect.params:
                             point = cc_int(self.enc.real2pix(effect.params['point']))
                         elif 'uid' in effect.params:
                             uid =  effect.params['uid']
                             point = cc_int(self.enc.real2pix(self.api.get_position(uid)))
                         else:
-                            raise ValueError(f'Missing point/stretch/uid for drawing sprite vfx')
+                            raise ValueError(f'Missing point/uid for drawing sprite vfx')
 
                         with self.canvas:
-                            self.__cached_vfx.append(widgets.kvRotate(angle=angle, axis=(0, 0, 1), origin=point))
-                            sprite = widgets.Image(source=sprite_name,
-                                                   color=tint,
-                                                   allow_stretch=True,
-                                                   keep_ratio=False)
-                            if 'stretch' in effect.params:
-                                new_pos, new_size = calc_image_line(point, dest, sprite.size)
-                                sprite.size = new_size
-                            elif 'point' in effect.params:
-                                new_pos = point
-                            elif 'uid' in effect.params:
-                                new_pos = tuple((np.array(point) + (np.array(offset))))
-
-                            new_size = cc_int(tuple(np.array(scale) * (sprite.size if size is None else size)))
-
-                            sprite.pos = center_position(new_pos, new_size)
-                            sprite.size = new_size
-                            self.__cached_vfx.append(widgets.kvRotate(angle=-angle, axis=(0, 0, 1), origin=point))
+                            self.__cached_vfx.append(widgets.kvColor(*color))
+                            sprite = widgets.kvRectangle(
+                                pos=center_position(point, size),
+                                size=size,
+                                source=sprite_source,
+                                allow_strech=True,
+                            )
                             self.__cached_vfx.append(sprite)
 
                 # SFX

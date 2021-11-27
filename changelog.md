@@ -1,4 +1,12 @@
 
+# v0.007
+###### Engine
+- GUI improvements
+
+###### Mods
+- hp_zero and status_zero
+
+
 # v0.006
 ###### Engine
 - GUI improvements and optimizations

@@ -78,7 +78,6 @@ class VALUE(AutoIntEnum):
 class STATUS_VALUE(AutoIntEnum):
     DURATION = enum.auto()
     STACKS = enum.auto()
-    ENDED_NOW = enum.auto()
 
 
 class FAIL_RESULT(enum.Enum):

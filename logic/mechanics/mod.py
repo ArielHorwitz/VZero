@@ -17,6 +17,13 @@ class ModEncounterAPI:
     def spawn_map(self):
         logger.warning(f'Base class of ModEncounterAPI does not spawn anything.')
 
+    # Reactions
+    def hp_zero(self, uid):
+        logger.warning(f'{self.__class__}.hp_zero() not implemented.')
+
+    def status_zero(self, uid, status):
+        logger.warning(f'{self.__class__}.status_zero() not implemented.')
+
     # GUI API
     menu_title = 'Mod menu not implemented'
     menu_texts = ['Mod menu has no items']

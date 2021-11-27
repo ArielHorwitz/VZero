@@ -7,6 +7,7 @@ import nutil
 from nutil.kex import widgets
 from gui.encounter import EncounterViewComponent
 from data.assets import Assets
+from data.settings import Settings
 from logic.mechanics.common import *
 from gui.encounter.menu.ability_info import AbilityInfo
 from gui.encounter.menu.mod_menu import ModMenu
@@ -18,7 +19,7 @@ class Menu(widgets.ModalView, EncounterViewComponent):
         self.attach_to = self.enc
         # self.dismiss()
         self.__showing = False
-        self.set_size(hx=0.75, hy=0.9)
+        self.set_size(hx=0.65, hy=0.9)
 
         main_frame = self.add(widgets.BoxLayout(orientation='vertical'))
 
@@ -43,6 +44,17 @@ class Menu(widgets.ModalView, EncounterViewComponent):
             on_release=lambda *a: self.screens.switch_screen(mod_menu_title)
         ))
 
+        self.app.hotkeys.register_dict({
+            'Menu 1': (
+                f'{Settings.get_setting("open_menu1", "Hotkeys")}',
+                lambda: self.toggle_view('Abilities')
+            ),
+            'Menu 2': (
+                f'{Settings.get_setting("open_menu2", "Hotkeys")}',
+                lambda: self.toggle_view(mod_menu_title)
+            ),
+        })
+
         # Control buttons
         for t, f in {
             # 'Leave encounter': lambda *a: self.app.end_encounter(),
@@ -56,24 +68,33 @@ class Menu(widgets.ModalView, EncounterViewComponent):
 
     def click(self, w, m):
         if not self.collide_point(*m.pos):
-            self.enc.toggle_play(True)
+            self.set_view(False)
 
     @property
     def showing(self):
         return self.__showing
 
-    def set_view(self, show=None):
+    def toggle_view(self, view):
+        if self.__showing and self.screens.current_screen.name == view:
+            self.set_view(False)
+        else:
+            self.set_view(True, view)
+
+    def set_view(self, show=None, view=None):
         if show is None:
             show = not self.__showing
-        logger.debug(f'Toggle menu: {self.__showing}')
         self.__showing = show
         if self.__showing:
             self.open()
         else:
             self.dismiss()
+            if not self.api.auto_tick:
+                self.enc.toggle_play(set_to=True)
+        if view is not None:
+            self.screens.switch_screen(view)
 
     def update(self):
-        if self.api.auto_tick:
+        if not self.__showing:
             return
         self.ability_info.update()
         self.mod_menu.update()

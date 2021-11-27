@@ -12,10 +12,10 @@ PASSIVE_RESOLUTION = 60
 
 
 class Player(Unit):
-    def setup(self, api, **params):
+    def setup(self, **params):
         self.color = (0, 1, 0)
         self.preferred_target = None
-        self.last_attack = api.tick - 100
+        self.last_attack = self.api.tick - 100
         self.targeting_rate = 10
         self.abilities = []
         self.ability_order = []

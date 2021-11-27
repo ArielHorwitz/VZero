@@ -13,7 +13,7 @@ class Settings:
     DEFAULT_SETTINGS = {
         'General': {
             0: {
-                'mod': '_fallback',
+                'mod': '_base',
                 'default_zoom': 1.7,
             }
         },
@@ -32,6 +32,8 @@ class Settings:
                 'toggle_play': 'spacebar',
                 'toggle_play2': 'escape',
                 'map_view': 'tab',
+                'open_menu1': 't',
+                'open_menu2': 'g',
                 'right_click': 'q',
                 'abilities': 'qwerasdf',
                 'enable_hold_mouse': '1',
