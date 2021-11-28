@@ -177,6 +177,10 @@ class EncounterAPI:
     def timers(self):
         return self.e.timers
 
+    @property
+    def request_redraw(self):
+        return self.e.mod_api.request_redraw
+
     # DEBUG / MISC
     def __init__(self, encounter):
         self.e = encounter

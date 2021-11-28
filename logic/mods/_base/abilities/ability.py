@@ -14,7 +14,7 @@ Mutil = import_('mechanics.utilities').Utilities
 
 
 class Ability(BaseAbility):
-    defaults = {'mana_cost': 0, 'cooldown': 10}
+    defaults = {'mana_cost': 0, 'cooldown': 0}
     auto_check = {'mana', 'cooldown'}
     auto_cost = {'mana', 'cooldown'}
     info = 'An ability.'
@@ -158,9 +158,6 @@ class Params:
                 continue
             self._params[base_name] = self.__expand_base(base_name)
             self.params.append(base_name)
-        logger.debug(f'AbilityParams:')
-        for k, v in self._params.items():
-            logger.debug(f'{k}: {v}')
 
     def repr(self, param_name, api, uid):
         formula = ''

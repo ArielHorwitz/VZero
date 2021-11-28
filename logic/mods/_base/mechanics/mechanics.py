@@ -20,16 +20,16 @@ class Mechanics:
         lootables = np.logical_and(api.mask_dead(), mask_gold)
         loot_target, dist = api.nearest_uid(pos, mask=lootables, alive_only=False)
         if loot_target is None:
-            return FAIL_RESULT.MISSING_TARGET, None
+            return FAIL_RESULT.MISSING_TARGET, None, None
         loot_pos = api.get_position(loot_target)
         if math.dist(pos, loot_pos) > range:
-            return FAIL_RESULT.OUT_OF_RANGE, None
+            return FAIL_RESULT.OUT_OF_RANGE, None, None
         # Apply and move remains
         looted_gold = api.get_stats(loot_target, STAT.GOLD)
         api.set_stats(loot_target, STAT.GOLD, 0)
         api.set_stats(loot_target, (STAT.POS_X, STAT.POS_Y), (-1_000_000, -1_000_000))
         logger.debug(f'{api.units[uid].name} removed {looted_gold} gold from {api.units[loot_target]}')
-        return looted_gold, loot_target
+        return looted_gold, loot_target, loot_pos
 
     @staticmethod
     def apply_move(api, uid, target=None, move_speed=None):

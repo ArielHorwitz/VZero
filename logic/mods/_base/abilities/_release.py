@@ -14,4 +14,8 @@ ABILITY_CLASSES = {
     'regen aura': base.RegenAura,
     'shopkeeper': base.Shopkeeper,
     'test': base.Test,
+    'map_editor_eraser': base.MapEditorEraser,
+    'map_editor_toggle': base.MapEditorToggle,
+    'map_editor_palette': base.MapEditorPalette,
+    'map_editor_droplet': base.MapEditorDroplet,
 }

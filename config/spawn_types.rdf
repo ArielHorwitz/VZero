@@ -1,0 +1,85 @@
+=== Spawn
+--- Default
+fort: 1
+
+
+=== Creep 1
+--- Wave
+tiny creep: 8
+=== Creep 2
+--- Wave
+small creep: 4
+=== Creep 3
+--- Wave
+large creep: 2
+=== Creep 4
+--- Wave
+huge creep: 1
+
+
+=== Shop basic
+--- Shop
+shopkeeper basic: 1
+=== Shop herbal
+--- Shop
+shopkeeper herbal: 1
+=== Shop ornament
+--- Shop
+shopkeeper ornament: 1
+=== Shop potion
+--- Shop
+shopkeeper potion: 1
+
+=== Lighthouse
+--- Lighthouse
+lighthouse: 1
+
+
+=== Sponge
+--- Sponge
+dps_meter: 1
+
+
+
+=== Monsters 1
+--- Meef pair
+meef: 1
+--- Imp pack
+blood imp: 2
+--- Ratzan hive
+ratzan: 3
+--- Globs
+glob: 2
+
+=== Monsters 2
+--- Infestation
+infester: 3
+--- Crab patch
+crab: 2
+--- Aquadome
+folphin: 2
+--- Phaser
+phaser: 1
+meef: 2
+
+=== Monsters 3
+--- Spike pit
+spiker: 1
+infester: 2
+--- Zombies
+zombie: 3
+
+=== Monsters 4
+--- Fire hole
+fire elemental: 2
+--- Skull nest
+isolate
+skull: 2
+
+=== Boss
+--- Snake Lair
+winged snake: 1
+--- Robot
+robot: 1
+--- Fungal sprout
+barkshroom: 1

@@ -2,18 +2,19 @@ import logging
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
-import math, copy, random
+import math
 import numpy as np
-from collections import defaultdict
-from nutil.vars import NP
+
+from nutil.vars import collide_point
 from nutil.random import SEED
 from data import resource_name
 from data.load import RDF
-from data.tileset import TileMap
+
 from logic.mechanics import import_mod_module
 from logic.mechanics.mod import ModEncounterAPI
 from logic.mechanics.player import Player
 from logic.mechanics.common import *
+MapGenerator = import_mod_module('mapgen').MapGenerator
 abilities = import_mod_module('abilities._release')
 units = import_mod_module('units.units')
 items = import_mod_module('items.items')
@@ -24,6 +25,7 @@ ABILITY_CLASSES = abilities.ABILITY_CLASSES
 
 UNIT_CLASSES = {
     'player': units.Player,
+    'creep': units.Creep,
     'camper': units.Camper,
     'treasure': units.Treasure,
     'shopkeeper': units.Shopkeeper,
@@ -42,7 +44,7 @@ def get_default_stats():
     table[:, VALUE.MAX_VALUE] = LARGE_ENOUGH
 
     table[(STAT.POS_X, STAT.POS_Y), VALUE.MIN_VALUE] = -LARGE_ENOUGH
-    table[STAT.HITBOX, VALUE.CURRENT] = 50
+    table[STAT.HITBOX, VALUE.CURRENT] = 100
     table[STAT.HP, VALUE.CURRENT] = LARGE_ENOUGH
     table[STAT.HP, VALUE.TARGET_VALUE] = 0
     table[STAT.MANA, VALUE.CURRENT] = LARGE_ENOUGH
@@ -57,109 +59,38 @@ def get_default_stats():
 logger.debug(f'Default stats:\n{get_default_stats()}')
 
 
+
+
 class API(ModEncounterAPI):
     RNG = np.random.default_rng()
 
     def __init__(self, api):
         self.api = api
-        self.map_size = np.full(2, 10_000)
         # Load unit types from config file
         self.unit_types = self.__load_unit_types()
         self.player_stats = self.unit_types['player']['stats']
         self.player_class = units.Player
-        set_spawn_location(self.player_stats, (self.map_size/2))
-        self.map_image_source = TileMap(['tiles1']).make_map(100, 100)
+        # Generate map
+        self.map = MapGenerator(self.api, self.unit_types)
+        set_spawn_location(self.player_stats, self.map.player_spawn)
 
-    # Reactions
-    def hp_zero(self, uid):
-        unit = self.api.units[uid]
-        logger.debug(f'Unit {unit.name} died')
-        self.api.units[uid].hp_zero()
+    # Map
+    @property
+    def map_size(self):
+        return self.map.size
 
-    def status_zero(self, uid, status):
-        unit = self.api.units[uid]
-        status = list(STATUS)[status]
-        logger.debug(f'Unit {unit.name} lost status {status.name}')
-        self.api.units[uid].status_zero(status)
+    @property
+    def map_image_source(self):
+        return self.map.image
 
-    # Map generation
-    TERRITORY_SIZE = 1000
-    SPAWN_MULTIPLIER = 3
+    @property
+    def request_redraw(self):
+        return self.map.request_redraw
 
     def spawn_map(self):
-        territory_types = RDF(RDF.CONFIG_DIR / 'map.rdf')
-        territories = self.get_territories()
-        for ttype, location in territories:
-            camps = territory_types[ttype]
-            camp_names = tuple(camps.keys())
-            camp_name = random.choice(camp_names)
-            logger.debug(f'Chose camp: {camp_name} from options: {camp_names}')
-            isolate = 'isolate' in camps[camp_name].positional
-            spawn = self.random_offset_in_territory(location)
-            for utype, amount in camps[camp_name].items():
-                for i in range(int(amount)):
-                    if isolate:
-                        spawn = self.random_offset_in_territory(location)
-                    self.add_unit(utype, spawn)
-
-    def get_territories(self):
-        territories = [
-            ('Spawn', np.array([5000, 5000])),
-            *self.get_territories_quadrant(),
-            *self.get_territories_quadrant(flipx=True),
-            *self.get_territories_quadrant(flipx=False, flipy=True),
-            *self.get_territories_quadrant(flipx=True, flipy=True),
-        ]
-        return territories
-
-    def get_territories_quadrant(self, flipx=False, flipy=False, offset=None):
-        def territory_offset(x, y):
-            return np.array([x*self.TERRITORY_SIZE+self.TERRITORY_SIZE/2,
-                             y*self.TERRITORY_SIZE+self.TERRITORY_SIZE/2])
-        if offset is None:
-            offset = self.map_size/2
-        sx = -1 if flipx else 1
-        sy = -1 if flipy else 1
-        TIER1_NEUTRALS = 2
-        TIER2_NEUTRALS = 2
-        TIER3_NEUTRALS = 1
-        neutrals = {
-            # Tier 1
-            *[SEED.choice([(2, 0), (3, 0), (4, 0), (0, 2), (0, 3), (0, 4)]) for _ in range(TIER1_NEUTRALS)],
-            # Tier 2
-            *[SEED.choice([(3, 1), (4, 1), (1, 3), (1, 4)]) for _ in range(TIER2_NEUTRALS)],
-            # Tier 3
-            *[SEED.choice([(4, 2), (2, 4)]) for _ in range(TIER3_NEUTRALS)],
-        }
-        logger.debug(f'Chose neutrals: {neutrals}')
-        t = []
-        for x in range(5):
-            for y in range(5):
-                if x == y == 0: continue
-                for tier in range(5):
-                    if x == tier or y == tier:
-                        camp = f'Neutral {tier+1}' if (x, y) in neutrals else f'Monsters {tier+1}'
-                        break
-                location = territory_offset(x, y) * (sx, sy) + offset
-                t.append((camp, location))
-        return t
-
-    def random_offset_in_territory(self, location):
-        return location + self.RNG.random(2) * self.TERRITORY_SIZE - (self.TERRITORY_SIZE/2)
+        return self.map.spawn_map()
 
     # Unit spawn
-    def add_unit(self, unit_type, spawn):
-        internal_name = resource_name(unit_type)
-        unit_data = self.unit_types[internal_name]
-        unit_cls = unit_data['cls']
-        name = copy.deepcopy(unit_data['name'])
-        stats = unit_data['stats']
-        set_spawn_location(stats, spawn)
-        setup_params = copy.deepcopy(unit_data['setup_params'])
-        unit = self.api.add_unit(unit_cls, name, stats, setup_params)
-        logger.debug(f'Mod created new unit {internal_name} with uid {unit.uid} and setup_params: {setup_params}')
-        return unit
-
     def __load_unit_types(self):
         raw_data = RDF.load(RDF.CONFIG_DIR / 'units.rdf')
         units = {}
@@ -203,38 +134,19 @@ class API(ModEncounterAPI):
         logger.debug(f'Loaded raw stats: {", ".join(modified_stats)}')
         return stats
 
-    # GUI API
+    # Reactions
+    def hp_zero(self, uid):
+        unit = self.api.units[uid]
+        logger.debug(f'Unit {unit.name} died')
+        self.api.units[uid].hp_zero()
 
-    # Shop (mod menu)
-    menu_title = 'Shop'
-    menu_texts = [f'{items.item_repr(item)}' for item in items.ITEM]
-    item_colors = [items.ICAT_COLORS[items.ITEM_STATS[item].category-1] for item in items.ITEM]
-    def menu_click(self, index, right_click):
-        logger.debug(f'Menu click on {index} (right_click: {right_click})')
-        if right_click:
-            r = items.Shop.buy_item(self.api, 0, index)
-            if not isinstance(r, FAIL_RESULT):
-                return 'ability', 'shop'
-        return 'ui', 'target'
+    def status_zero(self, uid, status):
+        unit = self.api.units[uid]
+        status = list(STATUS)[status]
+        logger.debug(f'Unit {unit.name} lost status {status.name}')
+        self.api.units[uid].status_zero(status)
 
-    @property
-    def menu_colors(self):
-        colors = []
-        for i, color in enumerate(self.item_colors):
-            colors.append((*color, 1) if all([
-                self.active_shop_items[i],
-                items.Shop.check_cost(self.api, 0, items.ITEM_LIST[i]),
-            ]) else (*color, 0.1))
-        return colors
-
-    @property
-    def active_shop_items(self):
-        item_categories = np.array([items.ITEM_STATS[item].category.value for item in items.ITEM])
-        active_category = self.api.get_status(0, STATUS.SHOP)
-        active_items = item_categories == active_category
-        return active_items
-
-    # Agent panel
+    # GUI Agent panel
     def agent_panel_bars(self, uid):
         hp = self.api.get_stats(uid, STAT.HP)
         max_hp = self.api.get_stats(uid, STAT.HP, value_name=VALUE.MAX_VALUE)
@@ -272,6 +184,34 @@ class API(ModEncounterAPI):
             self.api.pretty_statuses(uid),
         ])
 
+    # GUI Shop (menu)
+    menu_title = 'Shop'
+    menu_texts = [f'{items.item_repr(item)}' for item in items.ITEM]
+    item_colors = [items.ICAT_COLORS[items.ITEM_STATS[item].category-1] for item in items.ITEM]
+    def menu_click(self, index, right_click):
+        logger.debug(f'Menu click on {index} (right_click: {right_click})')
+        if right_click:
+            r = items.Shop.buy_item(self.api, 0, index)
+            if not isinstance(r, FAIL_RESULT):
+                return 'ability', 'shop'
+        return 'ui', 'target'
+
+    @property
+    def menu_colors(self):
+        colors = []
+        for i, color in enumerate(self.item_colors):
+            colors.append((*color, 1) if all([
+                self.active_shop_items[i],
+                items.Shop.check_cost(self.api, 0, items.ITEM_LIST[i]),
+            ]) else (*color, 0.1))
+        return colors
+
+    @property
+    def active_shop_items(self):
+        item_categories = np.array([items.ITEM_STATS[item].category.value for item in items.ITEM])
+        active_category = self.api.get_status(0, STATUS.SHOP)
+        active_items = item_categories == active_category
+        return active_items
 
 def set_spawn_location(stats, spawn):
     stats[(STAT.POS_X, STAT.POS_Y), VALUE.CURRENT] = spawn

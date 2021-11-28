@@ -22,9 +22,9 @@ class Move(BaseAbility):
         'mana_cost': 0,
         'cooldown': 0,
         'range': 1_000_000,
-        'speed': 20,
+        'speed': 150,
         'speed_stat': 'air',
-        'speed_bonus': 10,
+        'speed_bonus': 1,
     }
 
     def do_cast(self, api, uid, target):
@@ -39,7 +39,7 @@ class Attack(BaseAbility):
     defaults = {
         'mana_cost': 0,
         'cooldown': 150,
-        'range': 100,
+        'range': 200,
         'damage': 20,
         'damage_stat': 'physical',
         'damage_add': 0.3,
@@ -79,7 +79,7 @@ class Barter(BaseAbility):
     def cast(self, api, uid, target):
         # loot nearest target regardless of check
         range = self.p.get_range(api, uid)
-        loot_result, loot_target = Mechanics.apply_loot(api, uid, api.get_position(uid), range)
+        loot_result, loot_target, loot_pos = Mechanics.apply_loot(api, uid, api.get_position(uid), range)
         # apply loot with bonus if success
         if not isinstance(loot_result, FAIL_RESULT):
             looted_gold = loot_result
@@ -92,9 +92,9 @@ class Barter(BaseAbility):
             api.set_stats(uid, STAT.GOLD, looted_gold, additive=True)
             api.add_visual_effect(VisualEffect.SPRITE, 50, params={
                 'source': 'coin',
-                'point': api.get_position(loot_target),
+                'point': loot_pos,
                 'fade': 50,
-                'size': (25, 25),
+                'size': (50, 50),
                 })
             return self.aid
         return loot_result
@@ -199,13 +199,9 @@ class Blast(BaseAbility):
     defaults = {
         'mana_cost': 35,
         'cooldown': 500,
-        'range': 300,
-        'radius': 30,
-        'radius_stat': 'water',
-        'radius_add': 0.1,
+        'range': 600,
+        'radius': 60,
         'damage': 10,
-        'damage_stat': 'fire',
-        'damage_bonus': 2,
     }
     auto_check = {'mana', 'cooldown', 'range_point'}
     debug = True
@@ -302,7 +298,7 @@ class Test(BaseAbility):
 class Shopkeeper(Buff):
     lore = f'Running a mom and pop shop is tough business.'
     def cast(self, api, uid, target):
-        radius = 200
+        radius = 250
         targets = Mutil.find_aoe_targets(api, api.get_position(uid), radius)
         duration = 120
         stacks = api.get_status(uid, STATUS.SHOP, value_name=STATUS_VALUE.STACKS)
@@ -312,3 +308,45 @@ class Shopkeeper(Buff):
     @property
     def info(self):
         return f'Offer wares for sale.'
+
+
+class MapEditorEraser(BaseAbility):
+    info = 'Erase a biome droplet for map editing.'
+    lore = ''
+
+    def do_cast(self, api, uid, target):
+        api.mod_api.map.remove_droplet(target)
+        api.add_visual_effect(VisualEffect.SFX, 10, params={'category': 'ui', 'sfx': 'select'})
+        return self.aid
+
+
+class MapEditorToggle(BaseAbility):
+    info = 'Erase a biome droplet for map editing.'
+    lore = ''
+
+    def do_cast(self, api, uid, target):
+        api.mod_api.map.toggle_droplet(target)
+        api.add_visual_effect(VisualEffect.SFX, 10, params={'category': 'ui', 'sfx': 'select'})
+        return self.aid
+
+
+class MapEditorPalette(BaseAbility):
+    info = 'Select a biome for map editing.'
+    lore = ''
+
+    def do_cast(self, api, uid, target):
+        biome = api.mod_api.map.find_biome(target)
+        api.set_status(uid, STATUS.MAP_EDITOR, 0, biome)
+        api.add_visual_effect(VisualEffect.SFX, 10, params={'category': 'ui', 'sfx': 'select'})
+        return self.aid
+
+
+class MapEditorDroplet(BaseAbility):
+    info = 'Place a biome droplet for map editing.'
+    lore = ''
+
+    def do_cast(self, api, uid, target):
+        tile = api.get_status(uid, STATUS.MAP_EDITOR, STATUS_VALUE.STACKS)
+        api.mod_api.map.add_droplet(tile, target)
+        api.add_visual_effect(VisualEffect.SFX, 10, params={'category': 'ui', 'sfx': 'select'})
+        return self.aid

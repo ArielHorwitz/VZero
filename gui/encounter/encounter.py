@@ -35,6 +35,7 @@ class Encounter(widgets.RelativeLayout):
         self.__cached_target = None
         self.selected_unit = 0
         self._theme_track = Assets.get_sfx('theme', 'theme')
+        self.__last_redraw = -1
         self.toggle_play_sounds()
 
         # Setting the order of timers
@@ -42,7 +43,7 @@ class Encounter(widgets.RelativeLayout):
             self.timers[timer]
 
         # DRAW
-        self.redraw()
+        self.draw()
         self.sprites = self.add(Sprites(enc=self))
         self.vfx = self.add(VFX(enc=self))
         self.hud = self.add(HUD(anchor_y='bottom', enc=self))
@@ -89,28 +90,30 @@ class Encounter(widgets.RelativeLayout):
                 f'{Settings.get_setting("map_view", "Hotkeys")}',
                 lambda: self.toggle_map_zoom()),
             # debug
-            # 'debug': (f'^+ d', lambda: self.debug()),
             'toggle play/pause dev': (
                 f'{Settings.get_setting("toggle_play_dev", "Hotkeys")}',
                 lambda: self.toggle_play(show_menu=False)),
             'toggle dev mode': (f'^+ d', lambda: self.api.debug(dev_mode=None)),
-            'normal tps': (f'^+ t', lambda: self.api.debug(tps=None)),
+            'normal tps': (f'^+ t', lambda: self.api.debug(tps=120)),
             'high tps': (f'^!+ t', lambda: self.api.debug(tps=920)),
             'single tick': (f'^ t', lambda: self.api.debug(tick=1)),
+            'redraw map': (f'^+ r', lambda: self.redraw_map()),
             })
         self.bind(on_touch_down=self.do_mouse_down)
         self.bind(on_touch_move=self.check_mouse_move)
 
-    def redraw(self):
+    def redraw_map(self):
+        self.tilemap.source = str(self.api.map_image_source)
+        logger.info(f'Redraw map: {self.tilemap.source}')
+
+    def draw(self):
         self.canvas.clear()
 
-        tilemap_source = self.api.map_image_source
         tilemap_size = list(self.api.map_size / self.__units_per_pixel)
         with self.canvas.before:
             # Tilemap
-            self.tilemap = widgets.Image(
-               source=str(tilemap_source),
-               allow_stretch=True)
+            self.tilemap = widgets.kvRectangle()
+            self.redraw_map()
 
         # Move target indicator
         with self.canvas:
@@ -146,12 +149,16 @@ class Encounter(widgets.RelativeLayout):
         self.overlay_label.text = f'{round(self.app.fps.rate)} FPS | {humanize_ms(self.api.elapsed_time_ms)}'
         self.overlay_label.make_bg(self.app.fps_color)
 
-        self.tilemap.size = cc_int(np.array(self.api.map_size) / self.__units_per_pixel)
         self.tilemap.pos = cc_int(self.real2pix(np.zeros(2)))
+        self.tilemap.size = cc_int(np.array(self.api.map_size) / self.__units_per_pixel)
 
         self.move_crosshair.pos = center_position(self.real2pix(
             self.api.get_position(0, value_name=VALUE.TARGET_VALUE)
             ), self.move_crosshair.size)
+
+        if self.api.request_redraw != self.__last_redraw:
+            self.__last_redraw = self.api.request_redraw
+            self.redraw_map()
 
     # User Input
     def check_mouse_move(self, w, m):
@@ -226,11 +233,7 @@ class Encounter(widgets.RelativeLayout):
 
     def toggle_map_zoom(self):
         if self.__units_per_pixel == self.DEFAULT_UPP:
-            upp_to_fit_axes = np.array(self.api.map_size) / self.size
-            v = max(upp_to_fit_axes) / 2
-            logger.debug(f'Fitting map size into widget size, ratio: ' \
-                         f'{self.api.map_size}/{self.size} = {upp_to_fit_axes} upp. Using: {v}')
-            self.set_zoom(v=v)
+            self.set_zoom(Settings.get_setting('map_zoom', 'General'))
         else:
             logger.debug(f'Setting to default upp')
             self.set_zoom()

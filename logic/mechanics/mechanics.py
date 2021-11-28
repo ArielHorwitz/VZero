@@ -40,11 +40,9 @@ class __Mechanics:
 
     def __load_abilities(self, raw_data):
         abilities = []
-        logger.info('Loading abilities:')
         raw_items = tuple(raw_data.items())
         for aid in ABILITY:
             ability_name, ability_data = raw_items[aid]
-            logger.info(f'{aid} {ability_name} {ability_data}')
             ability_type = ability_data[0][0][0]
             stats = {}
             if 'stats' in ability_data:
@@ -54,6 +52,7 @@ class __Mechanics:
                 aid, ability_name, stats)
             assert len(abilities) == aid
             abilities.append(ability_instance)
+            logger.info(f'Loaded ability: {aid} {ability_name} {ability_data}')
         return abilities
 
 

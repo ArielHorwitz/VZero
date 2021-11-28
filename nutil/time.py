@@ -5,13 +5,16 @@ import copy
 import numpy as np
 
 
-def humanize_ms(t, show_ms=False):
+def humanize_ms(t, show_ms=False, show_hours=True):
     ms = int(t % 1000)
     seconds = int(t % 60_000 // 1000)
     minutes = int(t % 3_600_000 // 60_000)
+    hours = int(t % 21_600_000 // 3_600_000)
     s = f'{minutes:0>2}:{seconds:0>2}'
+    if show_hours:
+        s = f'{hours}:{s}'
     if show_ms:
-        s += f':{ms:0<3}'
+        s = f'{s}:{ms:0<3}'
     return s
 
 

@@ -1,6 +1,7 @@
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.DEBUG)
+
 
 import numpy as np
 from collections import defaultdict
@@ -95,7 +96,7 @@ class Encounter:
         if ticks == 0:
             return
         # find which uids are in action based on distance from player
-        ACTION_RADIUS = 1500
+        ACTION_RADIUS = 3000
         alive = self.stats.get_stats(slice(None), STAT.HP, VALUE.CURRENT) > 0
         in_phase = alive & self._find_units_in_phase(ticks)
         in_action_radius = self.stats.get_distances(self.stats.get_position(0)) < ACTION_RADIUS
@@ -111,7 +112,7 @@ class Encounter:
         abilities = self.units[uid].action_phase()
         if abilities is None: return
         for ability, target in abilities:
-            self.use_ability(ability, target, uid)
+            self._use_ability(ability, target, uid)
 
     def _find_units_in_phase(self, ticks):
         if ticks >= self.AGENCY_PHASE_COUNT:
@@ -171,6 +172,7 @@ class Encounter:
             tps = self.DEFAULT_TPS
         self.__tps = tps
         self.ticktime = 1000 / self.__tps
+        logger.debug('set tps', self.__tps)
 
     @property
     def unit_count(self):
@@ -185,6 +187,7 @@ class Encounter:
 
     def debug_action(self, *args, dev_mode=-1, tick=None, tps=None, **kwargs):
         logger.debug(f'Debug action called (extra args: {args} {kwargs})')
+        self.set_tps(tps)
         if dev_mode == -1:
             dev_mode = self.dev_mode
         elif dev_mode == None:
@@ -192,9 +195,6 @@ class Encounter:
         self.dev_mode = dev_mode
         if tick is not None:
             self._do_ticks(tick)
-        if tps is not None:
-            self.set_tps(tps)
-            logger.debug('set tps', self.__tps)
 
     # ABILITIES
     def use_ability(self, ability, target, uid=0):

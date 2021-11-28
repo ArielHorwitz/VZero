@@ -1,5 +1,4 @@
 
-
 === Dunder Beam
 buff
 -- stats
@@ -8,7 +7,7 @@ status: slow
 target: other
 mana_cost: 20
 cooldown: 600
-range: 100
+range: 200
 range_stat: water
 range_bonus: 1
 stacks: 5
@@ -24,9 +23,9 @@ teleport
 color: green
 mana_cost: 30
 cooldown: 800
-range: 150
+range: 300
 range_stat: air
-range_bonus: 1
+range_bonus: 4
 
 
 === Shield
@@ -39,16 +38,24 @@ mana_cost: 40
 cooldown: 5000
 duration: 1500
 duration_stat: water
-duration_bonus: 0.1
-stacks: 5
+duration_bonus: 10
+stacks: 10
 stacks_stat: earth
-stacks_bonus: 1
+stacks_bonus: 2
 
 
 === Fireblast
 blast
 -- stats
 color: red
+mana_cost: 35
+range: 600
+radius: 60
+radius_stat: water
+radius_bonus: 3
+damage: 10
+damage_stat: fire
+damage_bonus: 5
 
 
 ------------------------------ -
@@ -59,7 +66,7 @@ color: red
 barter
 -- stats
 color: 0.5, 0.5, 0
-range: 150
+range: 300
 cooldown: 10000
 loot_multi: 2
 loot_multi_stat: physical
@@ -160,3 +167,39 @@ midas
 
 === Test
 test
+
+
+
+
+
+---------------------------- -
+
+
+=== Map Editor Eraser
+map_editor_eraser
+
+=== Map Editor Toggle
+map_editor_toggle
+
+=== Map Editor Palette
+map_editor_palette
+
+=== Map Editor Droplet
+map_editor_droplet
+
+
+=== Dev blink 2
+teleport
+-- stats
+range: 10000
+cooldown: 0
+mana_cost: 0
+
+
+=== Walk 2
+move
+-- stats
+color: black
+
+
+----------------- -

@@ -9,6 +9,8 @@ from data.tileset import TileMap
 
 
 class ModEncounterAPI:
+    request_redraw = 0
+
     def __init__(self, api):
         self.api = api
         self.map_size = np.full(2, 5_000)

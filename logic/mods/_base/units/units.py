@@ -6,6 +6,7 @@ import itertools
 import math
 import numpy as np
 import random
+from nutil.vars import normalize, collide_point
 from nutil.time import ping, pong
 from nutil.random import SEED
 
@@ -26,14 +27,19 @@ class Unit(BaseUnit):
     def setup(self, **params):
         self.p = params
         self._respawn_location = self.api.get_position(self.uid)
+        self._respawn_gold = self.api.get_stats(self.uid, STAT.GOLD)
         self._setup()
+
+    @property
+    def is_alive(self):
+        return self.api.get_stats(self.uid, STAT.HP) > 0
 
     def _setup(self):
         pass
 
     def hp_zero(self):
         self._respawn_gold = self.api.get_stats(self.uid, STAT.GOLD)
-        self.api.set_status(self.uid, STATUS.RESPAWN, self._respawn_timer, 1.5)
+        self.api.set_status(self.uid, STATUS.RESPAWN, self._respawn_timer, 1)
 
     def status_zero(self, status):
         if status is STATUS.RESPAWN:
@@ -43,16 +49,19 @@ class Unit(BaseUnit):
         logger.debug(f'{self.name} {self.uid} respawned')
         max_hp = self.api.get_stats(self.uid, STAT.HP, VALUE.MAX_VALUE)
         self.api.set_stats(self.uid, STAT.HP, max_hp)
+        max_mana = self.api.get_stats(self.uid, STAT.MANA, VALUE.MAX_VALUE)
+        self.api.set_stats(self.uid, STAT.MANA, max_mana)
         self.api.set_position(self.uid, self._respawn_location, halt=True)
         if reset_gold:
             self.api.set_stats(self.uid, STAT.GOLD, self._respawn_gold)
 
 
 class Player(BasePlayer, Unit):
-    def setup(self, **p):
-        super().setup(**p)
-        self._respawn_timer = 1200
-        self._respawn_location = self.api.map_size / 2
+    _respawn_timer = 1200
+
+    def setup(self, **params):
+        super(BasePlayer, self).setup(**params)
+        super(Unit, self).setup(**params)
 
     def hp_zero(self):
         logger.info(f'Player {self.name} {self.uid} died.')
@@ -63,26 +72,69 @@ class Player(BasePlayer, Unit):
         super().respawn(reset_gold=False)
 
 
+class Creep(Unit):
+    WAVE_SPREAD = 200
+    WAVE_INTERVAL = 28_800  # 4 minutes
+
+    def _setup(self):
+        self.color = (1, 0, 0)
+        self.wave_offset = float(self.p['wave']) * self.WAVE_INTERVAL
+        self.scaling = float(self.p['scaling']) if 'scaling' in self.p else 1.05
+        # Start the first wave on the correct interval
+        self.api.set_stats(self.uid, STAT.HP, 0)
+        self.api.set_status(self.uid, STATUS.RESPAWN,
+            self._respawn_timer - self.WAVE_INTERVAL + 1, 1)
+
+    @property
+    def target(self):
+        ws = self.WAVE_SPREAD
+        return self.api.map_size/2 + (RNG.random(2)*ws-(ws/2))
+
+    def respawn(self):
+        super().respawn()
+        self.scale_power()
+        spawn_point = self._respawn_location + (RNG.random(2)*self.WAVE_SPREAD-(self.WAVE_SPREAD/2))
+        self.api.set_position(self.uid, spawn_point)
+        self.api.use_ability(ABILITY.WALK, self.target, self.uid)
+
+    def scale_power(self):
+        self.api.set_stats(self.uid, [
+            STAT.PHYSICAL, STAT.FIRE, STAT.EARTH, STAT.AIR, STAT.WATER, STAT.GOLD,
+        ], self.scaling, multiplicative=True)
+
+    @property
+    def _respawn_timer(self):
+        return self.wave_offset + self.WAVE_INTERVAL - self.api.tick % self.WAVE_INTERVAL
+
+    def poll_abilities(self, api):
+        return [
+            (ABILITY.ATTACK, self.api.get_position(self.uid)),
+            (ABILITY.WALK, self.target),
+        ]
+
+    @property
+    def debug_str(self):
+        return f'Spawned at: {self._respawn_location}\nNext wave: {self._respawn_timer}'
+
+
 class Camper(Unit):
     def _setup(self):
         self.color = (1, 0, 0)
+        self.camp = self.api.get_position(self.uid)
         self.__aggro_range = float(self.p['aggro_range'])
         self.__deaggro_range = float(self.p['deaggro_range'])
         self.__reaggro_range = float(self.p['reaggro_range'])
         self.__camp_spread = float(self.p['camp_spread'])
         self.__deaggro = False
-        self.last_move = ping() - (SEED.r * 5000)
-        self.camp = self.api.get_position(self.uid)
+        self.__walk_target = self.camp
+        self.__next_walk = self.api.tick
 
     def poll_abilities(self, api):
-        if pong(self.last_move) < 500:
-            return None
         player_pos = self.api.get_position(0)
         abilities = [(ABILITY.ATTACK, player_pos)]
-        self.last_move = ping()
         my_pos = self.api.get_position(self.uid)
-        player_dist = math.dist(player_pos, my_pos)
-        if player_dist < self.__aggro_range and not self.__deaggro:
+        in_aggro_range = math.dist(my_pos, player_pos) < self.__aggro_range
+        if in_aggro_range and not self.__deaggro and self.api.units[0].is_alive:
             abilities.append((ABILITY.WALK, player_pos))
             camp_dist = math.dist(my_pos, self.camp)
             if camp_dist > self.__deaggro_range:
@@ -92,8 +144,15 @@ class Camper(Unit):
                 camp_dist = math.dist(my_pos, self.camp)
                 if camp_dist < self.__reaggro_range:
                     self.__deaggro = False
-            abilities.append((ABILITY.WALK, self.camp+(RNG.random(2) * self.__camp_spread*2 - self.__camp_spread)))
+            abilities.append((ABILITY.WALK, self.walk_target))
         return abilities
+
+    @property
+    def walk_target(self):
+        if self.__next_walk <= self.api.tick:
+            self.__walk_target = self.camp+(RNG.random(2) * self.__camp_spread*2 - self.__camp_spread)
+            self.__next_walk = self.api.tick + SEED.r * 500
+        return self.__walk_target
 
     @property
     def debug_str(self):

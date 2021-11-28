@@ -4,6 +4,7 @@ player
 
 - stats
 gold: 100
+gold.delta: 0.005
 hp.max_value: 100
 hp.delta: 0.02
 mana.max_value: 100
@@ -15,6 +16,52 @@ air: 10
 water: 10
 
 
+=== Tiny creep
+creep
+wave: 0
+
+--- stats
+hitbox: 40
+gold: 2.5
+hp.max_value: 10
+physical: 5
+air: 25
+
+=== Small creep
+creep
+wave: 0.25
+
+--- stats
+hitbox: 60
+gold: 5
+hp.max_value: 20
+physical: 10
+air: 20
+
+=== Large creep
+creep
+wave: 0.5
+
+--- stats
+hitbox: 80
+gold: 10
+hp.max_value: 40
+physical: 20
+air: 15
+
+=== Huge creep
+creep
+wave: 0.75
+
+--- stats
+hitbox: 100
+gold: 20
+hp.max_value: 80
+physical: 40
+air: 10
+
+
+
 === Meef
 camper
 aggro_range: 350
@@ -23,7 +70,7 @@ reaggro_range: 400
 camp_spread: 200
 
 -- stats
-hitbox: 20
+hitbox: 40
 gold: 5
 hp.max_value: 40
 hp.delta: 0.0001
@@ -39,7 +86,7 @@ reaggro_range: 500
 camp_spread: 200
 
 -- stats
-hitbox: 30
+hitbox: 60
 gold: 8
 hp.max_value: 65
 hp.delta: 0.0001
@@ -55,7 +102,7 @@ reaggro_range: 150
 camp_spread: 250
 
 - stats
-hitbox: 25
+hitbox: 50
 gold: 3
 hp.max_value: 30
 hp.delta: 0.001
@@ -71,7 +118,7 @@ reaggro_range: 100
 camp_spread: 300
 
 - stats
-hitbox: 30
+hitbox: 60
 gold: 6
 hp.max_value: 40
 hp.delta: 0.005
@@ -87,7 +134,7 @@ reaggro_range: 600
 camp_spread: 300
 
 --- stats
-hitbox: 40
+hitbox: 80
 gold: 25
 hp.max_value: 280
 hp.delta: 0.005
@@ -102,7 +149,7 @@ reaggro_range: 600
 camp_spread: 300
 
 --- stats
-hitbox: 40
+hitbox: 80
 gold: 25
 hp.max_value: 175
 hp.delta: 0.005
@@ -118,7 +165,7 @@ reaggro_range: 600
 camp_spread: 350
 
 --- stats
-hitbox: 40
+hitbox: 80
 gold: 25
 hp.max_value: 220
 hp.delta: 0.005
@@ -136,7 +183,7 @@ reaggro_range: 600
 camp_spread: 100
 
 - stats
-hitbox: 50
+hitbox: 100
 gold: 30
 hp.max_value: 460
 hp.delta: 0.05
@@ -153,7 +200,7 @@ reaggro_range: 600
 camp_spread: 250
 
 - stats
-hitbox: 60
+hitbox: 120
 gold: 30
 hp.max_value: 650
 hp.delta: 0.05
@@ -169,7 +216,7 @@ reaggro_range: 450
 camp_spread: 50
 
 --- stats
-hitbox: 60
+hitbox: 120
 gold: 40
 hp.max_value: 750
 hp.delta: 0.005
@@ -185,7 +232,7 @@ reaggro_range: 450
 camp_spread: 350
 
 --- stats
-hitbox: 80
+hitbox: 160
 gold: 45
 hp.max_value: 800
 hp.delta: 0.005
@@ -202,7 +249,7 @@ reaggro_range: 250
 camp_spread: 500
 
 --- stats
-hitbox: 85
+hitbox: 170
 gold: 50
 hp.max_value: 800
 hp.delta: 0.005
@@ -218,7 +265,7 @@ reaggro_range: 500
 camp_spread: 600
 
 --- stats
-hitbox: 100
+hitbox: 200
 gold: 150
 hp.max_value: 5000
 hp.delta: 0.001
@@ -234,7 +281,7 @@ reaggro_range: 500
 camp_spread: 600
 
 --- stats
-hitbox: 100
+hitbox: 200
 gold: 150
 hp.max_value: 1400
 hp.delta: 0.001
@@ -250,7 +297,7 @@ reaggro_range: 200
 camp_spread: 100
 
 --- stats
-hitbox: 110
+hitbox: 220
 gold: 150
 hp.max_value: 2000
 hp.delta: 0.05
@@ -266,12 +313,12 @@ air: 50
 ===== Fort
 fountain
 --- stats
-hitbox: 80
+hitbox: 160
 
 ===== Lighthouse
 fountain
 --- stats
-hitbox: 60
+hitbox: 120
 
 ====== Shopkeeper basic
 shopkeeper
@@ -296,7 +343,7 @@ category: potion
 ====== DPS Meter
 dps_meter
 --- stats
-hitbox: 30
+hitbox: 50
 
 
 

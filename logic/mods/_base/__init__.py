@@ -15,6 +15,7 @@ STATUSES = [
     'RESPAWN',
     'FOUNTAIN',
     'SHOP',
+    'MAP_EDITOR',
     # Mechanics
     'ARMOR',
     'SLOW',

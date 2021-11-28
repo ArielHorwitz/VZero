@@ -1,10 +1,10 @@
 
 # v0.007
-###### Engine
 - GUI improvements
-
-###### Mods
-- hp_zero and status_zero
+- Base mod balance:
+  - New map
+  - Respawn
+  - Items
 
 
 # v0.006

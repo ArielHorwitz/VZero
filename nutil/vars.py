@@ -148,6 +148,12 @@ class NP:
         return out
 
 
+def collide_point(r1, r2, p):
+    return collide_points(r1, r2, np.array([p]))
+
+def collide_points(r1, r2, points):
+    return np.all(np.logical_and(points >= r1, points < r2), axis=1)
+
 def modify_color(color, v=1, a=1):
     if len(color) == 4:
         a = color[3]*a
