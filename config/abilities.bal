@@ -38,7 +38,7 @@ mana_cost: 40
 cooldown: 5000
 duration: 1500
 duration_stat: water
-duration_bonus: 10
+duration_bonus: 1
 stacks: 10
 stacks_stat: earth
 stacks_bonus: 2

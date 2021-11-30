@@ -53,6 +53,7 @@ ABILITY = AutoIntEnum('ABILITY', [
 STAT = AutoIntEnum('STAT', [
     'POS_X',
     'POS_Y',
+    'WEIGHT',
     'HITBOX',
     'HP',
     *(_.upper() for _ in MOD_PKG.STATS),

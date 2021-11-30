@@ -44,6 +44,7 @@ def get_default_stats():
     table[:, VALUE.MAX_VALUE] = LARGE_ENOUGH
 
     table[(STAT.POS_X, STAT.POS_Y), VALUE.MIN_VALUE] = -LARGE_ENOUGH
+    table[STAT.WEIGHT, VALUE.MIN_VALUE] = -1
     table[STAT.HITBOX, VALUE.CURRENT] = 100
     table[STAT.HP, VALUE.CURRENT] = LARGE_ENOUGH
     table[STAT.HP, VALUE.TARGET_VALUE] = 0

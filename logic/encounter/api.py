@@ -137,6 +137,10 @@ class EncounterAPI:
         return self.e.stats.get_distances
 
     @property
+    def set_collision(self):
+        return self.e.stats.set_collision
+
+    @property
     def add_dmod(self):
         return self.e.stats.add_dmod
 

@@ -5,13 +5,13 @@ logger = logging.getLogger(__name__)
 import copy
 import math
 import numpy as np
-import enum
-from nutil.vars import AutoIntEnum, is_iterable
-from nutil.display import nprint, njoin
+from nutil.display import nprint
 from logic.mechanics.common import *
 
 
 DMOD_CACHE_SIZE = 10_000
+COLLISION_RESOLUTION = 2
+COLLISION_DEFAULT = True
 
 
 class UnitStats:
@@ -67,12 +67,30 @@ class UnitStats:
             value_name = VALUE.CURRENT
         return self.table[index, (STAT.POS_X, STAT.POS_Y), value_name]
 
-    def set_position(self, index, pos, value_name=None, halt=False):
+    def set_position(self, index, pos, value_name=None,
+        reset_delta_target=False, halt=False,
+    ):
         if value_name is None:
             value_name = VALUE.CURRENT
         self.table[index, (STAT.POS_X, STAT.POS_Y), value_name] = pos
         if halt is True:
             self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.TARGET_VALUE] = pos
+        if reset_delta_target is True:
+            self._reset_delta_target(index)
+
+    def _reset_delta_target(self, index, velocity=None):
+        # Find vector
+        pos = self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.CURRENT]
+        target = self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.TARGET_VALUE]
+        vector = target - pos
+        if velocity is None:
+            velocity = np.linalg.norm(self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.DELTA], axis=-1)
+        vsize = np.linalg.norm(vector, axis=-1)
+        vscale = velocity
+        vscale[vsize != 0] /= vsize[vsize != 0]
+        vector *= vscale[:, np.newaxis]
+        new_delta = vector
+        self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.DELTA] = new_delta
 
     def get_velocity(self, index=None):
         if index is None:
@@ -83,6 +101,9 @@ class UnitStats:
     def get_distances(self, point):
         positions = self.table[:, (STAT.POS_X, STAT.POS_Y), VALUE.CURRENT]
         return np.linalg.norm(positions - np.array(point), axis=1)
+
+    def set_collision(self, index, colliding=True):
+        self._collision_flags[index] = colliding
 
     # ADD/REMOVE UNIT STATS
     def add_unit(self, unit_stats):
@@ -102,7 +123,8 @@ class UnitStats:
         self.cooldowns = np.concatenate((self.cooldowns, unit_cooldowns), axis=0)
         # Live flag
         self._flags_alive = np.append(self._flags_alive, [False])
-        assert len(self.table) == len(self.status_table) == len(self.cooldowns) == self._dmod_targets.shape[1] == len(self._flags_alive)
+        self._collision_flags = np.append(self._collision_flags, [COLLISION_DEFAULT])
+        assert len(self.table) == len(self.status_table) == len(self.cooldowns) == self._dmod_targets.shape[1] == len(self._flags_alive) == len(self._collision_flags)
         return len(self.table) - 1
 
     def add_dmod(self, ticks, units, stat, delta):
@@ -122,6 +144,8 @@ class UnitStats:
     def do_tick(self, ticks):
         self.tick += ticks
         hp_zero = self._do_stat_deltas(ticks)
+        for _ in range(COLLISION_RESOLUTION):
+            self._collision_push()
         status_zero = self._do_status_deltas(ticks)
         self._do_cooldown_deltas(ticks)
         return hp_zero, status_zero
@@ -188,6 +212,51 @@ class UnitStats:
     def _do_cooldown_deltas(self, ticks):
         self.cooldowns -= ticks
 
+    def _collision_push(self):
+        # Get full distance table
+        hitboxes = self.table[:, STAT.HITBOX, VALUE.CURRENT]
+        combined_hitboxes = hitboxes + hitboxes.reshape(len(self.table), 1)
+        pos1 = self.table[:, (STAT.POS_X, STAT.POS_Y), VALUE.CURRENT]
+        pos2 = pos1[:, np.newaxis, :]
+        vectors = pos1 - pos2
+        # Find collisions (both ways, when u0 pushed u1, u1 also pushes u0)
+        distances = np.linalg.norm(vectors, axis=2)
+        overlap = (distances - combined_hitboxes) * -1
+        colliding = (overlap > 0) & (distances > 0)
+        # Ignore units colliding with themselves
+        colliding[np.identity(len(colliding), dtype=np.bool)] = False
+        colliding[:, self._collision_flags == False] = False
+        colliding[self._collision_flags == False, :] = False
+        pushing, pushed = np.nonzero(colliding)
+        if len(pushing) == 0:
+            return
+
+        # Find how heavy is the pushing unit
+        push_weight = self.table[pushing, STAT.WEIGHT, VALUE.CURRENT]
+        max_weight = self.table[pushing, STAT.WEIGHT, VALUE.MAX_VALUE]
+        push_weight[push_weight < 0] = max_weight[push_weight < 0]
+        push_weight[push_weight == 0] = hitboxes[pushing][push_weight == 0]
+
+        # Find how heavy is the pushed unit
+        standing_weight = self.table[pushed, STAT.WEIGHT, VALUE.CURRENT]
+        max_weight = self.table[pushed, STAT.WEIGHT, VALUE.MAX_VALUE]
+        standing_weight[standing_weight < 0] = max_weight[standing_weight < 0]
+        standing_weight[standing_weight == 0] = hitboxes[pushed][standing_weight == 0]
+
+        # Push only enough to eliminate hitbox overlap
+        # Also consider the relative weight, as we calculate eacg side pushing the other
+        final_push_weight = push_weight / (push_weight + standing_weight)
+        push_distance = final_push_weight * overlap[pushing, pushed]
+        push_vectors = vectors[pushing, pushed] / distances[pushing, pushed, np.newaxis]
+        final_push_vectors = push_vectors * push_distance.reshape(len(push_distance), 1)
+
+        # Update positions
+        positions = self.get_position(pushed.reshape(len(pushed), 1))
+        new_positions = positions + final_push_vectors
+        self.set_position(
+            pushed.reshape(len(pushed), 1), new_positions,
+            reset_delta_target=True)
+
     # INTERNAL
     def __init__(self):
         self.tick = 0
@@ -217,6 +286,7 @@ class UnitStats:
         self._dmod_ticks = np.zeros(DMOD_CACHE_SIZE)
         self._dmod_targets = np.zeros(shape=(DMOD_CACHE_SIZE, 0))
         self._flags_alive = np.array([], dtype=np.bool)
+        self._collision_flags = np.array([], dtype=np.bool)
 
     def print_table(self):
         with np.printoptions(precision=2, linewidth=10_000, threshold=10_000):

@@ -161,7 +161,7 @@ def modify_color(color, v=1, a=1):
     return tuple((*(np.array(color)*v), a))
 
 def normalize(a, size=1):
-    v_size = np.linalg.norm(a)
+    v_size = np.linalg.norm(a, axis=-1)
     if v_size == 0:
         return np.array(a) * 0
     return np.array(a) * size / v_size

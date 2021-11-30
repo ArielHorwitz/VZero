@@ -10,7 +10,6 @@ from nutil.random import Seed, SEED
 from logic.encounter.api import EncounterAPI
 from logic.encounter.stats import UnitStats
 from logic.mechanics.common import *
-from logic.mechanics.player import Player
 from logic.mechanics.mechanics import Mechanics
 
 
@@ -172,7 +171,7 @@ class Encounter:
             tps = self.DEFAULT_TPS
         self.__tps = tps
         self.ticktime = 1000 / self.__tps
-        logger.debug('set tps', self.__tps)
+        logger.debug(f'set tps {self.__tps}')
 
     @property
     def unit_count(self):
@@ -185,7 +184,9 @@ class Encounter:
     def get_visual_effects(self):
         return self._visual_effects
 
-    def debug_action(self, *args, dev_mode=-1, tick=None, tps=None, **kwargs):
+    def debug_action(self, *args,
+            dev_mode=-1, tick=None, tps=None,
+            **kwargs):
         logger.debug(f'Debug action called (extra args: {args} {kwargs})')
         self.set_tps(tps)
         if dev_mode == -1:

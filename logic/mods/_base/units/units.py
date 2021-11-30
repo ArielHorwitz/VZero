@@ -175,6 +175,7 @@ class Shopkeeper(Unit):
         self.name = f'{icat.name.lower().capitalize()} shop'
         self.api.set_stats(self.uid, STAT.HP, 1_000_000, value_name=VALUE.MAX_VALUE)
         self.api.set_stats(self.uid, STAT.HP, 1_000_000, value_name=VALUE.DELTA)
+        self.api.set_stats(self.uid, STAT.WEIGHT, -1)
 
     def poll_abilities(self, api):
         self.api.set_status(self.uid, STATUS.SHOP, duration=0, stacks=self.category.value)
@@ -189,6 +190,7 @@ class Fountain(Unit):
     def _setup(self):
         self.abilities.append(ABILITY.FOUNTAIN_HP)
         self.abilities.append(ABILITY.FOUNTAIN_MANA)
+        self.api.set_stats(self.uid, STAT.WEIGHT, -1)
 
 
 class DPSMeter(Unit):
