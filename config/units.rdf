@@ -5,15 +5,20 @@ player
 - stats
 gold: 100
 gold.delta: 0.005
-hp.max_value: 100
+hp.max: 100
 hp.delta: 0.02
-mana.max_value: 100
+mana.max: 100
 mana.delta: 0.02
 physical: 10
+physical.delta: 0.00014
 fire: 10
+fire.delta: 0.00014
 earth: 10
+earth.delta: 0.00014
 air: 10
+air.delta: 0.00014
 water: 10
+water.delta: 0.00014
 
 
 === Tiny creep
@@ -23,7 +28,7 @@ wave: 0
 --- stats
 hitbox: 40
 gold: 2.5
-hp.max_value: 10
+hp.max: 10
 physical: 5
 air: 25
 
@@ -34,7 +39,7 @@ wave: 0.25
 --- stats
 hitbox: 60
 gold: 5
-hp.max_value: 20
+hp.max: 20
 physical: 10
 air: 20
 
@@ -45,7 +50,7 @@ wave: 0.5
 --- stats
 hitbox: 80
 gold: 10
-hp.max_value: 40
+hp.max: 40
 physical: 20
 air: 15
 
@@ -56,7 +61,7 @@ wave: 0.75
 --- stats
 hitbox: 100
 gold: 20
-hp.max_value: 80
+hp.max: 80
 physical: 40
 air: 10
 
@@ -72,7 +77,7 @@ camp_spread: 200
 -- stats
 hitbox: 40
 gold: 5
-hp.max_value: 40
+hp.max: 40
 hp.delta: 0.0001
 physical: 10
 air: 15
@@ -88,7 +93,7 @@ camp_spread: 200
 -- stats
 hitbox: 60
 gold: 8
-hp.max_value: 65
+hp.max: 65
 hp.delta: 0.0001
 physical: 15
 air: 25
@@ -104,7 +109,7 @@ camp_spread: 250
 - stats
 hitbox: 50
 gold: 3
-hp.max_value: 30
+hp.max: 30
 hp.delta: 0.001
 physical: 4
 air: 55
@@ -120,7 +125,7 @@ camp_spread: 300
 - stats
 hitbox: 60
 gold: 6
-hp.max_value: 40
+hp.max: 40
 hp.delta: 0.005
 physical: 10
 air: 20
@@ -136,7 +141,7 @@ camp_spread: 300
 --- stats
 hitbox: 80
 gold: 25
-hp.max_value: 280
+hp.max: 280
 hp.delta: 0.005
 physical: 18
 air: 40
@@ -151,7 +156,7 @@ camp_spread: 300
 --- stats
 hitbox: 80
 gold: 25
-hp.max_value: 175
+hp.max: 175
 hp.delta: 0.005
 physical: 22
 air: 45
@@ -167,7 +172,7 @@ camp_spread: 350
 --- stats
 hitbox: 80
 gold: 25
-hp.max_value: 220
+hp.max: 220
 hp.delta: 0.005
 physical: 35
 air: 30
@@ -185,7 +190,7 @@ camp_spread: 100
 - stats
 hitbox: 100
 gold: 30
-hp.max_value: 460
+hp.max: 460
 hp.delta: 0.05
 physical: 40
 air: 12
@@ -202,7 +207,7 @@ camp_spread: 250
 - stats
 hitbox: 120
 gold: 30
-hp.max_value: 650
+hp.max: 650
 hp.delta: 0.05
 physical: 45
 air: 8
@@ -218,7 +223,7 @@ camp_spread: 50
 --- stats
 hitbox: 120
 gold: 40
-hp.max_value: 750
+hp.max: 750
 hp.delta: 0.005
 physical: 115
 air: 20
@@ -234,7 +239,7 @@ camp_spread: 350
 --- stats
 hitbox: 160
 gold: 45
-hp.max_value: 800
+hp.max: 800
 hp.delta: 0.005
 physical: 145
 air: 35
@@ -251,7 +256,7 @@ camp_spread: 500
 --- stats
 hitbox: 170
 gold: 50
-hp.max_value: 800
+hp.max: 800
 hp.delta: 0.005
 physical: 190
 air: 18
@@ -267,7 +272,7 @@ camp_spread: 600
 --- stats
 hitbox: 200
 gold: 150
-hp.max_value: 5000
+hp.max: 5000
 hp.delta: 0.001
 physical: 75
 air: 15
@@ -283,7 +288,7 @@ camp_spread: 600
 --- stats
 hitbox: 200
 gold: 150
-hp.max_value: 1400
+hp.max: 1400
 hp.delta: 0.001
 physical: 500
 air: 5
@@ -299,7 +304,7 @@ camp_spread: 100
 --- stats
 hitbox: 220
 gold: 150
-hp.max_value: 2000
+hp.max: 2000
 hp.delta: 0.05
 physical: 250
 air: 50
@@ -314,11 +319,13 @@ air: 50
 fountain
 --- stats
 hitbox: 160
+hp.max: 5000
 
 ===== Lighthouse
 fountain
 --- stats
 hitbox: 120
+hp.max: 2000
 
 ====== Shopkeeper basic
 shopkeeper
@@ -353,6 +360,6 @@ hitbox: 50
 === Hero Treasure
 treasure
 --- stats
-hp.max_value: 250
+hp.max: 250
 hp.delta: 0.5
 gold: 75

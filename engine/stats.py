@@ -3,14 +3,13 @@ logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
 import copy
-import math
 import numpy as np
 from nutil.display import nprint
-from logic.mechanics.common import *
+from engine.common import *
 
 
 DMOD_CACHE_SIZE = 10_000
-COLLISION_RESOLUTION = 2
+COLLISION_PASSES = 2
 COLLISION_DEFAULT = True
 
 
@@ -74,14 +73,14 @@ class UnitStats:
             value_name = VALUE.CURRENT
         self.table[index, (STAT.POS_X, STAT.POS_Y), value_name] = pos
         if halt is True:
-            self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.TARGET_VALUE] = pos
+            self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.TARGET] = pos
         if reset_delta_target is True:
             self._reset_delta_target(index)
 
     def _reset_delta_target(self, index, velocity=None):
         # Find vector
         pos = self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.CURRENT]
-        target = self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.TARGET_VALUE]
+        target = self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.TARGET]
         vector = target - pos
         if velocity is None:
             velocity = np.linalg.norm(self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.DELTA], axis=-1)
@@ -96,20 +95,46 @@ class UnitStats:
         if index is None:
             index = slice(None)
         v = self.get_position(index, value_name=VALUE.DELTA)
-        return math.dist((0, 0), v)
+        return np.linalg.norm(v)
 
-    def get_distances(self, point):
-        positions = self.table[:, (STAT.POS_X, STAT.POS_Y), VALUE.CURRENT]
-        return np.linalg.norm(positions - np.array(point), axis=1)
+    def get_distances(self, point, index=None, include_hitbox=True):
+        if index is None:
+            index = slice(None)
+        positions = self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.CURRENT]
+        dist = np.linalg.norm(positions - np.array(point), axis=-1)
+        if include_hitbox is True:
+            dist -= self.table[index, STAT.HITBOX, VALUE.CURRENT]
+            if isinstance(dist, np.ndarray):
+                dist[dist<0] = 0
+            elif dist < 0:
+                dist = 0
+        return dist
+
+    def unit_distance(self, index1, index2=None, include_hitbox=True):
+        position = self.table[index1, (STAT.POS_X, STAT.POS_Y), VALUE.CURRENT]
+        if index2 is None:
+            index2 = slice(None)
+        positions = self.table[index2, (STAT.POS_X, STAT.POS_Y), VALUE.CURRENT]
+        dist = np.linalg.norm(position - positions, axis=-1)
+        if include_hitbox is True:
+            dist -= self.table[index1, STAT.HITBOX, VALUE.CURRENT]
+            dist -= self.table[index2, STAT.HITBOX, VALUE.CURRENT]
+            if isinstance(dist, np.ndarray):
+                dist[dist<0] = 0
+            elif dist < 0:
+                dist = 0
+        return dist
 
     def set_collision(self, index, colliding=True):
         self._collision_flags[index] = colliding
 
     # ADD/REMOVE UNIT STATS
-    def add_unit(self, unit_stats):
+    def add_unit(self, unit_stats=None):
         # Base stats entry
         logger.debug(f'Adding new unit stats: {unit_stats}')
-        unit_stats = unit_stats[None, :, :]
+        if unit_stats is None:
+            unit_stats = np.zeros(self.table.shape[1:])
+        unit_stats = unit_stats[np.newaxis, :, :]
         self.table = np.concatenate((self.table, unit_stats), axis=0)
         # Dmod entry
         new_column = np.zeros((DMOD_CACHE_SIZE, 1))
@@ -138,13 +163,13 @@ class UnitStats:
 
     def kill_stats(self, index):
         self.table[index, :, VALUE.DELTA] = 0
-        self.table[index, :, VALUE.TARGET_VALUE] = 0
+        self.table[index, :, VALUE.TARGET] = 0
 
     # TICK
     def do_tick(self, ticks):
         self.tick += ticks
         hp_zero = self._do_stat_deltas(ticks)
-        for _ in range(COLLISION_RESOLUTION):
+        for _ in range(COLLISION_PASSES):
             self._collision_push()
         status_zero = self._do_status_deltas(ticks)
         self._do_cooldown_deltas(ticks)
@@ -174,9 +199,9 @@ class UnitStats:
         live_units = self.table[:, STAT.HP, VALUE.CURRENT] > 0
         deltas *= live_units.reshape(len(self.table), 1)
 
-        min_values = self.table[:, :, VALUE.MIN_VALUE]
-        max_values = self.table[:, :, VALUE.MAX_VALUE]
-        target_values = self.table[:, :, VALUE.TARGET_VALUE]
+        min_values = self.table[:, :, VALUE.MIN]
+        max_values = self.table[:, :, VALUE.MAX]
+        target_values = self.table[:, :, VALUE.TARGET]
         target_value_diffs = target_values - current_values
 
         # Find which values are changed by delta, and which reach their target
@@ -233,13 +258,13 @@ class UnitStats:
 
         # Find how heavy is the pushing unit
         push_weight = self.table[pushing, STAT.WEIGHT, VALUE.CURRENT]
-        max_weight = self.table[pushing, STAT.WEIGHT, VALUE.MAX_VALUE]
+        max_weight = self.table[pushing, STAT.WEIGHT, VALUE.MAX]
         push_weight[push_weight < 0] = max_weight[push_weight < 0]
         push_weight[push_weight == 0] = hitboxes[pushing][push_weight == 0]
 
         # Find how heavy is the pushed unit
         standing_weight = self.table[pushed, STAT.WEIGHT, VALUE.CURRENT]
-        max_weight = self.table[pushed, STAT.WEIGHT, VALUE.MAX_VALUE]
+        max_weight = self.table[pushed, STAT.WEIGHT, VALUE.MAX]
         standing_weight[standing_weight < 0] = max_weight[standing_weight < 0]
         standing_weight[standing_weight == 0] = hitboxes[pushed][standing_weight == 0]
 

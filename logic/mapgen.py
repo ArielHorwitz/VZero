@@ -9,7 +9,9 @@ from collections import namedtuple, defaultdict
 from data import resource_name
 from data.load import RDF
 from data.tileset import TileMap
-from logic.mechanics.common import *
+
+from engine.common import *
+from logic.units import units
 
 
 Biome = namedtuple('Biome', ['pos', 'weight', 'tile'])
@@ -28,15 +30,93 @@ BIOME_TYPES = [
 
 def set_spawn_location(stats, spawn):
     stats[(STAT.POS_X, STAT.POS_Y), VALUE.CURRENT] = spawn
-    stats[(STAT.POS_X, STAT.POS_Y), VALUE.TARGET_VALUE] = spawn
+    stats[(STAT.POS_X, STAT.POS_Y), VALUE.TARGET] = spawn
 
+UNIT_CLASSES = {
+    'player': units.Player,
+    'creep': units.Creep,
+    'camper': units.Camper,
+    'treasure': units.Treasure,
+    'shopkeeper': units.Shopkeeper,
+    'fountain': units.Fountain,
+    'dps_meter': units.DPSMeter,
+}
+
+def get_default_stats():
+    table = np.zeros(shape=(len(STAT), len(VALUE)))
+    LARGE_ENOUGH = 1_000_000_000
+    table[:, VALUE.CURRENT] = 0
+    table[:, VALUE.DELTA] = 0
+    table[:, VALUE.TARGET] = -LARGE_ENOUGH
+    table[:, VALUE.MIN] = 0
+    table[:, VALUE.MAX] = LARGE_ENOUGH
+
+    table[(STAT.POS_X, STAT.POS_Y), VALUE.MIN] = -LARGE_ENOUGH
+    table[STAT.WEIGHT, VALUE.MIN] = -1
+    table[STAT.HITBOX, VALUE.CURRENT] = 100
+    table[STAT.HP, VALUE.CURRENT] = LARGE_ENOUGH
+    table[STAT.HP, VALUE.TARGET] = 0
+    table[STAT.MANA, VALUE.CURRENT] = LARGE_ENOUGH
+    table[STAT.MANA, VALUE.MAX] = 20
+
+    ELEMENTAL_STATS = [STAT.PHYSICAL, STAT.FIRE, STAT.EARTH, STAT.AIR, STAT.WATER]
+    table[ELEMENTAL_STATS, VALUE.CURRENT] = 10
+    table[ELEMENTAL_STATS, VALUE.MIN] = 2
+    return table
+
+logger.debug(f'Default stats:\n{get_default_stats()}')
+
+
+# Unit types
+def _load_unit_types():
+    raw_data = RDF.load(RDF.CONFIG_DIR / 'units.rdf')
+    units = {}
+    for unit_name, unit_data in raw_data.items():
+        internal_name = resource_name(unit_name)
+        if internal_name in units:
+            m = f'Unit name duplication: {internal_name}'
+            logger.critical(m)
+            raise ValueError(m)
+        unit_cls_name = unit_data[0][0][0]
+        unit_cls = UNIT_CLASSES[unit_cls_name]
+        raw_stats = unit_data['stats']
+        setup_params = unit_data[0]
+        del setup_params[0]
+        stats = _load_raw_stats(raw_stats)
+        logger.info(f'Loaded unit type: {unit_name} ({unit_cls_name} - {unit_cls}). setup params: {setup_params}')
+        units[internal_name] = {
+            'cls': unit_cls,
+            'name': unit_name,
+            'stats': stats,
+            'setup_params': setup_params,
+        }
+    return units
+
+def _load_raw_stats(raw_stats):
+    stats = get_default_stats()
+    modified_stats = []
+    for stat_and_value, raw_value in raw_stats.items():
+        if stat_and_value == 0:
+            continue
+        value_name = 'current'
+        if '.' in stat_and_value:
+            stat_name, value_name = stat_and_value.split('.')
+        else:
+            stat_name = stat_and_value
+        stat_ = str2stat(stat_name)
+        value_ = str2value(value_name)
+        stats[stat_][value_] = float(raw_value)
+        modified_stats.append(f'{stat_.name}.{value_.name}: {raw_value}')
+    logger.debug(f'Loaded raw stats: {", ".join(modified_stats)}')
+    return stats
+
+UNIT_TYPES = _load_unit_types()
 
 class MapGenerator:
-    TERRITORY_SIZE = 1000
 
-    def __init__(self, api, unit_types):
+    def __init__(self, api):
         self.api = api
-        self.unit_types = unit_types
+        self.engine = api.engine
         self.size = np.full(2, 10_000)
         self.player_spawn = self.size/2
         self.spawns = []
@@ -44,6 +124,8 @@ class MapGenerator:
         self.request_redraw = -1
         self.generate_map()
         self.generate_map_image()
+        self.spawn_unit('player', self.player_spawn)
+        self.spawn_map()
 
     def add_spawn(self, spawn, location, quadrant=False):
         self.spawns.append((spawn, np.array(location) * self.size))
@@ -90,13 +172,16 @@ class MapGenerator:
 
     def spawn_unit(self, unit_type, location):
         internal_name = resource_name(unit_type)
-        unit_data = self.unit_types[internal_name]
+        unit_data = UNIT_TYPES[internal_name]
         unit_cls = unit_data['cls']
         name = copy.deepcopy(unit_data['name'])
         stats = unit_data['stats']
         set_spawn_location(stats, location)
         setup_params = copy.deepcopy(unit_data['setup_params'])
-        unit = self.api.add_unit(unit_cls, name, stats, setup_params)
+        uid = self.engine.next_uid
+        unit = unit_cls(self.api, uid, name, setup_params)
+        self.engine.add_unit(unit, stats)
+        unit.setup()
         logger.debug(f'Created new unit {internal_name} with uid {unit.uid} and setup_params: {setup_params}')
         return unit
 
@@ -134,7 +219,7 @@ class MapGenerator:
             default='brick',
             tilemap=tilemap,
         )
-        self.request_redraw = self.api.tick
+        self.request_redraw = self.engine.tick
         self.export_biomes()
 
     def export_biomes(self):

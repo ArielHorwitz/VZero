@@ -9,11 +9,9 @@ import numpy as np
 import math
 from nutil.vars import normalize
 from nutil.display import njoin
-from logic.mechanics.common import *
-from logic.mechanics import import_mod_module as import_
-BaseAbility = import_('abilities.ability').Ability
-Mechanics = import_('mechanics.mechanics').Mechanics
-Mutil = import_('mechanics.utilities').Utilities
+from engine.common import *
+from logic.abilities.ability import Ability as BaseAbility
+from logic.mechanics.mechanics import Mechanics
 
 
 class Move(BaseAbility):
@@ -39,7 +37,7 @@ class Attack(BaseAbility):
     defaults = {
         'mana_cost': 0,
         'cooldown': 150,
-        'range': 200,
+        'range': 10,
         'damage': 20,
         'damage_stat': 'physical',
         'damage_add': 0.3,
@@ -48,7 +46,7 @@ class Attack(BaseAbility):
     def do_cast(self, api, uid, target):
         # check range (find target)
         range = self.p.get_range(api, uid)
-        target_uid = f = Mutil.find_target_enemy(api, uid, target, range)
+        target_uid = f = self.find_target(api, uid, target, range, enemy_only=True)
         if isinstance(f, FAIL_RESULT):
             return f
 
@@ -60,7 +58,7 @@ class Attack(BaseAbility):
         api.add_visual_effect(VisualEffect.LINE, 5, {
             'p1': api.get_position(uid),
             'p2': api.get_position(target_uid),
-            'color': api.units[uid].color,
+            'color': (0, 0, 0),
         })
         return self.aid
 
@@ -118,7 +116,7 @@ class Buff(BaseAbility):
             vfx_target = target_uid = uid
         else:
             range = self.p.get_range(api, uid)
-            vfx_target = target_uid = f = Mutil.find_target_enemy(api, uid, target, range)
+            vfx_target = target_uid = f = self.find_target(api, uid, target, range, enemy_only=True)
             if isinstance(f, FAIL_RESULT):
                 return f
 
@@ -133,7 +131,7 @@ class Buff(BaseAbility):
             api.add_visual_effect(VisualEffect.LINE, 5, {
                 'p1': api.get_position(uid),
                 'p2': api.get_position(target_uid),
-                'color': api.units[uid].color,
+                'color': self.color,
             })
         api.add_visual_effect(VisualEffect.CIRCLE, duration, params={
             'color': (*self.color, 0.4),
@@ -184,7 +182,7 @@ class Teleport(BaseAbility):
         target = self.fix_vector(api, uid, target, range)
         # teleport effect
         api.set_position(uid, target)
-        api.set_position(uid, target, VALUE.TARGET_VALUE)
+        api.set_position(uid, target, VALUE.TARGET)
         api.add_visual_effect(VisualEffect.LINE, 10, {
             'p1': pos,
             'p2': target,
@@ -209,7 +207,7 @@ class Blast(BaseAbility):
     def do_cast(self, api, uid, target):
         damage = self.p.get_damage(api, uid)
         radius = self.p.get_radius(api, uid)
-        targets_mask = Mutil.find_aoe_targets(api, target, radius, api.mask_enemies(uid))
+        targets_mask = self.find_aoe_targets(api, target, radius)
         Mechanics.do_brute_damage(api, uid, targets_mask, damage)
 
         api.add_visual_effect(VisualEffect.CIRCLE, 30, {
@@ -239,7 +237,7 @@ class RegenAura(BaseAbility):
     def passive(self, api, uid, dt):
         pos = api.get_position(uid)
         radius = self.p.get_radius(api, uid)
-        targets = Mutil.find_aoe_targets(api, pos, radius, api.mask_enemies(uid))
+        targets = self.find_aoe_targets(api, pos, radius)
         if self.p.show_aura > 0:
             api.add_visual_effect(VisualEffect.CIRCLE, dt-2, {
                 'center': pos,
@@ -299,7 +297,7 @@ class Shopkeeper(Buff):
     lore = f'Running a mom and pop shop is tough business.'
     def cast(self, api, uid, target):
         radius = 250
-        targets = Mutil.find_aoe_targets(api, api.get_position(uid), radius)
+        targets = self.find_aoe_targets(api, api.get_position(uid), radius)
         duration = 120
         stacks = api.get_status(uid, STATUS.SHOP, value_name=STATUS_VALUE.STACKS)
         Mechanics.apply_debuff(api, targets, STATUS.SHOP, duration, stacks)

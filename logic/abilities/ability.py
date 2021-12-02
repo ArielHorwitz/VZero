@@ -5,16 +5,20 @@ logger = logging.getLogger(__name__)
 
 import collections
 import math
-from nutil.vars import normalize, modify_color, is_floatable
-from nutil.display import njoin
-from logic.mechanics.common import *
-from logic.mechanics.ability import Ability as BaseAbility, GUI_STATE
-from logic.mechanics import import_mod_module as import_
-Mutil = import_('mechanics.utilities').Utilities
+import numpy as np
+from nutil.vars import normalize, is_floatable
+from data import resource_name
+from engine.common import *
+from logic.mechanics.mechanics import Mechanics
 
 
-class Ability(BaseAbility):
-    defaults = {'mana_cost': 0, 'cooldown': 0}
+GUI_STATE = collections.namedtuple('GUI_STATE', ('string', 'color'))
+MISS_COLOR = (1, 1, 1)
+
+
+class Ability:
+    color = (0.5, 0.5, 0.5, 1)
+    __defaults = defaults = {'mana_cost': 0, 'cooldown': 0}
     auto_check = {'mana', 'cooldown'}
     auto_cost = {'mana', 'cooldown'}
     info = 'An ability.'
@@ -51,18 +55,18 @@ class Ability(BaseAbility):
             return FAIL_RESULT.ON_COOLDOWN
         return True
 
-    def check_range_target_enemy(self, api, uid, target_point):
-        range = None
-        if 'range' in self.p:
-            range = self.p.range + api.get_stats(uid, STAT.HITBOX)
-        target_uid = f = mutil.find_target_enemy(api, uid, target_point, range=range)
-        if isinstance(target_uid, FAIL_RESULT):
-            return f
-        return True
-
-    def check_range_point(self, api, uid, target_point):
-        range = self.p.range + api.get_stats(uid, STAT.HITBOX)
-        if math.dist(api.get_position(uid), target_point) > range:
+    def check_range_point(self, api, uid, target_point, draw_miss_vfx=True):
+        range = self.p.range
+        if api.get_distances(target_point, uid) > range:
+            if draw_miss_vfx and uid == 0:
+                cast_pos = api.get_position(uid)
+                miss_range = range + api.get_stats(uid, STAT.HITBOX)
+                miss_vector = normalize(target_point - cast_pos, miss_range)
+                api.add_visual_effect(VisualEffect.LINE, 10, {
+                    'p1': cast_pos,
+                    'p2': cast_pos + miss_vector,
+                    'color': MISS_COLOR,
+                })
             return FAIL_RESULT.OUT_OF_RANGE
         return True
 
@@ -74,11 +78,52 @@ class Ability(BaseAbility):
             target = pos + fixed_vector
         return target
 
-    # Parameters
-    def setup(self, **params):
-        if self.defaults is None:
-            logger.error(f'{self.__class__} missing defaults')
-            self.defaults = {}
+    def find_target(self, api, uid, target_point,
+            range=None, draw_miss_vfx=True,
+            mask=None, enemy_only=True, alive_only=True,
+        ):
+        if range is None:
+            range = float('inf')
+        mask_ = self.mask_enemies(api, uid) if enemy_only else np.ones(len(api.units))
+        if mask is not None:
+            mask_ = np.logical_and(mask_, mask)
+        target_uid, dist = api.nearest_uid(target_point, mask=mask_, alive_only=alive_only)
+        if target_uid is None:
+            return FAIL_RESULT.MISSING_TARGET
+
+        if api.unit_distance(uid, target_uid) > range:
+            if draw_miss_vfx and uid == 0:
+                attack_pos = api.get_position(uid)
+                target_pos = api.get_position(target_uid)
+                miss_range = range + api.get_stats(uid, STAT.HITBOX)
+                miss_vector = normalize(target_pos - attack_pos, miss_range)
+                api.add_visual_effect(VisualEffect.LINE, 10, {
+                    'p1': attack_pos,
+                    'p2': attack_pos + miss_vector,
+                    'color': MISS_COLOR,
+                })
+            return FAIL_RESULT.OUT_OF_RANGE
+        return target_uid
+
+    def mask_enemies(self, api, uid):
+        m = np.ones(len(api.units))
+        m[uid] = 0
+        return m
+
+    def find_aoe_targets(self, api, point, radius, mask=None, alive_only=True):
+        dists = api.get_distances(point)
+        in_radius = dists < radius
+        if mask is not None:
+            in_radius = np.logical_and(in_radius, mask)
+        if alive_only:
+            in_radius = np.logical_and(in_radius, api.mask_alive())
+        return in_radius
+
+    # Basic
+    def __init__(self, aid, name, params):
+        self.name = name
+        self.aid = aid
+
         for k, v in params.items():
             if k == 'color':
                 if hasattr(COLOR, v.upper()):
@@ -89,9 +134,12 @@ class Ability(BaseAbility):
                     self.color = rgb
             if k not in tuple(self.defaults.keys()):
                 logger.debug(f'Setting up parameter {k} for ability {self.name} but no existing default')
-        self.p = Params({**self.defaults, **params})
+        self.p = Params({**self.__defaults, **self.defaults, **params})
         logger.debug(f'Created ability {self.name} with arguments: {params}. ' \
                      f'Defaults: {self.defaults}')
+
+    def passive(self, api, uid, dt):
+        pass
 
     def cast(self, api, uid, target):
         f = self.check_many(api, uid, target, checks=self.auto_check)
@@ -109,18 +157,27 @@ class Ability(BaseAbility):
         return self.aid
 
     # Properties
+    @property
+    def sprite(self):
+        return resource_name(self.aid.name)
+
     def gui_state(self, api, uid, target=None):
+        miss = 0
         cd = api.get_cooldown(uid, self.aid)
         excess_mana = api.get_stats(uid, STAT.MANA) - self.p.mana_cost
         strings = []
-        color = self.color
+        color = (0, 0.9, 0, 1)
         if cd > 0:
             strings.append(f'CD: {api.ticks2s(cd):.1f}')
-            color = modify_color(self.color, v=0.25)
+            color = (1, 0.3, 0, 1)
+            miss += 1
         if excess_mana <= 0:
             strings.append(f'M: {-excess_mana:.1f}')
-            color = modify_color(self.color, v=0.25)
-        return GUI_STATE(', '.join(strings), color)
+            color = (0, 0, 0.8, 1)
+            miss += 1
+        if miss > 1:
+            color = (0, 0, 0, 1)
+        return GUI_STATE('\n'.join(strings), color)
 
     @property
     def general_description(self):
@@ -165,7 +222,7 @@ class Params:
         if isinstance(param, ExpandedParam):
             stat_value = api.get_stats(uid, param.stat)
             stat_name = f'{stat_value:.1f} {param.stat.name.lower().capitalize()}'
-            formula = f'   = {self._formula_repr(param_name, stat_name)}'
+            formula = f'\n     = {self._formula_repr(param_name, stat_name)}'
         pval = self._param_value(param_name, api, uid)
         if is_floatable(pval):
             pval = f'{pval:.1f}'
@@ -230,7 +287,7 @@ class ModReduction:
 
     @classmethod
     def calc(cls, base, stat, factor):
-        return base * Mutil.diminishing_curve(stat*factor, 50, 20)
+        return base * Mechanics.diminishing_curve(stat*factor, 50, 20)
 
     @classmethod
     def repr(cls, base, stat, factor):

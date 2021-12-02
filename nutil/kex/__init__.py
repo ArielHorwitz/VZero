@@ -35,6 +35,9 @@ class KexWidget:
     def set_size(self, *args, **kwargs):
         return set_size(self, *args, **kwargs)
 
+    def set_position(self, *args, **kwargs):
+        return set_position(self, *args, **kwargs)
+
     def bind(self, *args, **kwargs):
         super().bind(*args, **kwargs)
         return self
@@ -77,7 +80,11 @@ def set_size(widget, x=None, y=None, hx=1, hy=1):
     y = widget.height if y is None else y
 
     widget.size_hint = (hx, hy)
-    widget.size = (x, y)
+    widget.size = (int(x), int(y))
+    return widget
+
+def set_position(widget, pos):
+    widget.pos = int(pos[0]), int(pos[1])
     return widget
 
 def add(parent, child, *args, reverse_index=None, **kwargs):
@@ -90,9 +97,9 @@ def _update_bg(widget, *args):
     widget._bg.pos = widget.pos
     widget._bg.size = widget.size
 
-def make_bg(widget, color=None):
+def make_bg(widget, color=None, **kwargs):
     if color is None:
-        color = random_color()
+        color = random_color(**kwargs)
     if hasattr(widget, '_bg'):
         if widget._bg_color is None:
             raise RuntimeError(f'widget {widget} has _bg but no _bg_color')

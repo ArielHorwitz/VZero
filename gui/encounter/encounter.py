@@ -7,7 +7,7 @@ import math
 import numpy as np
 from collections import defaultdict
 from nutil.vars import nsign, minmax
-from nutil.time import RateCounter, ratecounter, humanize_ms
+from nutil.time import RateCounter, ratecounter
 from nutil.kex import widgets
 
 from data.assets import Assets
@@ -15,11 +15,12 @@ from data.settings import Settings
 from gui import cc_int, center_position
 from gui.encounter.sprites import Sprites
 from gui.encounter.vfx import VFX
-from gui.encounter.hud import HUD
-from gui.encounter.panels import AgentViewer, DebugPanel
-from gui.encounter.menu.menu import Menu
+from gui.encounter.panels import Menu, HUD, AgentViewer, Modal, DebugPanel
 
-from logic.mechanics.common import *
+from engine.common import *
+
+
+ABILITY_HOTKEYS = Settings.get_setting('abilities', 'Hotkeys')
 
 
 class Encounter(widgets.RelativeLayout):
@@ -29,14 +30,10 @@ class Encounter(widgets.RelativeLayout):
     def __init__(self, api, **kwargs):
         super().__init__(**kwargs)
         self.api = api
-        self.selected_unit = 0
         self.timers = defaultdict(RateCounter)
         self.__units_per_pixel = self.DEFAULT_UPP
         self.__cached_target = None
-        self.selected_unit = 0
-        self._theme_track = Assets.get_sfx('theme', 'theme')
         self.__last_redraw = -1
-        self.toggle_play_sounds()
 
         # Setting the order of timers
         for timer in ('draw/idle', 'frame_total', 'graphics_total'):
@@ -44,39 +41,54 @@ class Encounter(widgets.RelativeLayout):
 
         # DRAW
         self.draw()
+        # Create a widget to handle mouse input for the bottom layer
+        # such that other widgets may take priority and consume the
+        # mouse event.
+        self.canvas_mouse_input = self.add(widgets.Widget())
+        self.canvas_mouse_input.bind(
+            on_touch_down=self.canvas_click,
+            on_touch_move=self.canvas_move,
+        )
         self.sprites = self.add(Sprites(enc=self))
         self.vfx = self.add(VFX(enc=self))
-        self.hud = self.add(HUD(anchor_y='bottom', enc=self))
+        self.hud = self.add(HUD(anchor_x='center', anchor_y='bottom', enc=self))
         self.agent_panel = self.add(AgentViewer(anchor_x='left', anchor_y='top', enc=self))
         self.debug_panel = self.add(DebugPanel(anchor_x='right', anchor_y='top', enc=self))
-        self.enc_menu = Menu(enc=self)
-        self.sub_frames = {
+        self.modal_overlay = self.add(Modal(enc=self))
+        self.enc_menu = self.add(Menu(enc=self))
+        self.overlays = {
             'sprites': self.sprites,
             'vfx': self.vfx,
             'hud': self.hud,
             'agent_panel': self.agent_panel,
             'debug': self.debug_panel,
+            'modal': self.modal_overlay,
             'menu': self.enc_menu,
         }
 
-        self.ability_hotkeys = Settings.get_setting('abilities', 'Hotkeys')
-        self.right_click_ability = Settings.get_setting('right_click', 'Hotkeys')
-        self.overlay_label = self.add(widgets.Label())
-        self.overlay_label.set_size(120, 35)
+        self.simple_overlay_label = self.add(widgets.Label())
+        self.simple_overlay_label.set_size(120, 35)
 
         # User input bindings
         self.app.hotkeys.register_dict({
-            # encounter management
-            'toggle play/pause': (
-                f'{Settings.get_setting("toggle_play", "Hotkeys")}',
-                lambda: self.toggle_play()),
-            'toggle play/pause2': (
-                f'{Settings.get_setting("toggle_play2", "Hotkeys")}',
-                lambda: self.toggle_play()),
+            # hotkeys
+            **{
+                name: (Settings.get_setting(name, "Hotkeys"), lambda n=name: self.api.user_hotkey(n, self.mouse_real_pos))
+                for name in (
+                    'toggle_play', 'toggle_play2', 'toggle_play_dev',
+                    'modal1', 'modal2', 'modal3', 'modal4',
+                )
+            },
             # user controls
             **{f'ability {key.upper()}': (
-                f'{key}', lambda *args, x=i: self.quickcast(x)
-                ) for i, key in enumerate(self.ability_hotkeys)},
+                f'{key}', lambda *args, x=i: self.api.quickcast(x, self.mouse_real_pos)
+                ) for i, key in enumerate(ABILITY_HOTKEYS)},
+            # debug
+            'toggle dev mode': (f'^+ d', lambda: self.api.debug(dev_mode=None)),
+            'normal tps': (f'^+ t', lambda: self.api.debug(tps=120)),
+            'high tps': (f'^!+ t', lambda: self.api.debug(tps=920)),
+            'single tick': (f'^ t', lambda: self.api.debug(tick=1)),
+            # gui view controls
             'zoom default': (
                 f'{Settings.get_setting("zoom_default", "Hotkeys")}',
                 lambda: self.set_zoom()),
@@ -89,18 +101,8 @@ class Encounter(widgets.RelativeLayout):
             'map view': (
                 f'{Settings.get_setting("map_view", "Hotkeys")}',
                 lambda: self.toggle_map_zoom()),
-            # debug
-            'toggle play/pause dev': (
-                f'{Settings.get_setting("toggle_play_dev", "Hotkeys")}',
-                lambda: self.toggle_play(show_menu=False)),
-            'toggle dev mode': (f'^+ d', lambda: self.api.debug(dev_mode=None)),
-            'normal tps': (f'^+ t', lambda: self.api.debug(tps=120)),
-            'high tps': (f'^!+ t', lambda: self.api.debug(tps=920)),
-            'single tick': (f'^ t', lambda: self.api.debug(tick=1)),
             'redraw map': (f'^+ r', lambda: self.redraw_map()),
             })
-        self.bind(on_touch_down=self.do_mouse_down)
-        self.bind(on_touch_move=self.check_mouse_move)
 
     def redraw_map(self):
         self.tilemap.source = str(self.api.map_image_source)
@@ -129,7 +131,7 @@ class Encounter(widgets.RelativeLayout):
             self.api.update()
             self._update()
             with ratecounter(self.timers['graphics_total']):
-                for timer, frame in self.sub_frames.items():
+                for timer, frame in self.overlays.items():
                     with ratecounter(self.timers[f'graph_{timer}']):
                         frame.pos = 0, 0
                         frame.update()
@@ -138,99 +140,40 @@ class Encounter(widgets.RelativeLayout):
 
     def _update(self):
         if self.__cached_target is not None:
-            if Settings.get_setting('enable_hold_mouse', 'Hotkeys'):
-                self.use_right_click()
+            self.api.user_click(self.__cached_target, button='right', view_size=self.real2pix(self.size))
             self.__cached_target = None
-        player_pos = self.api.get_position(0)
-        self.__player_pos = player_pos
+        self.__player_pos = player_pos = self.api.view_center
         self.__anchor_offset = np.array(self.size) / 2
 
-        self.overlay_label.pos = cc_int(np.array(self.size) - np.array(self.overlay_label.size))
-        self.overlay_label.text = f'{round(self.app.fps.rate)} FPS | {humanize_ms(self.api.elapsed_time_ms)}'
-        self.overlay_label.make_bg(self.app.fps_color)
+        self.simple_overlay_label.pos = cc_int(np.array(self.size) - np.array(self.simple_overlay_label.size))
+        self.simple_overlay_label.text = f'{round(self.app.fps.rate)} FPS | {self.api.time_str}'
+        self.simple_overlay_label.make_bg(self.app.fps_color)
 
         self.tilemap.pos = cc_int(self.real2pix(np.zeros(2)))
         self.tilemap.size = cc_int(np.array(self.api.map_size) / self.__units_per_pixel)
 
         self.move_crosshair.pos = center_position(self.real2pix(
-            self.api.get_position(0, value_name=VALUE.TARGET_VALUE)
-            ), self.move_crosshair.size)
+            self.api.target_crosshair), self.move_crosshair.size)
 
         if self.api.request_redraw != self.__last_redraw:
             self.__last_redraw = self.api.request_redraw
             self.redraw_map()
 
     # User Input
-    def check_mouse_move(self, w, m):
-        if m.button == 'right':
+    def canvas_move(self, w, m):
+        if m.button == 'right' and Settings.get_setting('enable_hold_mouse', 'Hotkeys'):
             self.__cached_target = self.mouse_real_pos
 
-    def do_mouse_down(self, w, m):
+    def canvas_click(self, w, m):
+        # TODO expose top corner click to API
         if self.collide_top_corners(m.pos):
-            self.toggle_play()
+            self.api.user_hotkey('toggle_play', self.pix2real(np.array(self.size)/2))
             return True
         if not self.collide_point(*m.pos):
             return False
-        if m.button == 'right':
-            self.use_right_click(m.pos)
-        if m.button == 'left':
-            self.use_left_click(m.pos)
-
-    def use_left_click(self, point=None):
-        point = point if point is not None else self.real2pix(self.mouse_real_pos)
-        selected_unit = self.api.nearest_uid(self.mouse_real_pos, alive_only=False)[0]
-        unit_pos = self.api.get_position(selected_unit)
-        unit_pix_pos = self.real2pix(unit_pos)
-        if math.dist(point, unit_pix_pos) < self.click_select_range:
-            self.select_unit(selected_unit)
-            Assets.play_sfx('ui', 'select',
-                volume=Settings.get_volume('feedback'))
-            chsize = minmax(50, 200, 200/self.upp)
-            chsize = cc_int((chsize, chsize))
-            self.api.add_visual_effect(VisualEffect.SPRITE, 60, {
-                'uid': selected_unit,
-                'fade': 120,
-                'category': 'ui',
-                'source': 'crosshair2',
-                'size': chsize,
-                'tint': (0, 0, 0),
-            })
-
-    def use_right_click(self, point=None):
-        point = point if point is not None else self.real2pix(self.mouse_real_pos)
-        return self.quickcast(self.ability_hotkeys.index(self.right_click_ability))
+        self.api.user_click(self.pix2real(m.pos), m.button, self.pix2real(self.size))
 
     # Control
-    def select_unit(self, uid):
-        self.selected_unit = uid
-
-    def quickcast(self, key_index):
-        ao = self.api.units[0].ability_order
-        if key_index >= len(ao):
-            return
-        a = ao[key_index]
-        if a is None:
-            return
-        self.use_ability(ao[key_index], self.mouse_real_pos)
-
-    def use_ability(self, aid, target):
-        r = self.api.units[0].use_ability(self.api, aid, target)
-        if r is None:
-            logger.warning(f'Ability {self.api.abilities[aid].__class__} failed to return a result!')
-        if isinstance(r, FAIL_RESULT):
-            if r in FAIL_SFX:
-                Assets.play_sfx('ui', FAIL_SFX[r], replay=False,
-                    volume=Settings.get_volume('feedback'))
-        if r is not FAIL_RESULT.INACTIVE:
-            self.api.add_visual_effect(VisualEffect.SPRITE, 15, {
-                'point': self.mouse_real_pos,
-                'fade': 30,
-                'category': 'ui',
-                'source': 'crosshair',
-                'size': (40, 40),
-            })
-        return r
-
     def toggle_map_zoom(self):
         if self.__units_per_pixel == self.DEFAULT_UPP:
             self.set_zoom(Settings.get_setting('map_zoom', 'General'))
@@ -247,28 +190,6 @@ class Encounter(widgets.RelativeLayout):
         else:
             self.__units_per_pixel *= abs(d)**(-1*nsign(d))
 
-    def toggle_play(self, set_to=None, show_menu=True):
-        set_to = set_to if set_to is not None else not self.api.auto_tick
-        logger.debug(f'GUI toggling play/pause')
-        self.api.set_auto_tick(set_to)
-        self.toggle_play_sounds()
-        # Toggle menu
-        if self.api.auto_tick:
-            self.enc_menu.set_view(False)
-        elif show_menu and not self.api.auto_tick:
-            self.enc_menu.set_view(True)
-
-    def toggle_play_sounds(self):
-        logger.debug(f'Toggling theme music, autotick: {self.api.auto_tick}')
-        if self.api.auto_tick is True:
-            Assets.play_sfx('ui', 'play', volume=Settings.get_volume('ui'))
-            logger.debug(f'Playing theme {self._theme_track}')
-            self._theme_track.play(loop=True, replay=False, volume=Settings.get_volume('music'))
-        else:
-            Assets.play_sfx('ui', 'pause', volume=Settings.get_volume('ui'))
-            logger.debug(f'Pausing theme {self._theme_track}')
-            self._theme_track.pause()
-
     # Utility
     def real2pix(self, pos):
         pos_relative_to_player = np.array(pos) - self.__player_pos
@@ -284,7 +205,7 @@ class Encounter(widgets.RelativeLayout):
 
     @property
     def map_mode(self):
-        return self.upp > 2.5
+        return self.upp > 4
 
     @property
     def view_size(self):
@@ -308,19 +229,5 @@ class Encounter(widgets.RelativeLayout):
         ])
 
     @property
-    def click_select_range(self):
-        return sum(self.size) / 15
-
-    @property
     def zoom_level(self):
         return 1 / self.__units_per_pixel
-
-
-FAIL_SFX = {
-    FAIL_RESULT.INACTIVE: 'pause',
-    FAIL_RESULT.MISSING_COST: 'cost',
-    FAIL_RESULT.MISSING_TARGET: 'target',
-    FAIL_RESULT.OUT_OF_BOUNDS: 'range',
-    FAIL_RESULT.OUT_OF_RANGE: 'range',
-    FAIL_RESULT.ON_COOLDOWN: 'cooldown',
-}

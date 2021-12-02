@@ -224,6 +224,21 @@ class Hotkeys:
 class Widget(kvWidget, KexWidget):
     pass
 
+
+class ConsumeTouch(Widget):
+    def __init__(self, enable=True, **kwargs):
+        super().__init__(**kwargs)
+        self.enable = enable
+
+    def on_touch_down(self, m):
+        return self.enable
+
+    def on_touch_up(self, m):
+        return self.enable
+
+    def on_touch_move(self, m):
+        return self.enable
+
 # LAYOUTS
 class BoxLayout(kvBoxLayout, KexWidget):
     def split(self, count=2, orientation=None):
@@ -433,65 +448,74 @@ class Screen(kvScreen, KexWidget):
 
 class Progress(Widget):
     def __init__(self,
-            bg_color=(0, 0, 0), fg_color=(1, 0, 1),
+            bg_color=(0, 0, 0, 1),
+            fg_color=(1, 0, 1, 1),
+            text='',
             **kwargs):
         super().__init__(**kwargs)
-        self.__bg_color = bg_color
-        self.__fg_color = fg_color
-        self.__progress = 0
-        self.__text = None
 
-    @property
-    def text(self):
-        return self.__text
+        with self.canvas.before:
+            self._bg_color = kvColor()
+            self._bg_rect = kvRectangle(pos=self.pos, size=self.size)
+            self._fg_color = kvColor()
+            self._fg_rect = kvRectangle(pos=self.pos, size=(0, 0))
+        self._label = self.add(Label(halign='left'))
 
-    @text.setter
-    def text(self, x):
-        self.__text = x
-        self.draw_instructions()
+        self.bg_color = bg_color
+        self.fg_color = fg_color
+        self.progress = 0
+        self.text = text
+
+        self.bind(pos=self.reposition, size=self.reposition)
 
     @property
     def bg_color(self):
         return self.__bg_color
 
-    @bg_color.setter
-    def bg_color(self, x):
-        self.__bg_color = x
-        self.draw_instructions()
-
     @property
     def fg_color(self):
         return self.__fg_color
-
-    @fg_color.setter
-    def fg_color(self, x):
-        self.__fg_color = x
-        self.draw_instructions()
 
     @property
     def progress(self):
         return self.__progress
 
+    @property
+    def text(self):
+        return self.__text
+
+    @bg_color.setter
+    def bg_color(self, x):
+        self.__bg_color = x
+        self._bg_color.rgba = self.__bg_color
+
+    @fg_color.setter
+    def fg_color(self, x):
+        self.__fg_color = x
+        self._fg_color.rgba = self.__fg_color
+
     @progress.setter
     def progress(self, x):
         self.__progress = x
-        self.draw_instructions()
+        self._fg_rect.size = self.size[0]*self.__progress, self.size[1]
 
-    def draw_instructions(self):
-        self.canvas.clear()
-        with self.canvas:
-            kvColor(*self.__bg_color)
-            kvRectangle(pos=self.pos, size=self.size)
-            kvColor(*self.__fg_color)
-            progress_size = self.size[0]*self.__progress, self.size[1]
-            kvRectangle(pos=self.pos, size=progress_size)
-            kvColor(1, 1, 1)
-            if self.__text is not None:
-                texture = text_texture(self.__text)
-                kvRectangle(pos=(self.pos[0]+5, self.pos[1]), size=texture.size, texture=texture)
+    @text.setter
+    def text(self, x):
+        self.__text = x
+        self._label.text = self.__text
 
+    def reposition(self, *args):
+        self._fg_rect.pos = self.pos
+        self._fg_rect.size = self.size[0]*self.__progress, self.size[1]
+        self._bg_rect.pos = self.pos
+        self._bg_rect.size = self.size
+        self._label.pos = self.pos
+        self._label.size = self.size
+        self._label.text_size = self.size
 
 def text_texture(text, font_size=16):
     label = CoreLabel(text=text, font_size=font_size)
     label.refresh()
-    return label.texture
+    texture = label.texture
+    texture_size = texture.size
+    return texture

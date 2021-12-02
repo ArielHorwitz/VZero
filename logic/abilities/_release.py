@@ -1,5 +1,5 @@
-from logic.mechanics import import_mod_module as import_
-base = import_('abilities.base')
+
+from logic.abilities import base
 
 
 ABILITY_CLASSES = {

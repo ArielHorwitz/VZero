@@ -3,14 +3,13 @@ logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
 
-import math
 import numpy as np
 from nutil.time import ratecounter
 from nutil.kex import widgets
 from gui import cc_int, center_position
 from gui.encounter import EncounterViewComponent
 from data.assets import Assets
-from logic.mechanics.common import *
+from engine.common import *
 
 
 MIN_HITBOX_SCALE = 0.25
@@ -26,32 +25,28 @@ class Sprites(widgets.RelativeLayout, EncounterViewComponent):
     def redraw(self):
         self.cached_sprites = []
         self.cached_hpbars = []
-        self.last_visible = np.zeros(self.api.unit_count, dtype=np.int)
+        self.last_visible = np.zeros(len(self.api.units), dtype=np.int)
         self.clear_widgets()
         self.canvas.clear()
         for unit in self.api.units:
             # Sprite
-            sprite_source = Assets.get_sprite('unit', unit.sprite)
-            sprite = widgets.kvRectangle(source=sprite_source)
+            sprite = widgets.kvRectangle(source=unit.sprite)
             self.cached_sprites.append(sprite)
             # HP bar
             igroup = widgets.kvInstructionGroup()
             self.cached_hpbars.append(igroup)
 
     def update(self):
-        # TODO LOS should come from encounter logic
-        max_los = math.dist((0, 0), np.array(self.enc.view_size) / 2)
-        visibles = self.api.get_distances(self.api.get_position(0)) <= max_los
+        visibles = self.api.get_visible_uids(view_size=self.enc.view_size)
         newly_visible = np.logical_and(visibles == True, np.invert(self.last_visible))
         newly_invisible = np.logical_and(visibles == False, self.last_visible)
         self.last_visible = visibles
         self.drawn_count = visibles.sum()
 
-        all_pos = self.enc.real2pix(self.api.get_position())
-        max_hps = self.api.get_stats(slice(None), STAT.HP, value_name=VALUE.MAX_VALUE)
-        hps = self.api.get_stats(slice(None), STAT.HP) / max_hps
-        hp_height = max(3, 5 / self.enc.upp)
-        hitboxes = self.api.get_stats(slice(None), STAT.HITBOX) * 2 / min(self.enc.upp, (1/MIN_HITBOX_SCALE))
+        all_pos = self.enc.real2pix(self.api.get_all_positions())
+        hps, max_hps = self.api.get_sprite_bars()
+        hp_height = max(5, 10 / self.enc.upp)
+        hitboxes = np.array(self.api.get_sprite_size()) * 2 / min(self.enc.upp, (1/MIN_HITBOX_SCALE))
 
         for uid in np.argwhere(newly_visible):
             uid = uid[0] # np.argwhere returns some nd-shape

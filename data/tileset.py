@@ -79,7 +79,7 @@ class __TileMap:
                 new_map.paste(tile, location)
 
         self.last_file += 1
-        map_file = str(Path(tempfile.gettempdir()) / f'map{self.last_file}.jpg')
+        map_file = str(Path(tempfile.gettempdir()) / f'vzero-map{self.last_file}.jpg')
         logger.debug(f'Draw map save path: {map_file}')
         new_map.save(map_file)
         return map_file

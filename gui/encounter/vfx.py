@@ -20,7 +20,7 @@ class VFX(widgets.RelativeLayout, EncounterViewComponent):
         self.__cached_vfx = []
 
         # VFX
-        for effect in self.api.get_visual_effects():
+        for effect in self.api.engine.get_visual_effects():
             with ratecounter(self.enc.timers['vfx_single']):
                 # Flash background
                 if effect.eid is effect.BACKGROUND:
@@ -58,7 +58,7 @@ class VFX(widgets.RelativeLayout, EncounterViewComponent):
                     if 'center' in effect.params:
                         point = self.enc.real2pix(effect.params['center'])
                     elif 'uid' in effect.params:
-                        point = self.enc.real2pix(self.api.get_position(effect.params['uid']))
+                        point = self.enc.real2pix(self.api.engine.get_position(effect.params['uid']))
                     else:
                         raise ValueError(f'Missing center/uid for drawing circle vfx')
                     radius = effect.params['radius'] / self.enc.upp
@@ -94,7 +94,7 @@ class VFX(widgets.RelativeLayout, EncounterViewComponent):
                             point = cc_int(self.enc.real2pix(effect.params['point']))
                         elif 'uid' in effect.params:
                             uid =  effect.params['uid']
-                            point = cc_int(self.enc.real2pix(self.api.get_position(uid)))
+                            point = cc_int(self.enc.real2pix(self.api.engine.get_position(uid)))
                         else:
                             raise ValueError(f'Missing point/uid for drawing sprite vfx')
 
@@ -107,41 +107,3 @@ class VFX(widgets.RelativeLayout, EncounterViewComponent):
                                 allow_strech=True,
                             )
                             self.__cached_vfx.append(sprite)
-
-                # SFX
-                if effect.eid is effect.SFX and self.api.e.auto_tick:
-                    category = 'ability'
-                    if 'category' in effect.params:
-                        category = effect.params['category']
-                    volume = 'sfx'
-                    if 'volume' in effect.params:
-                        volume = effect.params['volume']
-                    Assets.play_sfx(
-                        category, effect.params['sfx'],
-                        volume=Settings.get_volume(volume),
-                        allow_exception=False)
-
-
-def calc_image_line(p1,p2,img_size):
-    x1, y1 = p1
-    x2, y2 = p2
-    dis = math.dist(p1, p2)
-
-    new_size = cc_int((dis, img_size[1]))
-    new_pos = cc_int((x1,y1-(new_size[1]//2)))
-
-    return new_pos, new_size
-
-
-def calc_angle(p1,p2):
-    x1, y1 = p1
-    x2, y2, = p2
-    sign = 0 if (x2-x1) >= 0 else 180
-    dx = (x2-x1)
-    dy = (y2-y1)
-    if dx != 0:
-        angle = math.degrees(math.atan(dy/dx))
-    else:
-        angle = 90
-
-    return angle + sign

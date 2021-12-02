@@ -50,6 +50,7 @@ class LoadAssets:
 class Assets:
     missing_sfx = set()
     missing_images = set()
+    FALLBACK_SPRITE = FALLBACK_SPRITE
 
     @classmethod
     def get_sfx(cls, category, sound_name, allow_exception=True):
@@ -62,13 +63,13 @@ class Assets:
             cls.missing_sfx.add(sound_name)
             m = f'Failed to find sfx {sound_name} from category {category}'
             if not allow_exception:
-                logger.info(m)
+                logger.warning(m)
                 return None
             logger.critical(m)
             raise KeyError(m)
 
     @classmethod
-    def play_sfx(cls, category, sound_name, allow_exception=True, **kwargs):
+    def play_sfx(cls, category, sound_name, allow_exception=False, **kwargs):
         sound_name = resource_name(sound_name)
         s = cls.get_sfx(category, sound_name, allow_exception)
         if s is None:

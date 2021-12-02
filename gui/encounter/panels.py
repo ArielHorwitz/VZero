@@ -1,28 +1,72 @@
-import logging
-logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
-
-
 from collections import namedtuple
 import numpy as np
+import nutil
+from nutil.random import SEED
 from nutil.kex import widgets
-from nutil.display import njoin, make_title
-from nutil.vars import minmax
-from nutil.time import RateCounter, humanize_ms
+from nutil.vars import minmax, modify_color
+from nutil.display import make_title
+from nutil.time import ratecounter, RateCounter, humanize_ms
 from gui import cc_int, center_position
+from gui.common import SpriteLabel, STLStack
 from gui.encounter import EncounterViewComponent
 from data.assets import Assets
-from logic.mechanics.common import *
+from engine.common import *
 
 
 Box = namedtuple('Box', ['box', 'sprite', 'label'])
+
+
+class Menu(widgets.AnchorLayout, EncounterViewComponent):
+    active_bg = (0,0,0,0.4)
+
+    def __init__(self, **kwargs):
+        super().__init__(halign='center', valign='middle', **kwargs)
+        self.consume_touch = self.add(widgets.ConsumeTouch(False))
+        self.frame = widgets.BoxLayout(orientation='vertical')
+        self.frame.add(widgets.Label(text='Paused'))
+        for t, c in (
+            ('Resume', lambda *a: self.enc.api.user_hotkey('toggle_play', (0, 0))),
+            ('Restart', lambda *a: nutil.restart_script()),
+            ('Quit', lambda *a: quit()),
+        ):
+            self.frame.add(widgets.Button(text=t, on_release=c))
+        self.frame.set_size(x=200, y=150)
+        self.frame.make_bg((0,0,0,1))
+
+    def consume_touch(self, w, m):
+        return True
+
+    def update(self):
+        if not self.enc.api.show_menu:
+            if self.frame in self.children:
+                self.remove_widget(self.frame)
+                self.make_bg((0,0,0,0))
+                self.consume_touch.enable = False
+            return
+        if self.frame not in self.children:
+            self.add(self.frame)
+            self.make_bg(self.active_bg)
+            self.consume_touch.enable = True
+
+
+class HUD(widgets.AnchorLayout, EncounterViewComponent):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        grid = self.add(widgets.GridLayout(cols=4))
+        grid.set_size(x=800, y=150)
+        self.boxes = [grid.add(SpriteLabel()) for _ in range(8)]
+        grid.make_bg((0, 0, 0, 0.25))
+
+    def update(self):
+        sprite_labels = self.api.hud_sprite_labels()
+        for i, sl in enumerate(sprite_labels):
+            self.boxes[i].update(sl)
 
 
 class AgentViewer(widgets.AnchorLayout, EncounterViewComponent):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.last_selected = -1
-        self.default_scale = 100 / self.api.get_stats(0, STAT.HITBOX)
 
         self.panel = self.add(widgets.BoxLayout(orientation='vertical'))
         self.panel.set_size(x=300, y=500)
@@ -32,115 +76,91 @@ class AgentViewer(widgets.AnchorLayout, EncounterViewComponent):
         self.name_label.set_size(y=50)
 
         bar_frame = self.panel.add(widgets.BoxLayout(orientation='vertical'))
-        bar_values = self.api.mod_api.agent_panel_bars(0)
+        bar_values = self.api.agent_panel_bars()
         bar_count = len(bar_values)
         bar_frame.set_size(y=20*bar_count)
-        self.bars = [bar_frame.add(widgets.Progress()) for _ in range(bar_count)]
+        self.bars = [bar_frame.add(widgets.Progress(bg_color=(0, 0, 0, 0))) for _ in range(bar_count)]
 
         self.sprite_frame = self.panel.add(widgets.BoxLayout())
+        self.sprite_source = None
         self.sprite = self.sprite_frame.add(widgets.Image(allow_stretch=True))
 
         boxes_frame = self.panel.add(widgets.GridLayout(cols=3))
         boxes_frame.set_size(y=140)
         self.boxes = []
         for i in range(6):
-            box = boxes_frame.add(widgets.BoxLayout())
+            box = boxes_frame.add(SpriteLabel())
             box.set_size(y=70)
-            im = box.add(widgets.Image(allow_stretch=True))
-            im.set_size(x=40)
-            label = box.add(widgets.Label(valign='middle'))
-            self.boxes.append(Box(box, im, label))
+            self.boxes.append(box)
 
         self.label = self.panel.add(widgets.Label(valign='top'))
 
     def get_sprite_size(self, uid):
-        h = minmax(30, 150,
-            self.api.get_stats(uid, STAT.HITBOX) * self.default_scale)
+        h = minmax(30, 150, self.api.get_sprite_size(uid) / self.enc.upp)
         return cc_int((h, h))
 
     def update(self):
         self.panel.pos = 20, self.size[1] - self.panel.size[1] - 20
 
-        unit = self.api.units[self.enc.selected_unit]
+        bar_values = self.api.agent_panel_bars()
+        for i, pbar in enumerate(bar_values):
+            self.bars[i].progress = pbar.value
+            self.bars[i].fg_color = pbar.color
+            self.bars[i].text = pbar.text
 
-        bar_values = self.api.mod_api.agent_panel_bars(unit.uid)
-        for i, (progress, color, text) in enumerate(bar_values):
-            self.bars[i].progress = progress
-            self.bars[i].fg_color = color
-            self.bars[i].text = text
+        self.name_label.text = self.api.agent_panel_name()
 
-        sprite_size = self.get_sprite_size(unit.uid)
+        sprite_source, sprite_size = self.api.agent_panel_sprite()
         sprite_pos = np.array(self.sprite_frame.pos) + (np.array(self.sprite_frame.size) / 2)
         self.sprite.pos = center_position(sprite_pos, sprite_size)
+        if sprite_source != self.sprite_source:
+            self.sprite.source = self.sprite_source = sprite_source
+        self.sprite.set_size(*sprite_size)
 
-        if self.last_selected != self.enc.selected_unit:
-            self.redraw_new_agent()
+        sls = self.api.agent_panel_boxes()
+        for i, sl in enumerate(sls):
+            self.boxes[i].update(sl)
 
-        texts = self.api.mod_api.agent_panel_boxes_labels(unit.uid)
-        for i, box in enumerate(self.boxes):
-            box.label.text = texts[i]
-
-        self.label.text = self.api.mod_api.agent_panel_label(unit.uid)
+        self.label.text = self.api.agent_panel_label()
         self.label.text_size = self.label.size
 
-    def redraw_new_agent(self):
-        unit = self.api.units[self.enc.selected_unit]
-        self.last_selected = self.enc.selected_unit
-        self.name_label.text = unit.name
-        self.sprite.source = Assets.get_sprite('unit', unit.sprite)
-        self.sprite.set_size(*self.get_sprite_size(unit.uid))
 
-        boxes = self.api.mod_api.agent_panel_boxes_sprites(unit.uid)
-        for i, (category, sprite) in enumerate(boxes):
-            self.boxes[i].sprite.source = Assets.get_sprite(category, sprite)
-
-
-class InfoPanel(widgets.AnchorLayout, EncounterViewComponent):
-    BAR_WIDTH = 400
-    BAR_HEIGHT = 800
-    PIC_SIZE = 175
-    BOTTOM_MARGIN = 100
+class Modal(widgets.AnchorLayout, EncounterViewComponent):
+    active_bg = (0,0,0,0.4)
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-        self.panel = panel = self.add(widgets.BoxLayout(orientation='vertical'))
-        self.panel.set_size(x=self.BAR_WIDTH, y=self.BAR_HEIGHT)
-        self.panel.make_bg((0.1, 0.1, 0.1, 0.25))
-
-        pic_panel = panel.add(widgets.BoxLayout()).set_size(self.PIC_SIZE, self.PIC_SIZE)
-        with panel.canvas:
-            self.info_pic = widgets.Image(allow_stretch=True, size=(self.PIC_SIZE, self.PIC_SIZE))
-
-        self.info_label = panel.add(widgets.Label(text_size=(self.BAR_WIDTH, None)))
+        super().__init__(halign='center', valign='middle', **kwargs)
+        self.consume_touch = self.add(widgets.ConsumeTouch())
+        self.frame = self.add(STLStack(callback=self.enc.api.modal_click))
+        self.frame.set_size(hx=0.5, hy=0.7)
+        self.frame.make_bg((0,0,0,1))
 
     def update(self):
-        self.panel.set_size(x=self.BAR_WIDTH, y=self.height-self.BOTTOM_MARGIN)
-        self.panel.pos = self.info_label.pos = 0, self.size[1] - self.panel.size[1]
-
-        player_dist = self.api.get_distances(self.api.get_position(0))[self.enc.selected_unit]
-        unit = self.api.units[self.enc.selected_unit]
-        self.info_label.text = njoin([
-            make_title(f'{unit.name} (#{unit.uid})', length=30),
-            f'{self.api.pretty_stats(self.enc.selected_unit)}',
-            make_title(f'Status', length=30),
-            f'{self.api.pretty_statuses(self.enc.selected_unit)}',
-        ])
-
-        self.info_pic.pos = self.to_local(self.x, self.y+self.height-self.info_pic.height)
-        self.info_pic.source = Assets.get_sprite('unit', unit.sprite)
+        if not self.enc.api.show_modal:
+            if self.frame in self.children:
+                self.remove_widget(self.frame)
+                self.make_bg((0,0,0,0))
+                self.consume_touch.enable = False
+            return
+        if self.frame not in self.children:
+            self.add(self.frame)
+            self.make_bg(self.active_bg)
+            self.consume_touch.enable = True
+        stls = self.enc.api.modal_stls()
+        self.frame.update(stls)
 
 
 class DebugPanel(widgets.AnchorLayout, EncounterViewComponent):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        main_panel = self.add(widgets.BoxLayout())
-        main_panel.set_size(x=500)
+        self.main_panel = self.add(widgets.BoxLayout())
+        self.main_panel.set_size(x=1400, y=800)
+        self.main_panel.make_bg(v=0, a=0.25)
 
-        self.unit_debug = main_panel.add(widgets.Label(valign='top'))
-        self.unit_debug.make_bg((0, 0, 0, 0.25))
-        self.performance = main_panel.add(widgets.Label(valign='top'))
-        self.performance.make_bg((0, 0, 0, 0.25))
+        self.panels = [self.main_panel.add(widgets.Label(valign='top', halign='left')
+            ) for _ in range(10)]
+        for panel in self.panels:
+            panel.set_size(x=0)
 
     def update(self):
         if not self.api.dev_mode:
@@ -148,40 +168,23 @@ class DebugPanel(widgets.AnchorLayout, EncounterViewComponent):
             return
         self.pos = 0, 0
 
-        unit = self.api.units[self.enc.selected_unit]
-        player_dist = self.api.get_distances(self.api.get_position(0))[self.enc.selected_unit]
-        self.unit_debug.text = '\n'.join([
-            make_title(f'{unit.name} (#{unit.uid})', length=30),
-            f'{self.api.pretty_stats(self.enc.selected_unit)}',
-            make_title(f'Status', length=30),
-            f'{self.api.pretty_statuses(self.enc.selected_unit)}',
-            make_title(f'Cooldown', length=30),
-            f'{self.api.pretty_cooldowns(self.enc.selected_unit)}',
-            make_title(f'Debug', length=30),
-            f'{unit.debug_str}',
-            f'Distance: {player_dist:.1f}',
-            f'Action phase: {unit.uid % self.api.e.AGENCY_PHASE_COUNT}',
-            f'Last action: {self.api.tick - unit._debug_last_action}',
-            f'Agency: {self.api.timers["agency"][unit.uid].mean_elapsed_ms:.3f} ms',
-        ])
-        self.unit_debug.text_size = 250, self.size[1]
-
-        timer_strs = []
-        for tname, timer in (*self.enc.timers.items(), *self.api.timers.items()):
-            if isinstance(timer, RateCounter):
-                timer_strs.append(f'- {tname}: {timer.mean_elapsed_ms:.3f} ms')
-
-        self.performance.text = njoin([
-            make_title('Performance', length=30),
-            f'Game time: {humanize_ms(self.api.elapsed_time_ms)}',
-            f'Tick: {self.api.tick} +{self.api.s2ticks()} t/s',
+        perf_strs = [
+            make_title('GUI Performance', length=30),
             f'FPS: {self.app.fps.rate:.1f} ({self.app.fps.mean_elapsed_ms:.1f} ms)',
-            *timer_strs,
-            f'Map size: {self.api.map_size}',
             f'View size: {list(round(_) for _ in self.enc.view_size)}',
             f'Map zoom: x{self.enc.zoom_level:.2f} ({self.enc.upp:.2f} u/p)',
-            f'Units: {self.api.get_live_monster_count()} / {self.api.unit_count} (drawing: {self.enc.sub_frames["sprites"].drawn_count})',
-            f'Agency phase: {self.api.tick % self.api.e.AGENCY_PHASE_COUNT}',
+            f'Units: {len(self.api.units)} (drawing: {self.enc.overlays["sprites"].drawn_count})',
             f'vfx count: {len(self.api.get_visual_effects())}',
-        ])
-        self.performance.text_size = 250, self.size[1]
+        ]
+        for tname, timer in self.enc.timers.items():
+            if isinstance(timer, RateCounter):
+                perf_strs.append(f'- {tname}: {timer.mean_elapsed_ms:.3f} ms')
+        text0 = '\n'.join(perf_strs)
+        texts = [text0, *self.api.debug_panel_labels()]
+        for i, text in enumerate(texts):
+            panel = self.panels[-i-1]
+            panel.text = text
+            w = int(self.main_panel.size[0]/len(texts))
+            panel.text_size = w, self.main_panel.size[1]
+            panel.size_hint = 1, 1
+            panel.set_size(x=w)

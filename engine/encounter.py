@@ -5,48 +5,31 @@ logger = logging.getLogger(__name__)
 
 import numpy as np
 from collections import defaultdict
+from nutil.vars import NP
 from nutil.time import ping, pong, RateCounter, pingpong, ratecounter
-from nutil.random import Seed, SEED
-from logic.encounter.api import EncounterAPI
-from logic.encounter.stats import UnitStats
-from logic.mechanics.common import *
-from logic.mechanics.mechanics import Mechanics
+from nutil.random import Seed
+from engine.stats import UnitStats
+from engine.common import *
 
 
 class Encounter:
     DEFAULT_TPS = 120
     AGENCY_PHASE_COUNT = 60
 
-    @classmethod
-    def new_encounter(cls, **kwargs):
-        return cls(**kwargs).api
-
-    def __init__(self, player_abilities=None):
+    def __init__(self, logic):
         # Variable initialization
-        self.eid = SEED.r
-        self.dev_mode = False
+        self.logic = logic
+        self.__seed = Seed()
+        self.eid = self.__seed.r
         self.timers = defaultdict(RateCounter)
         self.timers['agency'] = defaultdict(lambda: RateCounter(sample_size=10))
-        self.__seed = Seed()
         self.auto_tick = True
         self.__tps = self.DEFAULT_TPS
         self.ticktime = 1000 / self.__tps
-        self.__t0 = self.__last_tick = ping()  # This will jumpstart the game by however long the loading time is
+        self.__t0 = self.__last_tick = ping()
         self.stats = UnitStats()
         self.units = []
         self._visual_effects = []
-        self.api = EncounterAPI(self)
-
-        # Call mod to define map
-        self.mod_api = Mechanics.mod_encounter_api_cls(self.api)
-        # Create player
-        if player_abilities is None or len(player_abilities) == 0:
-            player_abilities = set(Mechanics.abilities_names)
-        self._create_player(player_abilities)
-        # Populate map
-        self.mod_api.spawn_map()
-        for uid in range(self.unit_count):
-            self._do_agent_action_phase(uid)
 
     # TIME MANAGEMENT
     def update(self):
@@ -76,10 +59,10 @@ class Encounter:
             self._do_agency(ticks)
             if len(hp_zero)> 0:
                 for uid in hp_zero:
-                    self.mod_api.hp_zero(uid)
+                    self.logic.hp_zero(uid)
             if len(status_zero)> 0:
                 for uid, status in status_zero:
-                    self.mod_api.status_zero(uid, status)
+                    self.logic.status_zero(uid, status)
 
     def _iterate_visual_effects(self, ticks):
         if len(self._visual_effects) == 0:
@@ -102,16 +85,12 @@ class Encounter:
         in_action_uids = (in_phase & in_action_radius).nonzero()[0]
         if len(in_action_uids) == 0: return
         for uid in in_action_uids:
-            with ratecounter(self.timers['agency_passive_single']):
-                self.units[uid].do_passive(self.api)
-                with ratecounter(self.timers['agency'][uid]):
-                    self._do_agent_action_phase(uid)
+            with ratecounter(self.timers['agency'][uid]):
+                self._do_agent_action_phase(uid)
 
     def _do_agent_action_phase(self, uid):
-        abilities = self.units[uid].action_phase()
-        if abilities is None: return
-        for ability, target in abilities:
-            self._use_ability(ability, target, uid)
+        self.units[uid].passive_phase()
+        self.units[uid].action_phase()
 
     def _find_units_in_phase(self, ticks):
         if ticks >= self.AGENCY_PHASE_COUNT:
@@ -133,7 +112,6 @@ class Encounter:
         # unless we wrapped around from phase count to 0 (logical or)
         return (phase_first <= unit_agency_phases) | (unit_agency_phases <= phase_last)
 
-    # UNIT MANAGEMENT
     @property
     def tick(self):
         return self.stats.tick
@@ -142,22 +120,6 @@ class Encounter:
     def target_tps(self):
         return self.__tps
 
-    def add_unit(self, unit_cls, name, stats, setup_params):
-        uid = self.stats.add_unit(stats)
-        assert uid == len(self.units)
-        unit = unit_cls(self.api, uid, name, setup_params)
-        self.units.append(unit)
-        return unit
-
-    def _create_player(self, player_abilities):
-        stats = self.mod_api.player_stats
-        player = self.add_unit(self.mod_api.player_class, 'Player', stats, setup_params=None)
-        logger.info(f'Encounter initializing player abilities: {player_abilities}')
-        player.set_abilities(player_abilities)
-        player.allegiance = 0
-        logger.info(f'Set player allegiance as {player.allegiance}')
-
-    # UTILITY
     def set_auto_tick(self, auto=None):
         if auto is None:
             auto = not self.auto_tick
@@ -173,10 +135,21 @@ class Encounter:
         self.ticktime = 1000 / self.__tps
         logger.debug(f'set tps {self.__tps}')
 
+    # UNIT MANAGEMENT
+    @property
+    def next_uid(self):
+        return len(self.units)
+
+    def add_unit(self, unit, stats=None):
+        index = self.stats.add_unit(stats)
+        assert unit.uid == index == len(self.units)
+        self.units.append(unit)
+
     @property
     def unit_count(self):
         return len(self.units)
 
+    # UTILITY
     def add_visual_effect(self, *args, **kwargs):
         # logger.debug(f'Adding visual effect with: {args} {kwargs}')
         self._visual_effects.append(VisualEffect(*args, **kwargs))
@@ -184,34 +157,83 @@ class Encounter:
     def get_visual_effects(self):
         return self._visual_effects
 
-    def debug_action(self, *args,
-            dev_mode=-1, tick=None, tps=None,
-            **kwargs):
-        logger.debug(f'Debug action called (extra args: {args} {kwargs})')
-        self.set_tps(tps)
-        if dev_mode == -1:
-            dev_mode = self.dev_mode
-        elif dev_mode == None:
-            dev_mode = not self.dev_mode
-        self.dev_mode = dev_mode
-        if tick is not None:
-            self._do_ticks(tick)
+    # STATS API
+    @property
+    def get_stats(self):
+        return self.stats.get_stats
 
-    # ABILITIES
-    def use_ability(self, ability, target, uid=0):
-        if not self.auto_tick and not self.dev_mode:
-            return FAIL_RESULT.INACTIVE
-        with ratecounter(self.timers['ability_single']):
-            r = self._use_ability(ability, target, uid)
-        return r
+    @property
+    def set_stats(self):
+        return self.stats.set_stats
 
-    def _use_ability(self, aid, target, uid):
-        if self.stats.get_stats(uid, STAT.HP, VALUE.CURRENT) <= 0:
-            logger.warning(f'Unit {uid} is dead and requested ability {aid.name}')
-            return FAIL_RESULT.INACTIVE
+    @property
+    def get_status(self):
+        return self.stats.get_status
 
-        target = np.array(target)
-        if (target > self.mod_api.map_size).any() or (target < 0).any():
-            return FAIL_RESULT.OUT_OF_BOUNDS
+    @property
+    def set_status(self):
+        return self.stats.set_status
 
-        return Mechanics.cast_ability(aid, self.api, uid, target)
+    @property
+    def get_cooldown(self):
+        return self.stats.get_cooldown
+
+    @property
+    def set_cooldown(self):
+        return self.stats.set_cooldown
+
+    @property
+    def get_position(self):
+        return self.stats.get_position
+
+    @property
+    def set_position(self):
+        return self.stats.set_position
+
+    @property
+    def get_velocity(self):
+        return self.stats.get_velocity
+
+    @property
+    def get_distances(self):
+        return self.stats.get_distances
+
+    @property
+    def get_distance(self):
+        return self.stats.get_distance
+
+    @property
+    def unit_distance(self):
+        return self.stats.unit_distance
+
+    def mask_alive(self):
+        return self.stats.get_stats(slice(None), STAT.HP) > 0
+
+    def mask_dead(self):
+        return np.invert(self.mask_alive())
+
+    def nearest_uid(self, point, mask=None, alive_only=True):
+        if mask is None:
+            mask = np.ones(len(self.units), dtype=np.bool)
+        if alive_only:
+            mask = np.logical_and(mask, self.get_stats(slice(None), STAT.HP) > 0)
+        if mask.sum() == 0:
+            return None, None
+        distances = self.stats.get_distances(point)
+        uid = NP.argmin(distances, mask)
+        return uid, distances[uid]
+
+    @property
+    def set_collision(self):
+        return self.stats.set_collision
+
+    @property
+    def add_dmod(self):
+        return self.stats.add_dmod
+
+    # GUI utilities (not precise for mechanics)
+    def ticks2s(self, ticks=1):
+        return ticks / self.target_tps
+
+    def s2ticks(self, seconds=1):
+        return seconds * self.target_tps

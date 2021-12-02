@@ -7,9 +7,9 @@ status: slow
 target: other
 mana_cost: 20
 cooldown: 600
-range: 200
+range: 400
 range_stat: water
-range_bonus: 1
+range_bonus: 0.5
 stacks: 5
 stacks_stat: air
 stacks_bonus: 1
@@ -76,7 +76,7 @@ loot_multi_bonus: 2
 === Walk
 move
 -- stats
-color: black
+color: white
 
 
 

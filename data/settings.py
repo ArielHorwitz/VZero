@@ -5,17 +5,13 @@ logger = logging.getLogger(__name__)
 from data.load import RDF
 
 
-SETTINGS_FILE = RDF.CONFIG_DIR / 'settings.cfg'
-
-
 class Settings:
-    SETTINGS = RDF.load(SETTINGS_FILE)
+    SETTINGS = RDF.load(RDF.CONFIG_DIR / 'settings.cfg')
     DEFAULT_SETTINGS = {
         'General': {
             0: {
-                'mod': '_base',
-                'default_zoom': 1.7,
-                'map_zoom': 0.5,
+                'default_zoom': 1,
+                'map_zoom': 0.15,
             }
         },
         'Audio': {
@@ -32,17 +28,21 @@ class Settings:
                 'start_encounter': 'spacebar',
                 'toggle_play': 'spacebar',
                 'toggle_play2': 'escape',
+                'modal1': 'g',
+                'modal2': 't',
+                'modal3': 'h',
+                'modal4': 'y',
                 'map_view': 'tab',
-                'open_menu1': 'g',
-                'open_menu2': 't',
+                'open_menu1': 'f5',
+                'open_menu2': 'f6',
                 'right_click': 'q',
                 'abilities': 'qwerasdf',
-                'enable_hold_mouse': '1',
+                'enable_hold_mouse': '0',
                 'zoom_default': '0',
                 'zoom_in': '=',
                 'zoom_out': '-',
                 'toggle_play_dev': '^ spacebar',
-            }
+            },
         },
     }
 

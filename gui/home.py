@@ -1,173 +1,98 @@
 
 import numpy as np
-from logic.encounter.api import EncounterAPI
-from logic.mechanics.common import *
-from logic.mechanics.mechanics import Mechanics
 import nutil
 from nutil import kex
-from nutil.vars import modify_color
 from nutil.display import make_title
 from nutil.kex import widgets
 from data.assets import Assets
 from data.settings import Settings
+from gui.common import SpriteLabel
+from engine.common import *
 
 
 class HomeGUI(widgets.BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(orientation='vertical', **kwargs)
 
-        self.menu = self.add(Menu(buttons={
-            'Start Encounter': lambda: self.next_encounter.start(),
-            'Restart': nutil.restart_script,
-            'Quit': lambda *a: quit(),
-        }))
-        self.next_encounter = self.add(NextEncounter())
-
-
-class Menu(widgets.BoxLayout):
-    def __init__(self, buttons, **kwargs):
-        super().__init__(**kwargs)
-        self.set_size(y=50)
-
-        for t, m in buttons.items():
-            self.add(widgets.Button(
-                text=t, on_release=lambda *a, x=m: x())).set_size(x=150)
-
-
-class NextEncounter(widgets.BoxLayout):
-    def __init__(self, **kwargs):
-        super().__init__(orientation='vertical', **kwargs)
+        self.menu = self.add(Menu())
         self.draft = self.add(Draft())
+
         self.app.hotkeys.register_dict({
             'New encounter': (
                 f'{Settings.get_setting("start_encounter", "Hotkeys")}',
-                lambda: self.start()),
+                lambda: self.app.game.new_encounter()),
         })
 
-    def start(self):
-        self.app.start_encounter(aids=self.selected_abilities)
+    def update(self):
+        self.draft.update()
 
-    @property
-    def selected_abilities(self):
-        return self.draft.selected_abilities
+
+class Menu(widgets.BoxLayout):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.set_size(y=50)
+
+        for t, m in {
+            'Start Encounter': lambda: self.app.game.new_encounter(),
+            'Restart': nutil.restart_script,
+            'Quit': lambda *a: quit(),
+        }.items():
+            self.add(widgets.Button(
+                text=t, on_release=lambda *a, x=m: x())).set_size(x=150)
 
 
 class Draft(widgets.BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.selected_abilities = self.default_loadout()
+        self.viewer = self.add(widgets.BoxLayout(orientation='vertical'))
+        self.viewer.make_bg((0, 0.2, 0.5, 0.5))
+        self.slbox = self.viewer.add(SpriteLabel())
+        self.slbox.set_size(y=200)
+        self.label = self.viewer.add(widgets.Label(valign='top'))
+        self.label.make_bg((0, 0, 0, 0.2))
 
-        self.ability_viewer = self.add(AbilityViewer()).set_size(x=400)
-        draft_frame = self.add(widgets.BoxLayout(orientation='vertical'))
-        self.choice_frame = draft_frame.add(DraftAllAbilities(self.click_ability, True))
-        self.loadout_frame = draft_frame.add(DraftedAbilities(self.click_ability, False))
+        right_frame = self.add(widgets.BoxLayout(orientation='vertical'))
+        draft_frame = right_frame.add(widgets.StackLayout())
+        loadout_frame = right_frame.add(widgets.GridLayout(cols=4))
+        loadout_frame.set_size(hy=0.2)
 
-        self.choice_frame.set_ability_buttons(self.selected_abilities)
-        self.loadout_frame.set_ability_buttons(self.selected_abilities)
+        sample_draft = self.app.game.draft_boxes()
+        self.draft_boxes = []
+        for i in range(len(sample_draft)):
+            btn = DraftButton(i, self.draft_click)
+            draft_frame.add(btn)
+            btn.set_size(x=150, y=50)
+            self.draft_boxes.append(btn)
+        self.loadout_boxes = [loadout_frame.add(DraftButton(_, self.loadout_click)) for _ in range(8)]
 
-    def click_ability(self, aid, draft=None):
-        if draft is True:
-            if aid not in self.selected_abilities:
-                for si, aid_ in enumerate(self.selected_abilities):
-                    if aid_ is None:
-                        self.selected_abilities[si] = aid
-                        break
-                else:
-                    print('Tried drafting ability with full loadout')
-        elif draft is False:
-            if aid in self.selected_abilities:
-                si = self.selected_abilities.index(aid)
-                self.selected_abilities[si] = None
-            else:
-                raise ValueError(f'Trying to undraft {aid} not yet drafted: {self.selected_abilities}')
-        else:
-            self.view_ability(aid)
-        self.choice_frame.set_ability_buttons(self.selected_abilities)
-        self.loadout_frame.set_ability_buttons(self.selected_abilities)
+        self.bind(size=self.reposition)
 
-    def view_ability(self, aid):
-        self.ability_viewer.set_ability(aid)
+    def reposition(self, *a):
+        self.viewer.set_size(x=300 if self.size[0] <= 1024 else 400)
 
-    def default_loadout(self):
-        return list(ABILITY)[:8]
-
-
-class DraftAllAbilities(widgets.StackLayout):
-    def __init__(self, callback, mode, **kwargs):
-        super().__init__(**kwargs)
-        self.callback = callback
-        self.mode = mode
-
-    def set_ability_buttons(self, drafted):
-        self.clear_widgets()
-        for aid in ABILITY:
-            if aid in drafted:
-                self.add(AbilityButtonFrame())
-            else:
-                self.add(AbilityButton(Mechanics.abilities[aid], self.callback, self.mode))
-
-
-class DraftedAbilities(widgets.GridLayout):
-    def __init__(self, callback, mode, **kwargs):
-        super().__init__(**kwargs)
-        self.cols = 4
-        self.set_size(y=200)
-        self.callback = callback
-        self.mode = mode
-
-    def set_ability_buttons(self, drafted):
-        self.clear_widgets()
-        for aid in drafted:
-            if aid is None:
-                self.add(AbilityButtonFrame())
-            else:
-                self.add(AbilityButton(Mechanics.abilities[aid], self.callback, self.mode))
-
-
-class AbilityViewer(widgets.AnchorLayout):
-    def __init__(self, **kwargs):
-        super().__init__(anchor_x='left', anchor_y='top', **kwargs)
-
-        box = self.add(widgets.BoxLayout(orientation='vertical'))
-        self.im = box.add(widgets.Image(allow_stretch=True)).set_size(100, 100)
-        self.label = box.add(widgets.Label(halign='left', valign='top'))
+    def update(self):
+        for i, sl in enumerate(self.app.game.draft_boxes()):
+            self.draft_boxes[i].update(sl)
+        for i, sl in enumerate(self.app.game.loadout_boxes()):
+            self.loadout_boxes[i].update(sl)
+        self.slbox.update(self.app.game.draft_info_box())
+        self.label.text = self.app.game.draft_info_label()
         self.label.text_size = self.label.size
 
-    def set_ability(self, aid):
-        if aid is None:
-            return
-        ability = Mechanics.abilities[aid]
-        Assets.play_sfx('ability', ability.name,
-                        volume=Settings.get_volume('ui'),
-                        allow_exception=False)
-        self.make_bg(modify_color(ability.color, 0.3))
-        self.label.text = f'{make_title(ability.name, length=30, end_line=False)}\n{ability.general_description}'
-        self.label.text_size = self.label.size
-        self.im.source = Assets.get_sprite('ability', ability.sprite)
+    def draft_click(self, index, m):
+        self.app.game.draft_click(index, m.button)
+
+    def loadout_click(self, index, m):
+        self.app.game.loadout_click(index, m.button)
 
 
-class AbilityButtonFrame(widgets.BoxLayout):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.set_size(200, 100)
-
-
-class AbilityButton(widgets.kvButtonBehavior, AbilityButtonFrame):
-    def __init__(self, ability, callback, mode, **kwargs):
-        super().__init__(orientation='vertical', **kwargs)
+class DraftButton(SpriteLabel):
+    def __init__(self, index, callback, **kwargs):
+        super().__init__(**kwargs)
+        self.index = index
         self.callback = callback
-        self.mode = mode
-        self.ability = ability
-        self.im = self.add(widgets.Image(source=Assets.get_sprite('ability', ability.sprite)))
-        self.label = self.add(widgets.Label(text=self.ability.name[:30]))
-        color = (*self.ability.color[:3], 0.4)
-        self.make_bg(color)
+        self.bind(on_touch_down=self.click)
 
-    def on_touch_down(self, m):
-        if not self.collide_point(*m.pos):
-            return
-        if m.button == 'left':
-            self.callback(self.ability.aid)
-        if m.button == 'right':
-            self.callback(self.ability.aid, draft=self.mode)
-        return True
+    def click(self, w, m):
+        if self.collide_point(*m.pos):
+            self.callback(self.index, m)

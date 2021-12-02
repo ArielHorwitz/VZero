@@ -142,7 +142,7 @@ class NP:
         if mask is None:
             return np.array(a).argmin()
         idx = np.flatnonzero(mask)
-        out = idx[a[idx].argmin()]
+        out = idx[np.array(a)[idx].argmin()]
         # Or
         # out = np.flatnonzero(mask)[a[mask].argmin()]
         return out
@@ -179,7 +179,7 @@ def is_floatable(n):
     try:
         float(n)
         return True
-    except ValueError:
+    except (ValueError, TypeError):
         return False
 
 def is_intable(n):
