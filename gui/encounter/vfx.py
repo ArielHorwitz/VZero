@@ -71,13 +71,13 @@ class VFX(widgets.RelativeLayout, EncounterViewComponent):
                 # Draw Sprite
                 if effect.eid is effect.SPRITE:
                     with ratecounter(self.enc.timers['vfx_sprite_single']):
-                        size = 100, 100
+                        size = np.array([100, 100]) / self.enc.upp
                         color = (1, 1, 1)
                         sprite_category = effect.params['category'] if 'category' in effect.params else 'ability'
                         sprite_source = Assets.get_sprite(sprite_category, effect.params['source'])
 
                         if 'size' in effect.params:
-                            size = effect.params['size']
+                            size = np.array(effect.params['size']) / self.enc.upp
 
                         if 'tint' in effect.params:
                             color = effect.params['tint']

@@ -7,9 +7,8 @@ import collections
 import math
 import numpy as np
 from nutil.vars import normalize, is_floatable
-from data import resource_name
 from engine.common import *
-from logic.mechanics.mechanics import Mechanics
+from logic.mechanics import Mechanics
 
 
 GUI_STATE = collections.namedtuple('GUI_STATE', ('string', 'color'))
@@ -17,13 +16,43 @@ MISS_COLOR = (1, 1, 1)
 
 
 class Ability:
-    color = (0.5, 0.5, 0.5, 1)
     __defaults = defaults = {'mana_cost': 0, 'cooldown': 0}
     auto_check = {'mana', 'cooldown'}
     auto_cost = {'mana', 'cooldown'}
     info = 'An ability.'
     lore = 'Some people know about this ability.'
     debug = False
+
+    def __init__(self, aid, name, color, params):
+        self.aid = aid
+        self.name = name
+        self.color = color
+
+        for p in params:
+            if p not in (*self.defaults.keys(), *self.__defaults.keys()):
+                logger.debug(f'Setting up parameter {p} for ability {self.name} not found in defaults')
+        self.p = Params({**self.__defaults, **self.defaults, **params})
+        if self.debug:
+            logger.debug(f'Created ability {self.name} with arguments: {params}. ' \
+                     f'Defaults: {self.defaults}')
+
+    def passive(self, api, uid, dt):
+        pass
+
+    def cast(self, api, uid, target):
+        f = self.check_many(api, uid, target, checks=self.auto_check)
+        if isinstance(f, FAIL_RESULT):
+            return f
+        if self.debug:
+            logger.debug(f'{api.units[uid].name} using {self.name} at {target}')
+        r = self.do_cast(api, uid, target)
+        if not isinstance(r, FAIL_RESULT):
+            self.cost_many(api, uid, self.auto_cost)
+        return r
+
+    def do_cast(self, api, uid, target):
+        logger.debug(f'{self.name} do_cast not implemented. No effect.')
+        return self.aid
 
     # Cost methods
     def cost_many(self, api, uid, costs=None):
@@ -119,47 +148,10 @@ class Ability:
             in_radius = np.logical_and(in_radius, api.mask_alive())
         return in_radius
 
-    # Basic
-    def __init__(self, aid, name, params):
-        self.name = name
-        self.aid = aid
-
-        for k, v in params.items():
-            if k == 'color':
-                if hasattr(COLOR, v.upper()):
-                    self.color = getattr(COLOR, v.upper())
-                else:
-                    rgb = tuple(float(_) for _ in v.split(', '))
-                    assert len(rgb) == 3
-                    self.color = rgb
-            if k not in tuple(self.defaults.keys()):
-                logger.debug(f'Setting up parameter {k} for ability {self.name} but no existing default')
-        self.p = Params({**self.__defaults, **self.defaults, **params})
-        logger.debug(f'Created ability {self.name} with arguments: {params}. ' \
-                     f'Defaults: {self.defaults}')
-
-    def passive(self, api, uid, dt):
-        pass
-
-    def cast(self, api, uid, target):
-        f = self.check_many(api, uid, target, checks=self.auto_check)
-        if isinstance(f, FAIL_RESULT):
-            return f
-        if self.debug:
-            logger.debug(f'{api.units[uid].name} using {self.name} at {target}')
-        r = self.do_cast(api, uid, target)
-        if not isinstance(r, FAIL_RESULT):
-            self.cost_many(api, uid, self.auto_cost)
-        return r
-
-    def do_cast(self, api, uid, target):
-        logger.debug(f'{self.name} do_cast not implemented. No effect.')
-        return self.aid
-
     # Properties
     @property
     def sprite(self):
-        return resource_name(self.aid.name)
+        return self.name
 
     def gui_state(self, api, uid, target=None):
         miss = 0
@@ -180,11 +172,11 @@ class Ability:
         return GUI_STATE('\n'.join(strings), color)
 
     @property
-    def general_description(self):
+    def universal_description(self):
         return '\n'.join([
             f'{self.info}\n',
             f'Class: « {self.__class__.__name__} »',
-            *(self.p.repr_universal(p) for p in self.p.params),
+            self.p.repr_universal,
             f'\n> {self.lore}',
         ])
 
@@ -195,6 +187,9 @@ class Ability:
             *(f'{self.p.repr(p, api, uid)}' for p in self.p.params),
             f'\n> {self.lore}',
         ])
+
+    def __repr__(self):
+        return f'{self.aid} {self.name}'
 
 
 ExpandedParam = collections.namedtuple('ExpandedParam', ['base', 'stat', 'mods'])
@@ -228,7 +223,11 @@ class Params:
             pval = f'{pval:.1f}'
         return f'{self.pname_repr(param_name)}: {pval}{formula}'
 
-    def repr_universal(self, param_name):
+    @property
+    def repr_universal(self):
+        return '\n'.join(self.repr_param(p) for p in self.params)
+
+    def repr_param(self, param_name):
         return f'{self.pname_repr(param_name)}: {self._formula_repr(param_name)}'
 
     def _formula_repr(self, param_name, stat_name=None):

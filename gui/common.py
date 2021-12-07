@@ -14,10 +14,13 @@ class SpriteLabel(widgets.BoxLayout):
         if sprite is None:
             sprite = str(Assets.FALLBACK_SPRITE)
         self.sprite_source = sprite
-        self.sprite = self.add(widgets.Image(source=sprite))
+        self.sprite = self.add(widgets.Image(source=sprite, allow_stretch=True))
         self.label = self.add(widgets.Label(text=text, halign='center', valign='center'))
-        self.sprite.set_size(hx=0.5)
         self.make_bg((0, 0, 0, 0))
+        self.bind(pos=self.reposition, size=self.reposition)
+
+    def reposition(self, *a):
+        self.sprite.set_size(x=min(self.size[1], self.size[0]/3))
 
     def update(self, sl):
         if sl.sprite != self.sprite_source and sl.sprite is not None:
@@ -42,7 +45,7 @@ class SpriteTitleLabel(widgets.BoxLayout):
         top.set_size(y=50)
         top.make_bg((0, 0, 0, 0.2))
         self.sprite_source = sprite
-        self.sprite = top.add(widgets.Image(source=sprite))
+        self.sprite = top.add(widgets.Image(source=sprite, allow_stretch=True))
         self.sprite.set_size(x=50)
         self.title = top.add(widgets.Label(text=title, halign='center', valign='center'))
         self.label = self.add(widgets.Label(text=text, halign='left', valign='top'))

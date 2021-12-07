@@ -7,13 +7,14 @@ import math
 import numpy as np
 import random
 from nutil.vars import normalize, collide_point
-from nutil.time import ping, pong
+from nutil.time import ping, pong, ratecounter
 from nutil.random import SEED
 from data.assets import Assets
+from data.settings import Settings
 
 from engine.common import *
 from engine.unit import Unit as BaseUnit
-from logic.items.items import ITEM_CATEGORIES as ICAT
+from logic.items import ITEM_CATEGORIES as ICAT
 
 
 RNG = np.random.default_rng()
@@ -21,14 +22,38 @@ RNG = np.random.default_rng()
 
 class Unit(BaseUnit):
     _respawn_timer = 14400  # ~ 2 minutes
-    def __init__(self, api, uid, name, setup_params):
+    def __init__(self, api, uid, name, params):
         super().__init__(uid, name)
         self.api = api
         self.engine = api.engine
-        self.name = name
+        self.name = self.__start_name = name
         self.abilities = []
-        self.p = setup_params
+        self.items = []
+        self.p = params
         self.allegiance = 1
+
+    def use_ability(self, aid, target):
+        with ratecounter(self.engine.timers['ability_single']):
+            if not self.engine.auto_tick and not self.api.dev_mode:
+                return FAIL_RESULT.INACTIVE
+
+            if not self.is_alive:
+                logger.warning(f'Unit {uid} is dead and requested ability {aid.name}')
+                return FAIL_RESULT.INACTIVE
+
+            target = np.array(target)
+            if (target > self.api.map_size).any() or (target < 0).any():
+                return FAIL_RESULT.OUT_OF_BOUNDS
+
+            ability = self.api.abilities[aid]
+            r = ability.cast(self.engine, self.uid, target)
+            if r is None:
+                m = f'Ability {ability.__class__} cast() method returned None. Must return FAIL_RESULT on fail or aid on success.'
+                logger.error(m)
+                raise ValueError(m)
+            if not isinstance(r, FAIL_RESULT):
+                Assets.play_sfx('ability', ability.name, volume=Settings.get_volume('sfx'))
+            return r
 
     def setup(self):
         self._respawn_location = self.engine.get_position(self.uid)
@@ -43,7 +68,12 @@ class Unit(BaseUnit):
 
     @property
     def sprite(self):
-        return Assets.get_sprite('unit', self.name)
+        return Assets.get_sprite('unit', self.__start_name)
+
+    @property
+    def size(self):
+        hb = self.engine.get_stats(self.uid, STAT.HITBOX)
+        return np.array([hb, hb])*2
 
     @property
     def is_alive(self):
@@ -107,7 +137,7 @@ class Creep(Unit):
         self.scale_power()
         spawn_point = self._respawn_location + (RNG.random(2)*self.WAVE_SPREAD-(self.WAVE_SPREAD/2))
         self.engine.set_position(self.uid, spawn_point)
-        self.api.use_ability(self.uid, ABILITY.WALK, self.target)
+        self.use_ability(ABILITY.WALK, self.target)
 
     def scale_power(self):
         self.engine.set_stats(self.uid, [
@@ -119,8 +149,8 @@ class Creep(Unit):
         return self.wave_offset + self.WAVE_INTERVAL - self.engine.tick % self.WAVE_INTERVAL
 
     def action_phase(self):
-        self.api.use_ability(self.uid, ABILITY.ATTACK, self.engine.get_position(self.uid))
-        self.api.use_ability(self.uid, ABILITY.WALK, self.target)
+        self.use_ability(ABILITY.ATTACK, self.engine.get_position(self.uid))
+        self.use_ability(ABILITY.WALK, self.target)
 
     @property
     def debug_str(self):
@@ -141,11 +171,11 @@ class Camper(Unit):
 
     def action_phase(self):
         player_pos = self.engine.get_position(0)
-        self.api.use_ability(self.uid, ABILITY.ATTACK, player_pos)
+        self.use_ability(ABILITY.ATTACK, player_pos)
         my_pos = self.engine.get_position(self.uid)
         in_aggro_range = math.dist(my_pos, player_pos) < self.__aggro_range
         if in_aggro_range and not self.__deaggro and self.engine.units[0].is_alive:
-            self.api.use_ability(self.uid, ABILITY.WALK, player_pos)
+            self.use_ability(ABILITY.WALK, player_pos)
             camp_dist = math.dist(my_pos, self.camp)
             if camp_dist > self.__deaggro_range:
                 self.__deaggro = True
@@ -154,7 +184,7 @@ class Camper(Unit):
                 camp_dist = math.dist(my_pos, self.camp)
                 if camp_dist < self.__reaggro_range:
                     self.__deaggro = False
-            self.api.use_ability(self.uid, ABILITY.WALK, self.walk_target)
+            self.use_ability(ABILITY.WALK, self.walk_target)
 
     @property
     def walk_target(self):
@@ -182,13 +212,13 @@ class Shopkeeper(Unit):
         else:
             raise ValueError(f'Unknown item category: {category}')
         self.name = f'{icat.name.lower().capitalize()} shop'
-        self.engine.set_stats(self.uid, STAT.HP, 10, value_name=VALUE.MAX)
-        self.engine.set_stats(self.uid, STAT.HP, 1_000_000, value_name=VALUE.DELTA)
+        # self.engine.set_stats(self.uid, STAT.HP, 10, value_name=VALUE.MAX)
+        # self.engine.set_stats(self.uid, STAT.HP, 1_000_000, value_name=VALUE.DELTA)
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
 
     def action_phase(self):
         self.engine.set_status(self.uid, STATUS.SHOP, duration=0, stacks=self.category.value)
-        self.api.use_ability(self.uid, ABILITY.SHOPKEEPER, self.engine.get_position(self.uid))
+        self.use_ability(ABILITY.SHOPKEEPER, self.engine.get_position(self.uid))
 
 
 class Fountain(Unit):
@@ -203,10 +233,12 @@ class DPSMeter(Unit):
         self.engine.set_stats(self.uid, STAT.HP, 10**12, value_name=VALUE.MAX)
         self.engine.set_stats(self.uid, STAT.HP, 10**12)
         self.engine.set_stats(self.uid, STAT.HP, 0, value_name=VALUE.DELTA)
+        self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
         self.__started = False
         self.__sample_size = 10
         self.__sample_index = 0
-        self.__sample = np.ndarray((self.__sample_size, 2), dtype = np.float64)
+        self.__sample = np.zeros((self.__sample_size, 2), dtype = np.float64)
+        self.__sample[0, 0] = 1
         self.__last_tick = self.engine.tick
         self.__last_hp = self.engine.get_stats(self.uid, STAT.HP)
         self.__tps = 120
@@ -221,9 +253,18 @@ class DPSMeter(Unit):
         self.__last_hp = new_hp
         self.__sample[self.__sample_index] = (sample_time, sample_damage)
 
-    @property
-    def debug_str(self):
         total_time = self.__sample[:, 0].sum()
         total_damage = self.__sample[:, 1].sum()
         dps = total_damage / total_time
-        return f'DPS: {dps*self.__tps:.2f} ({total_damage:.2f} / {total_time:.2f}) [{self.__sample_index}]'
+        self.name = f'DPS: {dps*self.__tps:.2f} ({total_damage:.2f} / {total_time:.2f}) [{self.__sample_index}]'
+
+
+UNIT_CLASSES = {
+    'player': Player,
+    'creep': Creep,
+    'camper': Camper,
+    'treasure': Treasure,
+    'shopkeeper': Shopkeeper,
+    'fountain': Fountain,
+    'dps_meter': DPSMeter,
+}

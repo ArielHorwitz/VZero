@@ -15,7 +15,7 @@ from data.settings import Settings
 from gui import cc_int, center_position
 from gui.encounter.sprites import Sprites
 from gui.encounter.vfx import VFX
-from gui.encounter.panels import Menu, HUD, AgentViewer, Modal, DebugPanel
+from gui.encounter.panels import Menu, HUD, HUDAux, AgentViewer, Modal, DebugPanel
 
 from engine.common import *
 
@@ -49,21 +49,15 @@ class Encounter(widgets.RelativeLayout):
             on_touch_down=self.canvas_click,
             on_touch_move=self.canvas_move,
         )
-        self.sprites = self.add(Sprites(enc=self))
-        self.vfx = self.add(VFX(enc=self))
-        self.hud = self.add(HUD(anchor_x='center', anchor_y='bottom', enc=self))
-        self.agent_panel = self.add(AgentViewer(anchor_x='left', anchor_y='top', enc=self))
-        self.debug_panel = self.add(DebugPanel(anchor_x='right', anchor_y='top', enc=self))
-        self.modal_overlay = self.add(Modal(enc=self))
-        self.enc_menu = self.add(Menu(enc=self))
         self.overlays = {
-            'sprites': self.sprites,
-            'vfx': self.vfx,
-            'hud': self.hud,
-            'agent_panel': self.agent_panel,
-            'debug': self.debug_panel,
-            'modal': self.modal_overlay,
-            'menu': self.enc_menu,
+            'sprites': self.add(Sprites(enc=self)),
+            'vfx': self.add(VFX(enc=self)),
+            'hud': self.add(HUD(enc=self)),
+            'hud_aux': self.add(HUDAux(enc=self)),
+            'agent_panel': self.add(AgentViewer(enc=self)),
+            'debug': self.add(DebugPanel(enc=self)),
+            'modal': self.add(Modal(enc=self)),
+            'menu': self.add(Menu(enc=self)),
         }
 
         self.simple_overlay_label = self.add(widgets.Label())
@@ -120,7 +114,7 @@ class Encounter(widgets.RelativeLayout):
         # Move target indicator
         with self.canvas:
             widgets.kvColor(1, 1, 1)
-            self.move_crosshair = widgets.kvRectangle(
+            self.target_crosshair = widgets.kvRectangle(
                 source=Assets.get_sprite('ui', 'crosshair3'),
                 allow_stretch=True, size=(15, 15))
 
@@ -152,8 +146,8 @@ class Encounter(widgets.RelativeLayout):
         self.tilemap.pos = cc_int(self.real2pix(np.zeros(2)))
         self.tilemap.size = cc_int(np.array(self.api.map_size) / self.__units_per_pixel)
 
-        self.move_crosshair.pos = center_position(self.real2pix(
-            self.api.target_crosshair), self.move_crosshair.size)
+        self.target_crosshair.pos = center_position(self.real2pix(
+            self.api.target_crosshair), self.target_crosshair.size)
 
         if self.api.request_redraw != self.__last_redraw:
             self.__last_redraw = self.api.request_redraw
@@ -166,7 +160,7 @@ class Encounter(widgets.RelativeLayout):
 
     def canvas_click(self, w, m):
         # TODO expose top corner click to API
-        if self.collide_top_corners(m.pos):
+        if self.collide_corners(m.pos):
             self.api.user_hotkey('toggle_play', self.pix2real(np.array(self.size)/2))
             return True
         if not self.collide_point(*m.pos):
@@ -221,9 +215,12 @@ class Encounter(widgets.RelativeLayout):
         real = self.pix2real(local)
         return real
 
-    def collide_top_corners(self, pos):
+    def collide_corners(self, pos):
         margin = 0.01
-        return (pos[1] > self.size[1]*(1-margin)) and any([
+        return any([
+            pos[1] > self.size[1]*(1-margin),
+            pos[1] < self.size[1]*margin,
+        ]) and any([
             pos[0] > self.size[0]*(1-margin),
             pos[0] < self.size[0]*margin,
         ])

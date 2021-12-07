@@ -23,7 +23,8 @@ class App(widgets.App):
             'Tab: Encounter': ('f2', lambda: self.switch.switch_screen('enc')),
         })
         self.icon = str(Path.cwd()/'icon.png')
-        widgets.kvWindow.maximize()
+        self.set_window_size((1024, 768))
+        widgets.Clock.schedule_once(lambda *a: widgets.kvWindow.maximize(), 0.1)
         self.game = get_api()
 
         self.switch = self.add(widgets.ScreenSwitch())

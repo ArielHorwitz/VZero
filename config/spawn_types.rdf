@@ -19,24 +19,24 @@ huge creep: 1
 
 === Shop basic
 --- Shop
-shopkeeper basic: 1
+basic shop: 1
 === Shop herbal
 --- Shop
-shopkeeper herbal: 1
-=== Shop ornament
---- Shop
-shopkeeper ornament: 1
+herbal shop: 1
 === Shop potion
 --- Shop
-shopkeeper potion: 1
+potion shop: 1
+=== Shop ornament
+--- Shop
+ornament shop: 1
 
 === Lighthouse
 --- Lighthouse
 lighthouse: 1
 
 
-=== Sponge
---- Sponge
+=== DPS
+--- DPS
 dps_meter: 1
 
 

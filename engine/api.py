@@ -56,6 +56,7 @@ class EncounterAPI:
     dev_mode = True
     selected_unit = 0
     show_modal = False
+    player_los = 2000
 
     def __init__(self):
         self.engine = EncounterEngine(self)
@@ -88,11 +89,6 @@ class EncounterAPI:
     def status_zero(self, uid, status):
         logger.warning(f'{self.__class__}.status_zero() not implemented.')
 
-    # TODO REMOVE DEPENDENCY ON LOGIC ABILITIES
-    @property
-    def abilities(self):
-        return []
-
     # User input
     def toggle_play(self, set_to=None):
         set_to = set_to if set_to is not None else not self.engine.auto_tick
@@ -113,23 +109,23 @@ class EncounterAPI:
             logger.warning(f'{self.__class__}.user_click() with button: {button} not implemented.')
 
     def user_select(self, target, view_size):
-        selected_unit = self.engine.nearest_uid(target, alive_only=False)[0]
-        unit_pos = self.engine.get_position(selected_unit)
-        s = max(100, self.engine.get_stats(selected_unit, STAT.HITBOX))
-        if math.dist(target, unit_pos) < s:
-            self.select_unit(selected_unit)
+        uid, dist = self.engine.nearest_uid(target, alive_only=False)
+        hb = self.engine.get_stats(uid, STAT.HITBOX)
+        if dist < max(50, hb) or not self.visible_uid(uid):
+            self.select_unit(uid)
             Assets.play_sfx('ui', 'select',
                 volume=Settings.get_volume('feedback'))
-            self.engine.add_visual_effect(VisualEffect.SPRITE, 60, {
-                'uid': selected_unit,
-                'fade': 120,
-                'category': 'ui',
-                'source': 'crosshair2',
-                'size': (100, 100),
-                'tint': (0, 0, 0),
-            })
         else:
             self.select_unit(0)
+            uid, hb = 0, self.engine.get_stats(0, STAT.HITBOX)
+        self.engine.add_visual_effect(VisualEffect.SPRITE, 60, {
+            'uid': uid,
+            'fade': 120,
+            'category': 'ui',
+            'source': 'crosshair2',
+            'size': (hb*2.1, hb*2.1),
+            'tint': (0, 0, 0),
+        })
 
     def quickcast(self, ability_index, target):
         logger.warning(f'{self.__class__}.quickcast() not implemented.')
@@ -155,8 +151,13 @@ class EncounterAPI:
     request_redraw = 0
 
     def get_visible_uids(self, view_size):
-        max_los = np.linalg.norm(np.array(view_size) / 2)
-        return self.engine.get_distances(self.engine.get_position(0)) <= max_los
+        max_los = self.player_los
+        if self.dev_mode:
+            max_los = max(max_los, np.linalg.norm(np.array(view_size) / 2))
+        return self.engine.unit_distance(0) <= max_los
+
+    def visible_uid(self, uid):
+        return self.engine.unit_distance(0, uid) <= self.player_los
 
     def get_all_positions(self):
         return self.engine.get_position()
@@ -206,6 +207,9 @@ class EncounterAPI:
     # HUD
     def hud_sprite_labels(self):
         return [SpriteLabel(None, 'HUD not\nimplemented', (0, 0, 0, 0.5)) for _ in range(8)]
+
+    def hud_aux_sprite_labels(self):
+        return [SpriteLabel(None, 'HUD Aux not implemented', (0, 0, 0, 0.5)) for _ in range(6)]
 
     # Modal
     def modal_stls(self):

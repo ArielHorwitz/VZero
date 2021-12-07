@@ -23,3 +23,15 @@ def str2status(name):
 
 def str2status_value(name):
     return getattr(STATUS_VALUE, name.upper())
+
+
+def str2color(s):
+    if hasattr(COLOR, s.upper()):
+        return getattr(COLOR, s.upper())
+    else:
+        rgb = tuple(float(_) for _ in s.split(', '))
+        assert len(rgb) >= 3
+        return tuple(rgb[:3])
+
+
+AID_LIST = list(ABILITY)

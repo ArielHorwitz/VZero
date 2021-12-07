@@ -8,7 +8,7 @@ import numpy as np
 from nutil.vars import collide_point, NP
 from nutil.random import SEED
 from nutil.display import njoin, make_title
-from nutil.time import ratecounter, RateCounter
+from nutil.time import RateCounter
 from nutil.vars import modify_color
 
 from data import resource_name
@@ -21,51 +21,18 @@ from engine.common import *
 from engine.api import EncounterAPI as BaseEncounterAPI
 from engine.encounter import Encounter as EncounterEngine
 
+from logic.data import ABILITIES
 from logic.mapgen import MapGenerator
-from logic.items import items
+from logic import items
 
 
 RNG = np.random.default_rng()
 STAT_SPRITES = tuple(Assets.get_sprite('ability', s) for s in ('physical', 'fire', 'earth', 'air', 'water', 'gold'))
-MODAL_MODES = ['shop', 'abilities', 'shop', 'shop']
+MODAL_MODES = ['shop', 'abilities', 'abilities', 'abilities']
 
 
 class EncounterAPI(BaseEncounterAPI):
     RNG = np.random.default_rng()
-
-    # Abilities
-    @property
-    def abilities(self):
-        return self.game.abilities
-
-    def use_ability(self, uid, aid, target):
-        if uid == 0:
-            logger.debug(f'uid {uid} casting ability {aid.name} to {target}')
-
-        with ratecounter(self.engine.timers['ability_single']):
-            if not self.engine.auto_tick and not self.dev_mode:
-                return FAIL_RESULT.INACTIVE
-
-            if self.engine.stats.get_stats(uid, STAT.HP, VALUE.CURRENT) <= 0:
-                logger.warning(f'Unit {uid} is dead and requested ability {aid.name}')
-                return FAIL_RESULT.INACTIVE
-
-            target = np.array(target)
-            if (target > self.map_size).any() or (target < 0).any():
-                return FAIL_RESULT.OUT_OF_BOUNDS
-
-            ability = self.game.abilities[aid]
-            r = ability.cast(self.engine, uid, target)
-            if r is None:
-                m = f'Ability {ability.__class__} cast() method returned None. Must return FAIL_RESULT on fail or aid on success.'
-                logger.error(m)
-                raise ValueError(m)
-            if isinstance(r, FAIL_RESULT):
-                # logger.debug(f'uid {uid} tried casting {aid.name} but failed with {r.name}')
-                pass
-            else:
-                Assets.play_sfx('ability', ability.name, volume=Settings.get_volume('sfx'))
-            return r
 
     # Logic handlers
     def hp_zero(self, uid):
@@ -82,10 +49,13 @@ class EncounterAPI(BaseEncounterAPI):
     # GUI handlers
     def quickcast(self, ability_index, target):
         # Ability from player input (requires handling user feedback)
-        aid = self.engine.units[0].abilities[ability_index]
-        r = self.use_ability(0, aid, target)
+        aid = self.player_ability_order[ability_index]
+        if aid is None:
+            return
+        ability = self.abilities[aid]
+        r = self.units[0].use_ability(aid, target)
         if r is None:
-            logger.warning(f'Ability {self.abilities[aid].__class__} failed to return a result!')
+            logger.warning(f'Ability {ability.__class__} failed to return a result!')
         if isinstance(r, FAIL_RESULT) and r in FAIL_SFX:
             Assets.play_sfx('ui', FAIL_SFX[r], replay=False,
                 volume=Settings.get_volume('feedback'))
@@ -96,9 +66,8 @@ class EncounterAPI(BaseEncounterAPI):
                 'category': 'ui',
                 'source': 'crosshair',
                 'size': (40, 40),
+                'tint': ability.color,
             })
-
-        self.use_ability(0, aid, target)
 
     def user_hotkey(self, hotkey, target):
         if 'toggle_play' in hotkey:
@@ -160,12 +129,28 @@ class EncounterAPI(BaseEncounterAPI):
     # HUD
     def hud_sprite_labels(self):
         sls = []
-        for aid in self.units[0].abilities:
+        for aid in self.player_ability_order:
+            if aid is None:
+                sls.append(SpriteLabel(None, '', (0,0,0,0)))
+                continue
             ability = self.abilities[aid]
             sprite = Assets.get_sprite('ability', ability.sprite)
             cast_state = ability.gui_state(self.engine, 0)
             s, color = cast_state
             s = f'{ability.name}\n{s}'
+            sls.append(SpriteLabel(sprite, s, modify_color(color, a=0.4)))
+        return sls
+
+    def hud_aux_sprite_labels(self):
+        sls = []
+        for item in self.units[0].items[:6]:
+            if item is None:
+                sls.append(SpriteLabel(None, '', (0,0,0,0)))
+                continue
+            istats = items.ITEM_STATS[item]
+            sprite = Assets.get_sprite('ability', item.name)
+            s = f'{item.name.lower().capitalize()}'
+            color = items.ITEM_COLORS[item]
             sls.append(SpriteLabel(sprite, s, modify_color(color, a=0.4)))
         return sls
 
@@ -183,7 +168,7 @@ class EncounterAPI(BaseEncounterAPI):
                 self.active_shop_items[i],
                 items.Shop.check_cost(self.engine, 0, items.ITEM_LIST[i]),
             ])
-            color = modify_color(self.item_colors[i], a=0.5 if item_active else 0.2)
+            color = modify_color(items.ITEM_COLORS[i], a=0.7 if item_active else 0.2)
             stl = SpriteTitleLabel(
                 Assets.get_sprite('ability', item.name),
                 item.name, self.item_texts[i], color)
@@ -210,7 +195,6 @@ class EncounterAPI(BaseEncounterAPI):
             Assets.play_sfx('ui', 'target', volume=Settings.get_volume('feedback'))
 
     item_texts = [f'{items.item_repr(item)}' for item in items.ITEM]
-    item_colors = [items.ICAT_COLORS[items.ITEM_STATS[item].category-1] for item in items.ITEM]
 
     @property
     def active_shop_items(self):
@@ -219,7 +203,13 @@ class EncounterAPI(BaseEncounterAPI):
         active_items = item_categories == active_category
         return active_items
 
-    # Debug / Misc
+    # Misc
+    abilities = ABILITIES
+
+    @property
+    def unit_count(self):
+        return len(self.units)
+
     def pretty_stats(self, uid, stats=None):
         unit = self.units[uid]
         if stats is None:
@@ -296,10 +286,15 @@ class EncounterAPI(BaseEncounterAPI):
         self.engine = EncounterEngine(self)
         self.map = MapGenerator(self)
         a = list(ABILITY)
-        self.engine.units[0].abilities = [a[_] for _ in player_abilities]
+        self.player_ability_order = [a[_] if _ is not None else None for _ in player_abilities]
+        player_abilities = set(self.player_ability_order)
+        if None in player_abilities:
+            player_abilities.remove(None)
+        self.engine.units[0].abilities = player_abilities
         # Setup units
         for unit in self.engine.units:
             unit.action_phase()
+        Assets.play_sfx('ui', 'play', volume=Settings.get_volume('feedback'))
 
     def debug(self, *args, dev_mode=-1, tick=None, tps=None, **kwargs):
         logger.debug(f'Logic Debug called (extra args: {args} {kwargs})')
@@ -347,90 +342,6 @@ class OldEncounterAPI:
 
     def get_live_monster_count(self):
         return (self.get_stats(slice(None), STAT.HP)>0).sum()
-
-    @property
-    def add_visual_effect(self):
-        return self.e.add_visual_effect
-
-    # PROPERTIES
-    @property
-    def mod_api(self):
-        return self.e.mod_api
-
-    @property
-    def dev_mode(self):
-        return self.e.dev_mode
-
-    @classmethod
-    def get_ability(cls, index):
-        return self.game.abilities[index]
-
-    @property
-    def abilities(self):
-        return self.game.abilities
-
-    @property
-    def map_size(self):
-        return self.e.mod_api.map_size
-
-    @property
-    def map_center(self):
-        return self.map_size / 2
-
-    @property
-    def auto_tick(self):
-        return self.e.auto_tick
-
-    @property
-    def unit_count(self):
-        return self.e.unit_count
-
-    @property
-    def tick(self):
-        return self.e.tick
-
-    @property
-    def units(self):
-        return self.e.units
-
-    def debug_stats_table(self):
-        return str(self.e.stats.table)
-
-    # GUI UTILITIES - do not use for mechanics
-    def do_ticks(self, t=1):
-        return self.e._do_ticks(t)
-
-    def set_auto_tick(self, *a, **k):
-        return self.e.set_auto_tick(*a, **k)
-
-    def update(self):
-        self.e.update()
-
-    def get_visual_effects(self):
-        return self.e.get_visual_effects()
-
-    @property
-    def map_image_source(self):
-        return self.e.mod_api.map_image_source
-
-    def use_ability(self, *args, **kwargs):
-        return self.e.use_ability(*args, **kwargs)
-
-    @property
-    def timers(self):
-        return self.e.timers
-
-    @property
-    def request_redraw(self):
-        return self.e.mod_api.request_redraw
-
-    # DEBUG / MISC
-    def __init__(self, encounter):
-        self.e = encounter
-
-    @property
-    def debug(self):
-        return self.e.debug_action
 
 
 FAIL_SFX = {

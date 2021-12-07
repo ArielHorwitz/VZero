@@ -32,15 +32,18 @@ ITEM_LIST = [item for item in ITEM]
 ICAT = ITEM_CATEGORIES = IntEnum('ITEM_CATEGORIES', [
     'BASIC',
     'HERBAL',
-    'ORNAMENT',
     'POTION',
+    'ORNAMENT',
 ])
 ICAT_COLORS = [
     (0.5, 0.5, 0),
     (0.1, 0.7, 0.05),
-    (0, 0.5, 0.5),
     (0.7, 0, 0.4),
+    (0, 0.5, 0.5),
 ]
+logger.info('Initializing item categories:')
+for cat in ICAT:
+    logger.info(f'{cat} {cat.name}')
 
 class ItemData:
     def __init__(self, category, cost, stats=None):
@@ -65,6 +68,8 @@ ITEM_STATS = {
     ITEM.AMULET: ItemData(ICAT.ORNAMENT, 130, {STAT.PHYSICAL: {VALUE.CURRENT: 22}, STAT.FIRE: {VALUE.CURRENT: 16}}),
     ITEM.DEV_STONE: ItemData(ICAT.ORNAMENT, 0, {STAT.GOLD: {VALUE.CURRENT: 1000}}),
 }
+
+ITEM_COLORS = [ICAT_COLORS[ITEM_STATS[item].category-1] for item in ITEM]
 
 
 def item_repr(item):
@@ -136,6 +141,7 @@ class Shop:
     def _do_buy(cls, api, uid, item):
         cls.apply_cost(api, uid, item)
         cls.apply_stats(api, uid, item)
+        api.units[uid].items.append(item)
 
     @classmethod
     def apply_cost(cls, api, uid, item):

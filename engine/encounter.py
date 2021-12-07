@@ -14,7 +14,7 @@ from engine.common import *
 
 class Encounter:
     DEFAULT_TPS = 120
-    AGENCY_PHASE_COUNT = 60
+    AGENCY_PHASE_COUNT = 30
 
     def __init__(self, logic):
         # Variable initialization

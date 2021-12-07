@@ -1,6 +1,6 @@
 
 ====== Player
-player
+type: player
 
 - stats
 gold: 100
@@ -22,7 +22,7 @@ water.delta: 0.00014
 
 
 === Tiny creep
-creep
+type: creep
 wave: 0
 
 --- stats
@@ -33,7 +33,7 @@ physical: 5
 air: 25
 
 === Small creep
-creep
+type: creep
 wave: 0.25
 
 --- stats
@@ -44,7 +44,7 @@ physical: 10
 air: 20
 
 === Large creep
-creep
+type: creep
 wave: 0.5
 
 --- stats
@@ -55,7 +55,7 @@ physical: 20
 air: 15
 
 === Huge creep
-creep
+type: creep
 wave: 0.75
 
 --- stats
@@ -68,7 +68,7 @@ air: 10
 
 
 === Meef
-camper
+type: camper
 aggro_range: 350
 deaggro_range: 600
 reaggro_range: 400
@@ -84,7 +84,7 @@ air: 15
 
 
 ====== Glob
-camper
+type: camper
 aggro_range: 400
 deaggro_range: 700
 reaggro_range: 500
@@ -100,7 +100,7 @@ air: 25
 
 
 ====== Ratzan
-camper
+type: camper
 aggro_range: 300
 deaggro_range: 500
 reaggro_range: 150
@@ -116,7 +116,7 @@ air: 55
 
 
 ====== Blood Imp
-camper
+type: camper
 aggro_range: 550
 deaggro_range: 650
 reaggro_range: 100
@@ -132,7 +132,7 @@ air: 20
 
 
 ====== Folphin
-camper
+type: camper
 aggro_range: 400
 deaggro_range: 800
 reaggro_range: 600
@@ -147,7 +147,7 @@ physical: 18
 air: 40
 
 ====== Infester
-camper
+type: camper
 aggro_range: 400
 deaggro_range: 800
 reaggro_range: 600
@@ -163,7 +163,7 @@ air: 45
 
 
 ====== Crab
-camper
+type: camper
 aggro_range: 400
 deaggro_range: 800
 reaggro_range: 600
@@ -181,7 +181,7 @@ air: 30
 
 
 ====== Phaser
-camper
+type: camper
 aggro_range: 600
 deaggro_range: 1000
 reaggro_range: 600
@@ -198,7 +198,7 @@ air: 12
 
 
 ====== Zombie
-camper
+type: camper
 aggro_range: 600
 deaggro_range: 1000
 reaggro_range: 600
@@ -214,7 +214,7 @@ air: 8
 
 
 ====== Spiker
-camper
+type: camper
 aggro_range: 700
 deaggro_range: 800
 reaggro_range: 450
@@ -230,7 +230,7 @@ air: 20
 
 
 ====== Fire Elemental
-camper
+type: camper
 aggro_range: 700
 deaggro_range: 800
 reaggro_range: 450
@@ -247,7 +247,7 @@ air: 35
 
 
 ====== Skull
-camper
+type: camper
 aggro_range: 200
 deaggro_range: 400
 reaggro_range: 250
@@ -263,7 +263,7 @@ air: 18
 
 
 ====== Barkshroom
-camper
+type: camper
 aggro_range: 800
 deaggro_range: 1000
 reaggro_range: 500
@@ -279,7 +279,7 @@ air: 15
 
 
 ====== Robot
-camper
+type: camper
 aggro_range: 800
 deaggro_range: 1000
 reaggro_range: 500
@@ -295,7 +295,7 @@ air: 5
 
 
 ====== Winged Snake
-camper
+type: camper
 aggro_range: 400
 deaggro_range: 700
 reaggro_range: 200
@@ -316,39 +316,45 @@ air: 50
 
 
 ===== Fort
-fountain
+type: fountain
 --- stats
 hitbox: 160
 hp.max: 5000
-
+hp.delta: 0.002
 ===== Lighthouse
-fountain
+type: fountain
 --- stats
 hitbox: 120
 hp.max: 2000
+hp.delta: 0.001
 
-====== Shopkeeper basic
-shopkeeper
+====== Basic shop
+type: shopkeeper
 category: basic
 --- stats
-
-====== Shopkeeper herbal
-shopkeeper
+hp.max: 5000
+hp.delta: 0.002
+====== Herbal shop
+type: shopkeeper
 category: herbal
 --- stats
-
-====== Shopkeeper ornament
-shopkeeper
-category: ornament
---- stats
-
-====== Shopkeeper potion
-shopkeeper
+hp.max: 5000
+hp.delta: 0.002
+====== Potion shop
+type: shopkeeper
 category: potion
 --- stats
+hp.max: 5000
+hp.delta: 0.002
+====== Ornament shop
+type: shopkeeper
+category: ornament
+--- stats
+hp.max: 5000
+hp.delta: 0.002
 
 ====== DPS Meter
-dps_meter
+type: dps_meter
 --- stats
 hitbox: 50
 
@@ -358,7 +364,7 @@ hitbox: 50
 
 
 === Hero Treasure
-treasure
+type: treasure
 --- stats
 hp.max: 250
 hp.delta: 0.5

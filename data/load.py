@@ -69,7 +69,7 @@ class RDF(dict):
         while lines[0].startswith('-'):
             subcategory_name = lines.pop(0).split('- ', 1)[1]
             subcategory_lines = []
-            while not lines[0].startswith('-'):
+            while len(lines) > 0 and not lines[0].startswith('-'):
                 subcategory_lines.append(lines.pop(0))
                 if len(lines) == 0:
                     break
@@ -90,14 +90,3 @@ class RDF(dict):
                 positional_values.append(try_float(line))
         keyed_values[0] = positional_values
         return keyed_values
-
-
-#
-# ABILITIES_FILE = CONFIG_DIR / 'abilities.bal'
-# UNITS_FILE = CONFIG_DIR / 'units.bal'
-# MAP_FILE = CONFIG_DIR / 'map.bal'
-#
-# class LoadMechanics:
-#     RAW_ABILITY_DATA = LoadBalFile.load_toplevel(ABILITIES_FILE)
-#     RAW_UNIT_DATA = LoadBalFile.load_toplevel(UNITS_FILE)
-#

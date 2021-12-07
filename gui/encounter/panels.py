@@ -16,44 +16,11 @@ from engine.common import *
 Box = namedtuple('Box', ['box', 'sprite', 'label'])
 
 
-class Menu(widgets.AnchorLayout, EncounterViewComponent):
-    active_bg = (0,0,0,0.4)
-
-    def __init__(self, **kwargs):
-        super().__init__(halign='center', valign='middle', **kwargs)
-        self.consume_touch = self.add(widgets.ConsumeTouch(False))
-        self.frame = widgets.BoxLayout(orientation='vertical')
-        self.frame.add(widgets.Label(text='Paused'))
-        for t, c in (
-            ('Resume', lambda *a: self.enc.api.user_hotkey('toggle_play', (0, 0))),
-            ('Restart', lambda *a: nutil.restart_script()),
-            ('Quit', lambda *a: quit()),
-        ):
-            self.frame.add(widgets.Button(text=t, on_release=c))
-        self.frame.set_size(x=200, y=150)
-        self.frame.make_bg((0,0,0,1))
-
-    def consume_touch(self, w, m):
-        return True
-
-    def update(self):
-        if not self.enc.api.show_menu:
-            if self.frame in self.children:
-                self.remove_widget(self.frame)
-                self.make_bg((0,0,0,0))
-                self.consume_touch.enable = False
-            return
-        if self.frame not in self.children:
-            self.add(self.frame)
-            self.make_bg(self.active_bg)
-            self.consume_touch.enable = True
-
-
 class HUD(widgets.AnchorLayout, EncounterViewComponent):
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(anchor_x='left', anchor_y='bottom', **kwargs)
         grid = self.add(widgets.GridLayout(cols=4))
-        grid.set_size(x=800, y=150)
+        grid.set_size(x=600, y=150)
         self.boxes = [grid.add(SpriteLabel()) for _ in range(8)]
         grid.make_bg((0, 0, 0, 0.25))
 
@@ -63,9 +30,30 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
             self.boxes[i].update(sl)
 
 
+class HUDAux(widgets.AnchorLayout, EncounterViewComponent):
+    def __init__(self, **kwargs):
+        super().__init__(anchor_x='center', anchor_y='bottom', **kwargs)
+        grid = self.add(widgets.GridLayout(cols=3))
+        grid.set_size(x=450, y=150)
+        self.boxes = [grid.add(SpriteLabel()) for _ in range(6)]
+        grid.make_bg((0, 0, 0, 0.25))
+        self.bind(pos=self.reposition, size=self.reposition)
+
+    def reposition(self, *a):
+        if self.enc.size[0] < 1650:
+            self.anchor_x = 'right'
+        else:
+            self.anchor_x = 'center'
+
+    def update(self):
+        sprite_labels = self.api.hud_aux_sprite_labels()
+        for i, sl in enumerate(sprite_labels):
+            self.boxes[i].update(sl)
+
+
 class AgentViewer(widgets.AnchorLayout, EncounterViewComponent):
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(anchor_x='left', anchor_y='top', **kwargs)
         self.last_selected = -1
 
         self.panel = self.add(widgets.BoxLayout(orientation='vertical'))
@@ -100,7 +88,7 @@ class AgentViewer(widgets.AnchorLayout, EncounterViewComponent):
         return cc_int((h, h))
 
     def update(self):
-        self.panel.pos = 20, self.size[1] - self.panel.size[1] - 20
+        # self.panel.pos = 20, self.size[1] - self.panel.size[1] - 20
 
         bar_values = self.api.agent_panel_bars()
         for i, pbar in enumerate(bar_values):
@@ -150,9 +138,42 @@ class Modal(widgets.AnchorLayout, EncounterViewComponent):
         self.frame.update(stls)
 
 
+class Menu(widgets.AnchorLayout, EncounterViewComponent):
+    active_bg = (0,0,0,0.6)
+
+    def __init__(self, **kwargs):
+        super().__init__(halign='center', valign='middle', **kwargs)
+        self.consume_touch = self.add(widgets.ConsumeTouch(False))
+        self.frame = widgets.BoxLayout(orientation='vertical')
+        self.frame.add(widgets.Label(text='Paused')).set_size(hy=1.5)
+        for t, c in (
+            ('Resume', lambda *a: self.enc.api.user_hotkey('toggle_play', (0, 0))),
+            ('Restart', lambda *a: nutil.restart_script()),
+            ('Quit', lambda *a: quit()),
+        ):
+            self.frame.add(widgets.Button(text=t, on_release=c))
+        self.frame.set_size(x=200, y=200)
+        self.frame.make_bg((0,0,0,1))
+
+    def consume_touch(self, w, m):
+        return True
+
+    def update(self):
+        if not self.enc.api.show_menu:
+            if self.frame in self.children:
+                self.remove_widget(self.frame)
+                self.make_bg((0,0,0,0))
+                self.consume_touch.enable = False
+            return
+        if self.frame not in self.children:
+            self.add(self.frame)
+            self.make_bg(self.active_bg)
+            self.consume_touch.enable = True
+
+
 class DebugPanel(widgets.AnchorLayout, EncounterViewComponent):
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(anchor_x='right', anchor_y='top', **kwargs)
         self.main_panel = self.add(widgets.BoxLayout())
         self.main_panel.set_size(x=1400, y=800)
         self.main_panel.make_bg(v=0, a=0.25)

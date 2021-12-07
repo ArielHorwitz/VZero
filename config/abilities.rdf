@@ -1,8 +1,8 @@
 
 === Dunder Beam
-buff
--- stats
+type: buff
 color: purple
+-- stats
 status: slow
 target: other
 mana_cost: 20
@@ -18,9 +18,9 @@ duration: 480
 
 
 === Blink
-teleport
---- stats
+type: teleport
 color: green
+--- stats
 mana_cost: 30
 cooldown: 800
 range: 300
@@ -29,9 +29,9 @@ range_bonus: 4
 
 
 === Shield
-buff
---- stats
+type: buff
 color: blue
+--- stats
 status: armor
 target: self
 mana_cost: 40
@@ -45,9 +45,9 @@ stacks_bonus: 2
 
 
 === Fireblast
-blast
--- stats
+type: blast
 color: red
+-- stats
 mana_cost: 35
 range: 600
 radius: 60
@@ -63,9 +63,9 @@ damage_bonus: 5
 
 
 === Barter
-barter
--- stats
+type: barter
 color: 0.5, 0.5, 0
+-- stats
 range: 300
 cooldown: 10000
 loot_multi: 2
@@ -74,14 +74,14 @@ loot_multi_bonus: 2
 
 
 === Walk
-move
--- stats
+type: move
 color: white
+-- stats
 
 
 
 === Dev blink
-teleport
+type: teleport
 -- stats
 range: 10000
 cooldown: 0
@@ -89,17 +89,17 @@ mana_cost: 0
 
 
 === Attack
-attack
--- stats
+type: attack
 color: white
+-- stats
 
 
 ------------------------------- -
 
 === Radiance
-regen aura
--- stats
+type: regen aura
 color: yellow
+-- stats
 target_destat: hp
 degen: 0.01
 degen_stat: fire
@@ -112,13 +112,13 @@ radius_bonus: 1
 ------------------------------- -
 
 === Shopkeeper
-shopkeeper
+type: shopkeeper
 
 
 === Fountain HP
-regen aura
---- stats
+type: regen aura
 color: cyan
+--- stats
 status: fountain
 target_restat: hp
 regen: 0.1
@@ -126,9 +126,9 @@ radius: 300
 
 
 === Fountain Mana
-regen aura
---- stats
+type: regen aura
 color: cyan
+--- stats
 status: fountain
 target_restat: mana
 regen: 0.1
@@ -147,14 +147,13 @@ radius: 300
 
 
 === Dev consume
-consume
+type: consume
 
 
 
 
 === Dev Fireblast
-blast
-
+type: blast
 - stats
 mana_cost: 0
 cooldown: 0
@@ -162,11 +161,11 @@ cooldown: 0
 
 
 === Dev Midas
-midas
+type: midas
 
 
 === Test
-test
+type: test
 
 
 
@@ -176,30 +175,12 @@ test
 
 
 === Map Editor Eraser
-map_editor_eraser
-
+type: map_editor_eraser
 === Map Editor Toggle
-map_editor_toggle
-
+type: map_editor_toggle
 === Map Editor Palette
-map_editor_palette
-
+type: map_editor_palette
 === Map Editor Droplet
-map_editor_droplet
-
-
-=== Dev blink 2
-teleport
--- stats
-range: 10000
-cooldown: 0
-mana_cost: 0
-
-
-=== Walk 2
-move
--- stats
-color: black
-
+type: map_editor_droplet
 
 ----------------- -

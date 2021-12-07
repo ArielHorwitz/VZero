@@ -10,8 +10,8 @@ import math
 from nutil.vars import normalize
 from nutil.display import njoin
 from engine.common import *
-from logic.abilities.ability import Ability as BaseAbility
-from logic.mechanics.mechanics import Mechanics
+from logic.base import Ability as BaseAbility
+from logic.mechanics import Mechanics
 
 
 class Move(BaseAbility):
@@ -92,7 +92,7 @@ class Barter(BaseAbility):
                 'source': 'coin',
                 'point': loot_pos,
                 'fade': 50,
-                'size': (50, 50),
+                'size': api.units[loot_target].size,
                 })
             return self.aid
         return loot_result
@@ -109,6 +109,9 @@ class Buff(BaseAbility):
         'duration': 0,
         }
     debug = True
+
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k)
 
     def do_cast(self, api, uid, target):
         # find target
@@ -143,7 +146,11 @@ class Buff(BaseAbility):
 
     @property
     def info(self):
-        return f'Apply {self.p.status} to a single target ({self.p.target}).'
+        if self.p.target == 'self':
+            return f'Gain {self.p.status}.'
+        elif self.p.target == 'other':
+             return f'Apply {self.p.status} to a single target.'
+        raise ValueError(f'{self} unknown target type {self.p.target}')
 
 
 class Consume(BaseAbility):
@@ -210,6 +217,11 @@ class Blast(BaseAbility):
         targets_mask = self.find_aoe_targets(api, target, radius)
         Mechanics.do_brute_damage(api, uid, targets_mask, damage)
 
+        api.add_visual_effect(VisualEffect.LINE, 10, {
+            'p1': api.get_position(uid),
+            'p2': target,
+            'color': self.color,
+        })
         api.add_visual_effect(VisualEffect.CIRCLE, 30, {
             'center': target,
             'radius': radius,
@@ -229,6 +241,7 @@ class RegenAura(BaseAbility):
         'target_destat': None,  # 'hp', 'earth', etc.
         'degen': 0,
         'radius': 0,
+        'include_self': 0,
         'show_aura': 0,
     }
     auto_check = set()
@@ -237,7 +250,10 @@ class RegenAura(BaseAbility):
     def passive(self, api, uid, dt):
         pos = api.get_position(uid)
         radius = self.p.get_radius(api, uid)
-        targets = self.find_aoe_targets(api, pos, radius)
+        mask = np.ones(api.unit_count)
+        if not self.p.include_self:
+            mask[uid] = False
+        targets = self.find_aoe_targets(api, pos, radius, mask)
         if self.p.show_aura > 0:
             api.add_visual_effect(VisualEffect.CIRCLE, dt-2, {
                 'center': pos,
@@ -348,3 +364,22 @@ class MapEditorDroplet(BaseAbility):
         api.mod_api.map.add_droplet(tile, target)
         api.add_visual_effect(VisualEffect.SFX, 10, params={'category': 'ui', 'sfx': 'select'})
         return self.aid
+
+
+ABILITY_CLASSES = {
+    'move': Move,
+    'barter': Barter,
+    'attack': Attack,
+    'buff': Buff,
+    'consume': Consume,
+    'teleport': Teleport,
+    'blast': Blast,
+    'midas': Midas,
+    'regen aura': RegenAura,
+    'shopkeeper': Shopkeeper,
+    'test': Test,
+    'map_editor_eraser': MapEditorEraser,
+    'map_editor_toggle': MapEditorToggle,
+    'map_editor_palette': MapEditorPalette,
+    'map_editor_droplet': MapEditorDroplet,
+}
