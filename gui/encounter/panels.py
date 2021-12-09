@@ -15,12 +15,14 @@ from engine.common import *
 
 Box = namedtuple('Box', ['box', 'sprite', 'label'])
 
+HUD_WIDTH = 525
+HUDAUX_WIDTH = 500
 
 class HUD(widgets.AnchorLayout, EncounterViewComponent):
     def __init__(self, **kwargs):
         super().__init__(anchor_x='left', anchor_y='bottom', **kwargs)
         grid = self.add(widgets.GridLayout(cols=4))
-        grid.set_size(x=600, y=150)
+        grid.set_size(x=HUD_WIDTH, y=150)
         self.boxes = [grid.add(SpriteLabel()) for _ in range(8)]
         grid.make_bg((0, 0, 0, 0.25))
 
@@ -33,14 +35,14 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
 class HUDAux(widgets.AnchorLayout, EncounterViewComponent):
     def __init__(self, **kwargs):
         super().__init__(anchor_x='center', anchor_y='bottom', **kwargs)
-        grid = self.add(widgets.GridLayout(cols=3))
-        grid.set_size(x=450, y=150)
-        self.boxes = [grid.add(SpriteLabel()) for _ in range(6)]
+        grid = self.add(widgets.GridLayout(cols=4))
+        grid.set_size(x=HUDAUX_WIDTH, y=150)
+        self.boxes = [grid.add(SpriteLabel()) for _ in range(8)]
         grid.make_bg((0, 0, 0, 0.25))
         self.bind(pos=self.reposition, size=self.reposition)
 
     def reposition(self, *a):
-        if self.enc.size[0] < 1650:
+        if self.enc.size[0] < (HUDAUX_WIDTH + HUD_WIDTH*2):
             self.anchor_x = 'right'
         else:
             self.anchor_x = 'center'
@@ -117,11 +119,14 @@ class Modal(widgets.AnchorLayout, EncounterViewComponent):
     active_bg = (0,0,0,0.4)
 
     def __init__(self, **kwargs):
-        super().__init__(halign='center', valign='middle', **kwargs)
+        super().__init__(anchor_x='right', anchor_y='top', **kwargs)
         self.consume_touch = self.add(widgets.ConsumeTouch())
         self.frame = self.add(STLStack(callback=self.enc.api.modal_click))
-        self.frame.set_size(hx=0.5, hy=0.7)
         self.frame.make_bg((0,0,0,1))
+        self.bind(pos=self.reposition, size=self.reposition)
+
+    def reposition(self, *a):
+        self.frame.set_size(x=max(900, self.size[0]*0.8), y=max(700, self.size[1]*0.8))
 
     def update(self):
         if not self.enc.api.show_modal:
@@ -176,7 +181,7 @@ class DebugPanel(widgets.AnchorLayout, EncounterViewComponent):
         super().__init__(anchor_x='right', anchor_y='top', **kwargs)
         self.main_panel = self.add(widgets.BoxLayout())
         self.main_panel.set_size(x=1400, y=800)
-        self.main_panel.make_bg(v=0, a=0.25)
+        self.main_panel.make_bg(v=0, a=0.75)
 
         self.panels = [self.main_panel.add(widgets.Label(valign='top', halign='left')
             ) for _ in range(10)]

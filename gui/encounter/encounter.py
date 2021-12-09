@@ -20,9 +20,6 @@ from gui.encounter.panels import Menu, HUD, HUDAux, AgentViewer, Modal, DebugPan
 from engine.common import *
 
 
-ABILITY_HOTKEYS = Settings.get_setting('abilities', 'Hotkeys')
-
-
 class Encounter(widgets.RelativeLayout):
     OUT_OF_DRAW_ZONE = (-1_000_000, -1_000_000)
     DEFAULT_UPP = 1 / Settings.get_setting('default_zoom')
@@ -55,9 +52,9 @@ class Encounter(widgets.RelativeLayout):
             'hud': self.add(HUD(enc=self)),
             'hud_aux': self.add(HUDAux(enc=self)),
             'agent_panel': self.add(AgentViewer(enc=self)),
-            'debug': self.add(DebugPanel(enc=self)),
             'modal': self.add(Modal(enc=self)),
             'menu': self.add(Menu(enc=self)),
+            'debug': self.add(DebugPanel(enc=self)),
         }
 
         self.simple_overlay_label = self.add(widgets.Label())
@@ -76,7 +73,19 @@ class Encounter(widgets.RelativeLayout):
             # user controls
             **{f'ability {key.upper()}': (
                 f'{key}', lambda *args, x=i: self.api.quickcast(x, self.mouse_real_pos)
-                ) for i, key in enumerate(ABILITY_HOTKEYS)},
+                ) for i, key in enumerate(Settings.get_setting('abilities', 'Hotkeys'))},
+            **{f'ability {key.upper()} sort': (
+                f'!+ {key}', lambda *args, x=i: self.api.ability_sort(x, self.mouse_real_pos)
+                ) for i, key in enumerate(Settings.get_setting('abilities', 'Hotkeys'))},
+            **{f'item {key.upper()} ability': (
+                f'{key}', lambda *args, x=i: self.api.itemcast(x, self.mouse_real_pos)
+                ) for i, key in enumerate(Settings.get_setting('items', 'Hotkeys'))},
+            **{f'sell item {key.upper()}': (
+                f'^+ {key}', lambda *args, x=i: self.api.itemsell(x, self.mouse_real_pos)
+                ) for i, key in enumerate(Settings.get_setting('items', 'Hotkeys'))},
+            **{f'item {key.upper()} sort': (
+                f'!+ {key}', lambda *args, x=i: self.api.item_sort(x, self.mouse_real_pos)
+                ) for i, key in enumerate(Settings.get_setting('items', 'Hotkeys'))},
             # debug
             'toggle dev mode': (f'^+ d', lambda: self.api.debug(dev_mode=None)),
             'normal tps': (f'^+ t', lambda: self.api.debug(tps=120)),

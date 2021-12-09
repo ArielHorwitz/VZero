@@ -10,7 +10,7 @@ class Settings:
     DEFAULT_SETTINGS = {
         'General': {
             0: {
-                'default_zoom': 1,
+                'default_zoom': 0.5,
                 'map_zoom': 0.15,
             }
         },
@@ -37,6 +37,7 @@ class Settings:
                 'open_menu2': 'f6',
                 'right_click': 'q',
                 'abilities': 'qwerasdf',
+                'items': '1234zxcv',
                 'enable_hold_mouse': '0',
                 'zoom_default': '0',
                 'zoom_in': '=',

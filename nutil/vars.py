@@ -219,7 +219,6 @@ def nsign(n):
         return -1
     return 0
 
-
 def nsign_str(n):
     if n >= 0:
         return f'+{n}'

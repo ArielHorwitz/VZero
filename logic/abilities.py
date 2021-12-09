@@ -20,10 +20,11 @@ class Move(BaseAbility):
         'mana_cost': 0,
         'cooldown': 0,
         'range': 1_000_000,
-        'speed': 150,
+        'speed': 100,
         'speed_stat': 'air',
-        'speed_bonus': 1,
+        'speed_bonus': 5,
     }
+    lore = 'We can all thank Tony the fish for this one.'
 
     def do_cast(self, api, uid, target):
         speed = self.p.get_speed(api, uid)
@@ -64,8 +65,8 @@ class Attack(BaseAbility):
 
 
 class Barter(BaseAbility):
-    info = 'Loot the dead, buy from shopkeepers.'
-    lore = '"Hello there, corpse. I see your negotiation capabilities have diminished drastically."'
+    info = 'Loot the dead.'
+    lore = 'Hello there, corpse. I see your negotiation capabilities have diminished drastically.'
     defaults = {
         'mana_cost': 0,
         'cooldown': 0,
@@ -88,6 +89,7 @@ class Barter(BaseAbility):
 
             # gold income effect
             api.set_stats(uid, STAT.GOLD, looted_gold, additive=True)
+            self.play_sfx()
             api.add_visual_effect(VisualEffect.SPRITE, 50, params={
                 'source': 'coin',
                 'point': loot_pos,
@@ -112,6 +114,7 @@ class Buff(BaseAbility):
 
     def __init__(self, *a, **k):
         super().__init__(*a, **k)
+        self.show_stats = ('mana_cost', 'cooldown', 'range', 'stacks', 'duration')
 
     def do_cast(self, api, uid, target):
         # find target

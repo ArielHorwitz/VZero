@@ -130,6 +130,18 @@ class EncounterAPI:
     def quickcast(self, ability_index, target):
         logger.warning(f'{self.__class__}.quickcast() not implemented.')
 
+    def itemcast(self, item_index, target):
+        logger.warning(f'{self.__class__}.itemcast() not implemented.')
+
+    def itemsell(self, item_index, target):
+        logger.warning(f'{self.__class__}.itemsell() not implemented.')
+
+    def ability_sort(self, ability_index, target):
+        logger.warning(f'{self.__class__}.ability_sort() not implemented.')
+
+    def item_sort(self, item_index, target):
+        logger.warning(f'{self.__class__}.item_sort() not implemented.')
+
     def user_hotkey(self, hotkey, target):
         logger.warning(f'{self.__class__}.user_hotkey() not implemented.')
         if 'toggle_play' in hotkey:
@@ -209,7 +221,7 @@ class EncounterAPI:
         return [SpriteLabel(None, 'HUD not\nimplemented', (0, 0, 0, 0.5)) for _ in range(8)]
 
     def hud_aux_sprite_labels(self):
-        return [SpriteLabel(None, 'HUD Aux not implemented', (0, 0, 0, 0.5)) for _ in range(6)]
+        return [SpriteLabel(None, 'HUD Aux not implemented', (0, 0, 0, 0.5)) for _ in range(8)]
 
     # Modal
     def modal_stls(self):

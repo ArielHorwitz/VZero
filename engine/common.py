@@ -25,6 +25,10 @@ def str2status_value(name):
     return getattr(STATUS_VALUE, name.upper())
 
 
+def str2ability(s):
+    return getattr(ABILITY, internal_name(s))
+
+
 def str2color(s):
     if hasattr(COLOR, s.upper()):
         return getattr(COLOR, s.upper())

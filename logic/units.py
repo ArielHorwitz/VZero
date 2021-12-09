@@ -27,8 +27,8 @@ class Unit(BaseUnit):
         self.api = api
         self.engine = api.engine
         self.name = self.__start_name = name
-        self.abilities = []
-        self.items = []
+        self.abilities = [ABILITY.WALK, ABILITY.ATTACK]
+        self.item_slots = [None for i in range(8)]
         self.p = params
         self.allegiance = 1
 
@@ -38,7 +38,7 @@ class Unit(BaseUnit):
                 return FAIL_RESULT.INACTIVE
 
             if not self.is_alive:
-                logger.warning(f'Unit {uid} is dead and requested ability {aid.name}')
+                logger.warning(f'Unit {self.uid} is dead and requested ability {aid.name}')
                 return FAIL_RESULT.INACTIVE
 
             target = np.array(target)
@@ -51,8 +51,6 @@ class Unit(BaseUnit):
                 m = f'Ability {ability.__class__} cast() method returned None. Must return FAIL_RESULT on fail or aid on success.'
                 logger.error(m)
                 raise ValueError(m)
-            if not isinstance(r, FAIL_RESULT):
-                Assets.play_sfx('ability', ability.name, volume=Settings.get_volume('sfx'))
             return r
 
     def setup(self):
@@ -61,9 +59,9 @@ class Unit(BaseUnit):
         self._setup()
 
     def passive_phase(self):
-        if len(self.abilities) == 0:
-            return
         for aid in self.abilities:
+            if aid is None:
+                continue
             self.api.abilities[aid].passive(self.engine, self.uid, self.engine.AGENCY_PHASE_COUNT)
 
     @property
@@ -223,8 +221,7 @@ class Shopkeeper(Unit):
 
 class Fountain(Unit):
     def _setup(self):
-        self.abilities.append(ABILITY.FOUNTAIN_HP)
-        self.abilities.append(ABILITY.FOUNTAIN_MANA)
+        self.abilities = [ABILITY.FOUNTAIN_HP, ABILITY.FOUNTAIN_MANA]
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
 
 

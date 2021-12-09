@@ -25,7 +25,7 @@ mana_cost: 30
 cooldown: 800
 range: 300
 range_stat: air
-range_bonus: 4
+range_bonus: 2
 
 
 === Shield
@@ -65,6 +65,7 @@ damage_bonus: 5
 === Barter
 type: barter
 color: 0.5, 0.5, 0
+show_stats: range, loot_multi, cooldown
 -- stats
 range: 300
 cooldown: 10000
@@ -76,6 +77,7 @@ loot_multi_bonus: 2
 === Walk
 type: move
 color: white
+show_stats: speed
 -- stats
 
 
@@ -91,6 +93,7 @@ mana_cost: 0
 === Attack
 type: attack
 color: white
+show_stats: cooldown, range, damage
 -- stats
 
 

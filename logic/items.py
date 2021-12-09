@@ -2,153 +2,169 @@ import logging
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
+from collections import defaultdict
 from enum import IntEnum
-from nutil.vars import AutoIntEnum, normalize, nsign_str
+from data.load import RDF
+from nutil.vars import AutoIntEnum, nsign_str
 from engine.common import *
+from logic.data import ABILITIES
 
 
-def str2item(name):
-    return getattr(ITEM, name.upper().replace(' ', '_'))
-
-
-ITEM = AutoIntEnum('ITEM', [
-    # Basic
-    'BOOTS',
-    'SLIPPERS',
-    'STONKS',
-    # Herbal
-    'BRANCH',
-    'LEAF',
-    'TRUNK',
-    # Potions
-    'HEART',
-    'VIAL',
-    'GEM',
-    # Ornaments
-    'AMULET',
-    'DEV_STONE',
-])
-ITEM_LIST = [item for item in ITEM]
 ICAT = ITEM_CATEGORIES = IntEnum('ITEM_CATEGORIES', [
     'BASIC',
     'HERBAL',
     'POTION',
     'ORNAMENT',
 ])
-ICAT_COLORS = [
-    (0.5, 0.5, 0),
-    (0.1, 0.7, 0.05),
-    (0.7, 0, 0.4),
-    (0, 0.5, 0.5),
-]
-logger.info('Initializing item categories:')
-for cat in ICAT:
-    logger.info(f'{cat} {cat.name}')
 
-class ItemData:
-    def __init__(self, category, cost, stats=None):
-        self.category = category
-        self.cost = cost
-        self.stats = stats if stats is not None else {}
-
-ITEM_STATS = {
-    # Basic
-    ITEM.BOOTS: ItemData(ICAT.BASIC, 60, {STAT.AIR: {VALUE.CURRENT: 8}, STAT.EARTH: {VALUE.CURRENT: 5}}),
-    ITEM.SLIPPERS: ItemData(ICAT.BASIC, 75, {STAT.AIR: {VALUE.CURRENT: 12}, STAT.MANA: {VALUE.MAX: 5}}),
-    ITEM.STONKS: ItemData(ICAT.BASIC, 100, {STAT.GOLD: {VALUE.DELTA: 0.003}}),
-    # Herbal
-    ITEM.BRANCH: ItemData(ICAT.HERBAL, 45, {STAT.PHYSICAL: {VALUE.CURRENT: 4}, STAT.EARTH: {VALUE.CURRENT: 12}}),
-    ITEM.LEAF: ItemData(ICAT.HERBAL, 70, {STAT.FIRE: {VALUE.CURRENT: 10}, STAT.WATER: {VALUE.CURRENT: 10}}),
-    ITEM.TRUNK: ItemData(ICAT.HERBAL, 105, {STAT.EARTH: {VALUE.CURRENT: 16}, STAT.FIRE: {VALUE.CURRENT: 16}}),
-    # Potions
-    ITEM.HEART: ItemData(ICAT.POTION, 110, {STAT.HP: {VALUE.DELTA: 0.003, VALUE.MAX: 30}}),
-    ITEM.VIAL: ItemData(ICAT.POTION, 85, {STAT.MANA: {VALUE.DELTA: 0.002, VALUE.MAX: 20}}),
-    ITEM.GEM: ItemData(ICAT.POTION, 65, {STAT.WATER: {VALUE.CURRENT: 10}, STAT.HP: {VALUE.MAX: 10}}),
-    # Ornaments
-    ITEM.AMULET: ItemData(ICAT.ORNAMENT, 130, {STAT.PHYSICAL: {VALUE.CURRENT: 22}, STAT.FIRE: {VALUE.CURRENT: 16}}),
-    ITEM.DEV_STONE: ItemData(ICAT.ORNAMENT, 0, {STAT.GOLD: {VALUE.CURRENT: 1000}}),
+CATEGORY_COLORS = {
+    ICAT.BASIC: (0.5, 0.5, 0),
+    ICAT.HERBAL: (0.1, 0.7, 0.05),
+    ICAT.POTION: (0.7, 0, 0.4),
+    ICAT.ORNAMENT: (0, 0.5, 0.5),
 }
 
-ITEM_COLORS = [ICAT_COLORS[ITEM_STATS[item].category-1] for item in ITEM]
+ITEM = AutoIntEnum('ITEM', [internal_name(name) for name in RDF(RDF.CONFIG_DIR / 'items.rdf').keys()])
 
 
-def item_repr(item):
-    name = item.name.lower().capitalize().replace('_', ' ')
-    cost = ITEM_STATS[item].cost
-    s = []
-    for stat, values in ITEM_STATS[item].stats.items():
-        v = []
-        for value_name, value in values.items():
-            value_name = '' if value_name is VALUE.CURRENT else f' {value_name.name.lower()}'
-            if '_' in value_name:
-                value_name = value_name.split('_')[0]
-            elif value_name == 'delta':
-                value = self.api.s2ticks(value)
-                value_name = '/s'
-            value = f'{nsign_str(value)}'
-            v.append(f'{value}{value_name}')
-        stat_name = stat.name.lower().capitalize().replace('_', ' ')
-        s.append(f'{stat_name}: {", ".join(v)}')
-    nl = "\n"
-    category = ITEM_STATS[item].category.name.lower().capitalize()
-    r = '\n'.join([
-        name,
-        f'Shop: {category}',
-        f'{cost} gold\n',
-        *s,
-    ])
-    return r
+class Item:
+    def __init__(self, iid, name, raw_data):
+        self.iid = iid
+        self.name = name
 
+        self.category = getattr(ICAT, raw_data.default['category'].upper())
+        self.color = CATEGORY_COLORS[self.category]
+        self.cost = raw_data.default['cost']
+        self.sell_multi = 0.5
+        self.aid = None
+        self.ability = None
+        if 'ability' in raw_data.default:
+            self.aid = str2ability(raw_data.default['ability'])
+            self.ability = ABILITIES[self.aid]
 
-logger.info('Initializing shop values:')
-for item in ITEM:
-    logger.info(f'{item.value:>2} - {item.name}')
+        self.stats = {}
+        if 'stats' in raw_data:
+            self.stats = _load_raw_stats(raw_data['stats'])
 
+        stat_str = []
+        for stat in self.stats:
+            for value_name in self.stats[stat]:
+                sname = stat.name.lower().capitalize()
+                value = self.stats[stat][value_name]
+                if value_name is VALUE.DELTA:
+                    value = f'{nsign_str(round(value * 120, 5))} / s'
+                else:
+                    value = nsign_str(value)
+                    # TODO remove hardcoded tick2s calculation
+                if value_name is not VALUE.CURRENT:
+                    f'{value_name.name.lower().capitalize()} {sname}'
+                stat_str.append(f'{sname}: {value}')
 
-class Shop:
-    @classmethod
-    def buy_item(cls, api, uid, item):
-        item = cls.find_iid(item)
-        assert item is not None
+        self.shop_text = f'{self.name} - {round(self.cost)} ({self.category.name.lower().capitalize()})', '\n'.join([
+            *stat_str,
+            f'> {self.ability.universal_description}' if self.ability is not None else '',
+        ])
 
-        icat = round(api.get_status(uid, STATUS.SHOP))
-        if icat != ITEM_STATS[item].category.value:
-            logger.debug(f'{api.units[uid].name} missing shop status for category: {icat} (asking for category {ITEM_STATS[item].category.name} {ITEM_STATS[item].category.value})')
+    def check_shop(self, engine, uid):
+        unit = engine.units[uid]
+        icat = round(engine.get_status(uid, STATUS.SHOP))
+        if icat != self.category.value or None not in unit.item_slots:
+            return False
+        return True
+
+    def check_buy(self, engine, uid):
+        unit = engine.units[uid]
+        icat = round(engine.get_status(uid, STATUS.SHOP))
+        if icat != self.category.value or None not in unit.item_slots:
             return FAIL_RESULT.MISSING_TARGET
 
-        if not cls.check_cost(api, uid, item):
-            logger.debug(f'{api.units[uid].name} missing gold for: {item.name} ({item.value})')
+        if self.iid in unit.item_slots:
+            return FAIL_RESULT.ON_COOLDOWN
+
+        if not engine.get_stats(uid, STAT.GOLD) >= self.cost:
             return FAIL_RESULT.MISSING_COST
 
-        result = cls._do_buy(api, uid, item)
+        return True
 
-        # api.add_visual_effect(VisualEffect.SFX, 5, params={'sfx': 'shop'})
-        logger.debug(f'{api.units[uid].name} bought item: {item.name} ({item.value})')
+    def gui_state(self, api, uid, target=None):
+        if self.ability is not None:
+            return self.ability.gui_state(api, uid, target)
+        return '', (0, 0.9, 0, 1)
+
+    def quickcast(self, api, uid, target):
+        if self.aid is None:
+            return
+        r = api.abilities[self.aid].cast(api.engine, uid, target)
+        return r
+
+    def buy_item(self, engine, uid):
+        r = self.check_buy(engine, uid)
+        if isinstance(r, FAIL_RESULT):
+            return r
+
+        unit = engine.units[uid]
+        for index in range(6):
+            if unit.item_slots[index] is None:
+                unit.item_slots[index] = self.iid
+                break
+        else:
+            raise RuntimeError(f'Failed to find empty item slot. This should not happen')
+
+        engine.set_stats(uid, STAT.GOLD, -self.cost, additive=True)
+        for stat_name, stat in self.stats.items():
+            for value_name, value in stat.items():
+                engine.set_stats(uid, stat_name, value, value_name=value_name, additive=True)
+        result = self.iid
+        logger.debug(f'{unit.name} bought item: {self.name}')
         return result
 
-    @classmethod
-    def find_iid(cls, iid):
-        for item in ITEM:
-            if item.value == round(iid):
-                return item
-        return None
+    def sell_item(self, engine, uid):
+        unit = engine.units[uid]
+        assert self.iid in unit.item_slots
+        index = unit.item_slots.index(self.iid)
 
-    @classmethod
-    def check_cost(cls, api, uid, item):
-        return api.get_stats(uid, STAT.GOLD) >= ITEM_STATS[item].cost
+        icat = round(engine.get_status(uid, STATUS.SHOP))
+        if icat == 0:
+            logger.debug(f'{unit.name} missing shop status to sell')
+            return FAIL_RESULT.MISSING_TARGET
 
-    @classmethod
-    def _do_buy(cls, api, uid, item):
-        cls.apply_cost(api, uid, item)
-        cls.apply_stats(api, uid, item)
-        api.units[uid].items.append(item)
+        unit.item_slots[index] = None
+        engine.set_stats(uid, STAT.GOLD, self.cost*self.sell_multi, additive=True)
+        for stat_name, stat in self.stats.items():
+            for value_name, value in stat.items():
+                engine.set_stats(uid, stat_name, -value, value_name=value_name, additive=True)
 
-    @classmethod
-    def apply_cost(cls, api, uid, item):
-        api.set_stats(uid, STAT.GOLD, -ITEM_STATS[item].cost, additive=True)
+        result = self.iid
 
-    @classmethod
-    def apply_stats(cls, api, uid, item):
-        for stat, values in ITEM_STATS[item].stats.items():
-            for value_name, value in values.items():
-                api.set_stats(uid, stat, value, value_name=value_name, additive=True)
+        logger.debug(f'{unit.name} sold item: {self.name}')
+        return result
+
+    def __repr__(self):
+        return f'<Item {self.iid} {self.name}>'
+
+
+def _load_raw_stats(raw_stats):
+    stats = defaultdict(lambda: {})
+    for raw_key, raw_value in raw_stats.items():
+        value_name = 'current'
+        if '.' in raw_key:
+            stat_name, value_name = raw_key.split('.')
+        else:
+            stat_name = raw_key
+        stat_ = str2stat(stat_name)
+        value_ = str2value(value_name)
+        stats[stat_][value_] = float(raw_value)
+    return dict(stats)
+
+
+def _load_items():
+    raw_items = tuple(RDF(RDF.CONFIG_DIR / 'items.rdf').items())
+    items = []
+    for iid in ITEM:
+        name, raw_data = raw_items[iid]
+        item = Item(iid, name, raw_data)
+        logger.info(f'Loaded item: {item}')
+        items.append(item)
+    return items
+
+ITEMS = _load_items()

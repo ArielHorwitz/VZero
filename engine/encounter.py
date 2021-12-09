@@ -36,6 +36,7 @@ class Encounter:
         with ratecounter(self.timers['logic_total']):
             ticks = self._check_ticks()
             if self.tick == 0:
+                logger.info(f'Encounter {self.eid} started.')
                 ticks = 1
             if ticks > 0:
                 self._do_ticks(ticks)

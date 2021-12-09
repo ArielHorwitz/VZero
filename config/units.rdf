@@ -4,7 +4,7 @@ type: player
 
 - stats
 gold: 100
-gold.delta: 0.005
+gold.delta: 0.008333
 hp.max: 100
 hp.delta: 0.02
 mana.max: 100

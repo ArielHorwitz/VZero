@@ -7,6 +7,7 @@ import collections
 import math
 import numpy as np
 from nutil.vars import normalize, is_floatable
+from data.assets import Assets
 from engine.common import *
 from logic.mechanics import Mechanics
 
@@ -23,7 +24,7 @@ class Ability:
     lore = 'Some people know about this ability.'
     debug = False
 
-    def __init__(self, aid, name, color, params):
+    def __init__(self, aid, name, color, params, show_stats):
         self.aid = aid
         self.name = name
         self.color = color
@@ -35,6 +36,8 @@ class Ability:
         if self.debug:
             logger.debug(f'Created ability {self.name} with arguments: {params}. ' \
                      f'Defaults: {self.defaults}')
+
+        self.show_stats = list(show_stats.split(', ')) if show_stats is not None else self.p.params
 
     def passive(self, api, uid, dt):
         pass
@@ -48,7 +51,11 @@ class Ability:
         r = self.do_cast(api, uid, target)
         if not isinstance(r, FAIL_RESULT):
             self.cost_many(api, uid, self.auto_cost)
+            self.play_sfx()
         return r
+
+    def play_sfx(self):
+        Assets.play_sfx('ability', self.name, volume='sfx')
 
     def do_cast(self, api, uid, target):
         logger.debug(f'{self.name} do_cast not implemented. No effect.')
@@ -169,23 +176,26 @@ class Ability:
             miss += 1
         if miss > 1:
             color = (0, 0, 0, 1)
-        return GUI_STATE('\n'.join(strings), color)
+        return '\n'.join(strings), color
 
     @property
     def universal_description(self):
         return '\n'.join([
-            f'{self.info}\n',
+            f'{self.info}',
+            self.p.repr_universal(self.show_stats),
+            f'\n\n\n\n\n',
             f'Class: « {self.__class__.__name__} »',
-            self.p.repr_universal,
-            f'\n> {self.lore}',
+            f'\n"{self.lore}"',
         ])
 
-    def description(self, api, uid):
+    def description(self, api, uid, params=None):
+        if params is None:
+            params = self.show_stats
         return '\n'.join([
-            f'{self.info}\n',
-            f'Class: « {self.__class__.__name__} »',
-            *(f'{self.p.repr(p, api, uid)}' for p in self.p.params),
-            f'\n> {self.lore}',
+            f'{self.info}',
+            *(f'{self.p.repr(p, api, uid)}' for p in params),
+            # f'\nClass: « {self.__class__.__name__} »',
+            # f'\n> {self.lore}',
         ])
 
     def __repr__(self):
@@ -217,15 +227,20 @@ class Params:
         if isinstance(param, ExpandedParam):
             stat_value = api.get_stats(uid, param.stat)
             stat_name = f'{stat_value:.1f} {param.stat.name.lower().capitalize()}'
-            formula = f'\n     = {self._formula_repr(param_name, stat_name)}'
+            formula = self._formula_repr(param_name, stat_name)
+            formula = f' ({formula})'
         pval = self._param_value(param_name, api, uid)
         if is_floatable(pval):
-            pval = f'{pval:.1f}'
+            if param_name == 'cooldown' or param_name == 'duration':
+                pval = f'{api.ticks2s(pval):.1f} seconds'
+            else:
+                pval = f'{pval:.1f}'
         return f'{self.pname_repr(param_name)}: {pval}{formula}'
 
-    @property
-    def repr_universal(self):
-        return '\n'.join(self.repr_param(p) for p in self.params)
+    def repr_universal(self, params=None):
+        if params is None:
+            params = self.params
+        return '\n'.join(self.repr_param(p) for p in params)
 
     def repr_param(self, param_name):
         return f'{self.pname_repr(param_name)}: {self._formula_repr(param_name)}'

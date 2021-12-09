@@ -1,0 +1,88 @@
+=== Boots
+category: basic
+cost: 60
+ability: blink
+--- stats
+air: 8
+earth: 4
+
+=== Slippers
+category: basic
+cost: 75
+--- stats
+air: 12
+mana.max: 5
+
+=== Stonks
+category: basic
+cost: 100
+--- stats
+gold.delta: 0.003
+
+
+
+
+
+
+=== Branch
+category: herbal
+cost: 45
+--- stats
+physical: 4
+earth: 12
+
+=== Leaf
+category: herbal
+cost: 70
+--- stats
+fire: 10
+water: 10
+
+=== Trunk
+category: herbal
+cost: 105
+--- stats
+fire: 16
+earth: 16
+
+
+
+
+
+=== Heart
+category: potion
+cost: 110
+--- stats
+hp.max: 50
+hp.delta: 0.03
+
+=== Vial
+category: potion
+cost: 85
+--- stats
+mana.max: 40
+mana.delta: 0.02
+
+=== Gem
+category: potion
+cost: 65
+--- stats
+water: 10
+hp.max: 20
+
+
+
+
+=== Amulet
+category: ornament
+cost: 130
+--- stats
+physical: 22
+fire: 16
+
+
+=== Dev Stone
+category: ornament
+cost: 0
+--- stats
+gold: 10000

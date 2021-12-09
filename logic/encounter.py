@@ -23,7 +23,7 @@ from engine.encounter import Encounter as EncounterEngine
 
 from logic.data import ABILITIES
 from logic.mapgen import MapGenerator
-from logic import items
+from logic.items import ITEM, ITEMS
 
 
 RNG = np.random.default_rng()
@@ -49,7 +49,7 @@ class EncounterAPI(BaseEncounterAPI):
     # GUI handlers
     def quickcast(self, ability_index, target):
         # Ability from player input (requires handling user feedback)
-        aid = self.player_ability_order[ability_index]
+        aid = self.units[0].abilities[ability_index]
         if aid is None:
             return
         ability = self.abilities[aid]
@@ -68,6 +68,32 @@ class EncounterAPI(BaseEncounterAPI):
                 'size': (40, 40),
                 'tint': ability.color,
             })
+
+    def itemcast(self, item_index, target):
+        iid = self.units[0].item_slots[item_index]
+        if iid is None:
+            return
+        item = ITEMS[iid]
+        r = item.quickcast(self, 0, target)
+        if isinstance(r, FAIL_RESULT) and r in FAIL_SFX:
+            Assets.play_sfx('ui', FAIL_SFX[r], volume='feedback')
+
+    def itemsell(self, item_index, target):
+        iid = self.units[0].item_slots[item_index]
+        if iid is None:
+            return
+        item = ITEMS[iid]
+        r = item.sell_item(self.engine, 0)
+        if isinstance(r, FAIL_RESULT) and r in FAIL_SFX:
+            Assets.play_sfx('ui', FAIL_SFX[r], volume='feedback')
+        else:
+            Assets.play_sfx('ability', 'shop', volume=Settings.get_volume('feedback'))
+
+    def ability_sort(self, ability_index, target):
+        self.units[0].abilities[ability_index], self.units[0].abilities[ability_index-1] = self.units[0].abilities[ability_index-1], self.units[0].abilities[ability_index]
+
+    def item_sort(self, item_index, target):
+        self.units[0].item_slots[item_index], self.units[0].item_slots[item_index-1] = self.units[0].item_slots[item_index-1], self.units[0].item_slots[item_index]
 
     def user_hotkey(self, hotkey, target):
         if 'toggle_play' in hotkey:
@@ -129,28 +155,27 @@ class EncounterAPI(BaseEncounterAPI):
     # HUD
     def hud_sprite_labels(self):
         sls = []
-        for aid in self.player_ability_order:
+        for aid in self.units[0].abilities:
             if aid is None:
-                sls.append(SpriteLabel(None, '', (0,0,0,0)))
+                sls.append(SpriteLabel(str(Assets.FALLBACK_SPRITE), '', (0,0,0,0)))
                 continue
             ability = self.abilities[aid]
             sprite = Assets.get_sprite('ability', ability.sprite)
-            cast_state = ability.gui_state(self.engine, 0)
-            s, color = cast_state
+            s, color = ability.gui_state(self.engine, 0)
             s = f'{ability.name}\n{s}'
             sls.append(SpriteLabel(sprite, s, modify_color(color, a=0.4)))
         return sls
 
     def hud_aux_sprite_labels(self):
         sls = []
-        for item in self.units[0].items[:6]:
-            if item is None:
-                sls.append(SpriteLabel(None, '', (0,0,0,0)))
+        for iid in self.units[0].item_slots:
+            if iid is None:
+                sls.append(SpriteLabel(str(Assets.FALLBACK_SPRITE), '', (0,0,0,0)))
                 continue
-            istats = items.ITEM_STATS[item]
+            item = ITEMS[iid]
             sprite = Assets.get_sprite('ability', item.name)
-            s = f'{item.name.lower().capitalize()}'
-            color = items.ITEM_COLORS[item]
+            s, color = item.gui_state(self.engine, 0)
+            s = f'{item.name}\n{s}'
             sls.append(SpriteLabel(sprite, s, modify_color(color, a=0.4)))
         return sls
 
@@ -163,45 +188,42 @@ class EncounterAPI(BaseEncounterAPI):
 
     def modal_shop(self):
         stls = []
-        for i, item in enumerate(items.ITEM):
-            item_active = all([
-                self.active_shop_items[i],
-                items.Shop.check_cost(self.engine, 0, items.ITEM_LIST[i]),
-            ])
-            color = modify_color(items.ITEM_COLORS[i], a=0.7 if item_active else 0.2)
+        shoppable_items = [item for item in ITEMS if item.check_shop(self.engine, 0)]
+        active_items = [item.check_buy(self.engine, 0) for item in ITEMS]
+        if len(shoppable_items) == 0:
+            shoppable_items = ITEMS
+        for item in shoppable_items:
+            active = active_items[item.iid] is True
+            color = modify_color(item.color, a=0.7 if active else 0.2)
+            name, text = item.shop_text
             stl = SpriteTitleLabel(
                 Assets.get_sprite('ability', item.name),
-                item.name, self.item_texts[i], color)
+                name, text, color)
             stls.append(stl)
         return stls
 
     def modal_abilities(self):
         stls = []
-        for aid in self.engine.units[0].abilities:
+        for aid in self.engine.units[self.selected_unit].abilities:
+            if aid is None:
+                stls.append(SpriteTitleLabel(str(Assets.FALLBACK_SPRITE), '', '', (0, 0, 0, 0)))
+                continue
             ability = self.abilities[aid]
             color = modify_color(ability.color, a=0.3)
             stl = SpriteTitleLabel(
                 Assets.get_sprite('ability', ability.name),
-                ability.name, ability.description(self.engine, 0), color)
+                ability.name, ability.description(self.engine, self.selected_unit), color)
             stls.append(stl)
         return stls
 
     def modal_click(self, index, button):
         if button == 'right' and self.modal_mode == 'shop':
-            r = items.Shop.buy_item(self.engine, 0, index)
+            r = ITEMS[index].buy_item(self.engine, 0)
             if not isinstance(r, FAIL_RESULT):
-                Assets.play_sfx('ability', 'shop', volume=Settings.get_volume('feedback'))
+                Assets.play_sfx('ability', 'shop', volume='feedback')
                 return
-            Assets.play_sfx('ui', 'target', volume=Settings.get_volume('feedback'))
-
-    item_texts = [f'{items.item_repr(item)}' for item in items.ITEM]
-
-    @property
-    def active_shop_items(self):
-        item_categories = np.array([items.ITEM_STATS[item].category.value for item in items.ITEM])
-        active_category = self.engine.get_status(0, STATUS.SHOP)
-        active_items = item_categories == active_category
-        return active_items
+            if isinstance(r, FAIL_RESULT) and r in FAIL_SFX:
+                Assets.play_sfx('ui', FAIL_SFX[r], volume='feedback')
 
     # Misc
     abilities = ABILITIES
@@ -259,6 +281,8 @@ class EncounterAPI(BaseEncounterAPI):
             f'{self.pretty_statuses(uid)}',
             make_title(f'Cooldown', length=30),
             f'{self.pretty_cooldowns(uid)}',
+            f'Abilities: {unit.abilities}',
+            f'Items: {unit.item_slots}',
             make_title(f'Debug', length=30),
             f'{unit.debug_str}',
             f'Action phase: {unit.uid % self.engine.AGENCY_PHASE_COUNT}',
@@ -286,10 +310,6 @@ class EncounterAPI(BaseEncounterAPI):
         self.engine = EncounterEngine(self)
         self.map = MapGenerator(self)
         a = list(ABILITY)
-        self.player_ability_order = [a[_] if _ is not None else None for _ in player_abilities]
-        player_abilities = set(self.player_ability_order)
-        if None in player_abilities:
-            player_abilities.remove(None)
         self.engine.units[0].abilities = player_abilities
         # Setup units
         for unit in self.engine.units:

@@ -4,6 +4,7 @@ logger = logging.getLogger(__name__)
 
 from pathlib import Path
 from data import ROOT_DIR, resource_name
+from data.settings import Settings
 from nutil.kex import widgets
 
 ASSETS_DIR = ROOT_DIR / 'assets'
@@ -69,13 +70,17 @@ class Assets:
             raise KeyError(m)
 
     @classmethod
-    def play_sfx(cls, category, sound_name, allow_exception=False, **kwargs):
+    def play_sfx(cls, category, sound_name, allow_exception=False, volume=None, **kwargs):
         sound_name = resource_name(sound_name)
         s = cls.get_sfx(category, sound_name, allow_exception)
         if s is None:
             return
+        if volume is None:
+            volume = Settings.get_volume(category)
+        elif isinstance(volume, str):
+            volume = Settings.get_volume(volume)
         logger.debug(f'Playing sfx {sound_name} from category {category}')
-        s.play(**kwargs)
+        s.play(volume=volume, **kwargs)
 
     @classmethod
     def get_sprite(cls, category, sprite_name):
