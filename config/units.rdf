@@ -1,69 +1,47 @@
 
 ====== Player
 type: player
-
-- stats
-gold: 100
-gold.delta: 0.008333
+--- stats
+allegiance: 0
+gold: 20
+gold.delta: 0.01
 hp.max: 100
 hp.delta: 0.02
 mana.max: 100
 mana.delta: 0.02
-physical: 10
-physical.delta: 0.00014
-fire: 10
-fire.delta: 0.00014
-earth: 10
-earth.delta: 0.00014
-air: 10
-air.delta: 0.00014
-water: 10
-water.delta: 0.00014
+physical: 1
+physical.delta: 0.0001666
+fire: 1
+fire.delta: 0.0001666
+earth: 1
+earth.delta: 0.0001666
+air: 1
+air.delta: 0.0001666
+water: 1
+water.delta: 0.0001666
 
-
-=== Tiny creep
-type: creep
-wave: 0
-
---- stats
-hitbox: 40
-gold: 2.5
-hp.max: 10
-physical: 5
-air: 25
 
 === Small creep
 type: creep
-wave: 0.25
-
+wave: 0.5
+scaling: 1.05
 --- stats
-hitbox: 60
+hitbox: 35
 gold: 5
 hp.max: 20
 physical: 10
-air: 20
-
-=== Large creep
-type: creep
-wave: 0.5
-
---- stats
-hitbox: 80
-gold: 10
-hp.max: 40
-physical: 20
-air: 15
+air: 8
 
 === Huge creep
 type: creep
-wave: 0.75
-
+wave: 1
+scaling: 1.05
 --- stats
-hitbox: 100
-gold: 20
-hp.max: 80
+hitbox: 150
+gold: 40
+hp.max: 160
 physical: 40
-air: 10
+air: 3
 
 
 
@@ -73,7 +51,6 @@ aggro_range: 350
 deaggro_range: 600
 reaggro_range: 400
 camp_spread: 200
-
 -- stats
 hitbox: 40
 gold: 5
@@ -85,16 +62,17 @@ air: 15
 
 ====== Glob
 type: camper
+abilities: walk, attack, dunder beam
 aggro_range: 400
 deaggro_range: 700
 reaggro_range: 500
 camp_spread: 200
-
 -- stats
 hitbox: 60
 gold: 8
 hp.max: 65
 hp.delta: 0.0001
+mana.delta: 0.01
 physical: 15
 air: 25
 
@@ -105,8 +83,7 @@ aggro_range: 300
 deaggro_range: 500
 reaggro_range: 150
 camp_spread: 250
-
-- stats
+--- stats
 hitbox: 50
 gold: 3
 hp.max: 30
@@ -117,34 +94,39 @@ air: 55
 
 ====== Blood Imp
 type: camper
+abilities: walk, attack, fireblast
 aggro_range: 550
 deaggro_range: 650
 reaggro_range: 100
 camp_spread: 300
-
-- stats
+--- stats
 hitbox: 60
 gold: 6
 hp.max: 40
 hp.delta: 0.005
+mana.max: 40
+mana.delta: 0.005
 physical: 10
 air: 20
 
 
 ====== Folphin
 type: camper
+abilities: walk, attack, compliment, fireblast
 aggro_range: 400
 deaggro_range: 800
 reaggro_range: 600
 camp_spread: 300
-
 --- stats
 hitbox: 80
 gold: 25
 hp.max: 280
 hp.delta: 0.005
+mana.max: 100
+mana.delta: 0.001
 physical: 18
 air: 40
+
 
 ====== Infester
 type: camper
@@ -152,7 +134,6 @@ aggro_range: 400
 deaggro_range: 800
 reaggro_range: 600
 camp_spread: 300
-
 --- stats
 hitbox: 80
 gold: 25
@@ -168,7 +149,6 @@ aggro_range: 400
 deaggro_range: 800
 reaggro_range: 600
 camp_spread: 350
-
 --- stats
 hitbox: 80
 gold: 25
@@ -186,8 +166,7 @@ aggro_range: 600
 deaggro_range: 1000
 reaggro_range: 600
 camp_spread: 100
-
-- stats
+--- stats
 hitbox: 100
 gold: 30
 hp.max: 460
@@ -203,8 +182,7 @@ aggro_range: 600
 deaggro_range: 1000
 reaggro_range: 600
 camp_spread: 250
-
-- stats
+--- stats
 hitbox: 120
 gold: 30
 hp.max: 650
@@ -219,7 +197,6 @@ aggro_range: 700
 deaggro_range: 800
 reaggro_range: 450
 camp_spread: 50
-
 --- stats
 hitbox: 120
 gold: 40
@@ -231,18 +208,21 @@ air: 20
 
 ====== Fire Elemental
 type: camper
+abilities: walk, attack, fireblast
 aggro_range: 700
 deaggro_range: 800
 reaggro_range: 450
 camp_spread: 350
-
 --- stats
 hitbox: 160
 gold: 45
 hp.max: 800
+mana.max: 300
 hp.delta: 0.005
-physical: 145
+physical: 35
+fire: 145
 air: 35
+water: 35
 
 
 
@@ -252,7 +232,6 @@ aggro_range: 200
 deaggro_range: 400
 reaggro_range: 250
 camp_spread: 500
-
 --- stats
 hitbox: 170
 gold: 50
@@ -268,8 +247,8 @@ aggro_range: 800
 deaggro_range: 1000
 reaggro_range: 500
 camp_spread: 600
-
 --- stats
+allegiance: 1000
 hitbox: 200
 gold: 150
 hp.max: 5000
@@ -284,8 +263,8 @@ aggro_range: 800
 deaggro_range: 1000
 reaggro_range: 500
 camp_spread: 600
-
 --- stats
+allegiance: 1000
 hitbox: 200
 gold: 150
 hp.max: 1400
@@ -300,8 +279,8 @@ aggro_range: 400
 deaggro_range: 700
 reaggro_range: 200
 camp_spread: 100
-
 --- stats
+allegiance: 1000
 hitbox: 220
 gold: 150
 hp.max: 2000
@@ -318,40 +297,48 @@ air: 50
 ===== Fort
 type: fountain
 --- stats
+allegiance: 0
 hitbox: 160
 hp.max: 5000
-hp.delta: 0.002
+hp.delta: 0.01
 ===== Lighthouse
 type: fountain
 --- stats
+allegiance: 0
 hitbox: 120
 hp.max: 2000
-hp.delta: 0.001
+hp.delta: 0.005
+
 
 ====== Basic shop
 type: shopkeeper
 category: basic
 --- stats
+allegiance: -1
 hp.max: 5000
 hp.delta: 0.002
 ====== Herbal shop
 type: shopkeeper
 category: herbal
 --- stats
+allegiance: -1
 hp.max: 5000
 hp.delta: 0.002
 ====== Potion shop
 type: shopkeeper
 category: potion
 --- stats
+allegiance: -1
 hp.max: 5000
 hp.delta: 0.002
 ====== Ornament shop
 type: shopkeeper
 category: ornament
 --- stats
+allegiance: -1
 hp.max: 5000
 hp.delta: 0.002
+
 
 ====== DPS Meter
 type: dps_meter

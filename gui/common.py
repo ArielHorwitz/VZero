@@ -31,6 +31,42 @@ class SpriteLabel(widgets.BoxLayout):
             self._bg_color.rgba = sl.color
 
 
+class SLStack(widgets.StackLayout):
+    def __init__(self, callback=None, **kwargs):
+        super().__init__(**kwargs)
+        self.boxes = []
+        self.callback = callback
+
+    def reset_box_count(self, count):
+        if count > len(self.boxes):
+            self.boxes.extend([self.add(SpriteLabel()) for _ in range(count-len(self.boxes))])
+        elif count < len(self.boxes):
+            remove_boxes = self.boxes[count:]
+            for b in remove_boxes:
+                self.remove_widget(b)
+                self.boxes.remove(b)
+        for box in self.boxes:
+            box.set_size(250, 50)
+
+    def on_touch_down(self, m):
+        if self.callback is None:
+            return False
+        if not self.collide_point(*m.pos):
+            return False
+        for i, b in enumerate(self.boxes):
+            if b.collide_point(*m.pos):
+                self.callback(i, m.button)
+                break
+        return True
+
+    def update(self, sts, cols=None):
+        if len(sts) != len(self.boxes):
+            self.reset_box_count(len(sts))
+        for i, st in enumerate(sts):
+            self.boxes[i].update(st)
+
+
+
 class SpriteTitleLabel(widgets.BoxLayout):
     def __init__(self,
         sprite=None, title='', text='',
@@ -75,7 +111,6 @@ class STLStack(widgets.GridLayout):
             for b in remove_boxes:
                 self.remove_widget(b)
                 self.boxes.remove(b)
-        self.cols = int(len(self.boxes)**.5*1.5)
 
     def on_touch_down(self, m):
         if self.callback is None:

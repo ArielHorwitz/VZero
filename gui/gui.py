@@ -8,6 +8,7 @@ import nutil
 from nutil.kex import widgets
 from nutil.time import RateCounter, pingpong
 from data import TITLE, FPS
+from data.settings import Settings
 from gui.home import HomeGUI
 from gui.encounter.encounter import Encounter
 from engine import get_api
@@ -19,12 +20,17 @@ class App(widgets.App):
         logger.info(f'Initializing GUI @ {FPS} fps.')
         super().__init__(make_bg=False, make_menu=False, **kwargs)
         self.hotkeys.register_dict({
-            'Tab: Home': ('f1', lambda: self.switch.switch_screen('home')),
-            'Tab: Encounter': ('f2', lambda: self.switch.switch_screen('enc')),
+            'Maximize': ('f11', lambda *a: self.toggle_maximize()),
+            'Fullscreen': ('! f11', lambda *a: self.toggle_fullscreen()),
+            'Tab: Home': ('^+ home', lambda: self.switch.switch_screen('home')),
+            'Tab: Encounter': ('^+ end', lambda: self.switch.switch_screen('enc')),
         })
         self.icon = str(Path.cwd()/'icon.png')
-        self.set_window_size((1024, 768))
-        widgets.Clock.schedule_once(lambda *a: widgets.kvWindow.maximize(), 0.1)
+
+        self.set_window_size(self.configured_resolution(full=False))
+        if Settings.get_setting('start_maximized') == 1:
+            widgets.Clock.schedule_once(lambda *a: self.toggle_fullscreen(), 0.1)
+
         self.game = get_api()
 
         self.switch = self.add(widgets.ScreenSwitch())
@@ -37,6 +43,19 @@ class App(widgets.App):
         # Start mainloop
         self.fps = RateCounter(sample_size=FPS)
         self.hook_mainloop(FPS)
+
+    def configured_resolution(self, full=True):
+        raw_resolution = Settings.get_setting('full_resolution' if full else 'window_resolution', 'General').split(', ')
+        return tuple(int(_) for _ in raw_resolution)
+
+    def toggle_maximize(self):
+        last = widgets.kvWindow.borderless
+        if last:
+            widgets.kvWindow.borderless = False
+            widgets.kvWindow.restore()
+        else:
+            widgets.kvWindow.borderless = True
+            widgets.kvWindow.maximize()
 
     @property
     def fps_color(self):

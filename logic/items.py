@@ -5,6 +5,7 @@ logger = logging.getLogger(__name__)
 from collections import defaultdict
 from enum import IntEnum
 from data.load import RDF
+from data.settings import Settings
 from nutil.vars import AutoIntEnum, nsign_str
 from engine.common import *
 from logic.data import ABILITIES
@@ -24,7 +25,12 @@ CATEGORY_COLORS = {
     ICAT.ORNAMENT: (0, 0.5, 0.5),
 }
 
-ITEM = AutoIntEnum('ITEM', [internal_name(name) for name in RDF(RDF.CONFIG_DIR / 'items.rdf').keys()])
+ALL_ITEM_NAMES = list(RDF(RDF.CONFIG_DIR / 'items.rdf').keys())
+di= Settings.get_setting('dev_items', 'General')
+if di == 0:
+    logger.info(f'Skipping dev items')
+    ALL_ITEM_NAMES = list(filter(lambda x: not x.lower().startswith('dev '), ALL_ITEM_NAMES))
+ITEM = AutoIntEnum('ITEM', [internal_name(name) for name in ALL_ITEM_NAMES])
 
 
 class Item:
@@ -45,24 +51,24 @@ class Item:
         self.stats = {}
         if 'stats' in raw_data:
             self.stats = _load_raw_stats(raw_data['stats'])
+        self.shop_name = f'{self.name} - {round(self.cost)} ({self.category.name.lower().capitalize()})'
 
+    def shop_text(self, engine, uid):
         stat_str = []
         for stat in self.stats:
             for value_name in self.stats[stat]:
                 sname = stat.name.lower().capitalize()
                 value = self.stats[stat][value_name]
                 if value_name is VALUE.DELTA:
-                    value = f'{nsign_str(round(value * 120, 5))} / s'
+                    value = f'{nsign_str(round(engine.s2ticks(value), 5))}/s'
                 else:
                     value = nsign_str(value)
-                    # TODO remove hardcoded tick2s calculation
-                if value_name is not VALUE.CURRENT:
-                    f'{value_name.name.lower().capitalize()} {sname}'
+                    if value_name is not VALUE.CURRENT:
+                        sname = f'{value_name.name.lower().capitalize()} {sname.lower()}'
                 stat_str.append(f'{sname}: {value}')
-
-        self.shop_text = f'{self.name} - {round(self.cost)} ({self.category.name.lower().capitalize()})', '\n'.join([
+        return '\n'.join([
             *stat_str,
-            f'> {self.ability.universal_description}' if self.ability is not None else '',
+            f'\n{self.ability.name}: {self.ability.description(engine, uid)}' if self.ability is not None else '',
         ])
 
     def check_shop(self, engine, uid):
@@ -89,12 +95,18 @@ class Item:
     def gui_state(self, api, uid, target=None):
         if self.ability is not None:
             return self.ability.gui_state(api, uid, target)
-        return '', (0, 0.9, 0, 1)
+        return '', (0, 0, 0, 1)
 
     def quickcast(self, api, uid, target):
         if self.aid is None:
             return
         r = api.abilities[self.aid].cast(api.engine, uid, target)
+        return r
+
+    def passive(self, api, uid, dt):
+        if self.aid is None:
+            return
+        r = ABILITIES[self.aid].passive(api, uid, dt)
         return r
 
     def buy_item(self, engine, uid):
@@ -103,7 +115,7 @@ class Item:
             return r
 
         unit = engine.units[uid]
-        for index in range(6):
+        for index in range(len(unit.item_slots)):
             if unit.item_slots[index] is None:
                 unit.item_slots[index] = self.iid
                 break
@@ -158,10 +170,11 @@ def _load_raw_stats(raw_stats):
 
 
 def _load_items():
-    raw_items = tuple(RDF(RDF.CONFIG_DIR / 'items.rdf').items())
+    raw_items = RDF(RDF.CONFIG_DIR / 'items.rdf')
     items = []
     for iid in ITEM:
-        name, raw_data = raw_items[iid]
+        name = ALL_ITEM_NAMES[iid]
+        raw_data = raw_items[name]
         item = Item(iid, name, raw_data)
         logger.info(f'Loaded item: {item}')
         items.append(item)

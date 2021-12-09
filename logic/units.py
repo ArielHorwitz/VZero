@@ -14,8 +14,8 @@ from data.settings import Settings
 
 from engine.common import *
 from engine.unit import Unit as BaseUnit
-from logic.items import ITEM_CATEGORIES as ICAT
-
+from logic.items import ITEMS, ITEM_CATEGORIES as ICAT
+from logic.mechanics import Mechanics
 
 RNG = np.random.default_rng()
 
@@ -27,10 +27,13 @@ class Unit(BaseUnit):
         self.api = api
         self.engine = api.engine
         self.name = self.__start_name = name
-        self.abilities = [ABILITY.WALK, ABILITY.ATTACK]
-        self.item_slots = [None for i in range(8)]
         self.p = params
-        self.allegiance = 1
+        abilities = [ABILITY.WALK, ABILITY.ATTACK]
+        if 'abilities' in params:
+            abilities = [str2ability(a) for a in params['abilities'].split(', ')]
+        self.abilities = abilities
+        self.abilities.extend([None for i in range(8-len(self.abilities))])
+        self.item_slots = [None for i in range(8)]
 
     def use_ability(self, aid, target):
         with ratecounter(self.engine.timers['ability_single']):
@@ -63,6 +66,10 @@ class Unit(BaseUnit):
             if aid is None:
                 continue
             self.api.abilities[aid].passive(self.engine, self.uid, self.engine.AGENCY_PHASE_COUNT)
+        for iid in self.item_slots:
+            if iid is None:
+                continue
+            ITEMS[iid].passive(self.engine, self.uid, self.engine.AGENCY_PHASE_COUNT)
 
     @property
     def sprite(self):
@@ -100,8 +107,7 @@ class Unit(BaseUnit):
 
 
 class Player(Unit):
-    _respawn_timer = 1200
-    allegiance = 0
+    _respawn_timer = 1000
 
     def hp_zero(self):
         logger.info(f'Player {self.name} {self.uid} died.')
@@ -113,13 +119,15 @@ class Player(Unit):
 
 
 class Creep(Unit):
-    WAVE_SPREAD = 200
     WAVE_INTERVAL = 28_800  # 4 minutes
 
     def _setup(self):
         self.color = (1, 0, 0)
         self.wave_offset = float(self.p['wave']) * self.WAVE_INTERVAL
         self.scaling = float(self.p['scaling']) if 'scaling' in self.p else 1.05
+        # Ensure the whole wave does not spawn too close, as collision is finnicky at the time of writing
+        self._respawn_location += RNG.random(2) * self.engine.get_stats(self.uid, STAT.HITBOX)
+        self.engine.set_position(self.uid, self._respawn_location)
         # Start the first wave on the correct interval
         self.engine.set_stats(self.uid, STAT.HP, 0)
         self.engine.set_status(self.uid, STATUS.RESPAWN,
@@ -127,14 +135,11 @@ class Creep(Unit):
 
     @property
     def target(self):
-        ws = self.WAVE_SPREAD
-        return self.api.map_size/2 + (RNG.random(2)*ws-(ws/2))
+        return self.engine.units[0]._respawn_location
 
     def respawn(self):
         super().respawn()
         self.scale_power()
-        spawn_point = self._respawn_location + (RNG.random(2)*self.WAVE_SPREAD-(self.WAVE_SPREAD/2))
-        self.engine.set_position(self.uid, spawn_point)
         self.use_ability(ABILITY.WALK, self.target)
 
     def scale_power(self):
@@ -169,11 +174,12 @@ class Camper(Unit):
 
     def action_phase(self):
         player_pos = self.engine.get_position(0)
-        self.use_ability(ABILITY.ATTACK, player_pos)
         my_pos = self.engine.get_position(self.uid)
         in_aggro_range = math.dist(my_pos, player_pos) < self.__aggro_range
         if in_aggro_range and not self.__deaggro and self.engine.units[0].is_alive:
-            self.use_ability(ABILITY.WALK, player_pos)
+            for aid in self.abilities:
+                if aid is None: continue
+                self.use_ability(aid, player_pos)
             camp_dist = math.dist(my_pos, self.camp)
             if camp_dist > self.__deaggro_range:
                 self.__deaggro = True
@@ -182,7 +188,7 @@ class Camper(Unit):
                 camp_dist = math.dist(my_pos, self.camp)
                 if camp_dist < self.__reaggro_range:
                     self.__deaggro = False
-            self.use_ability(ABILITY.WALK, self.walk_target)
+            self.use_ability(self.abilities[0], self.walk_target)
 
     @property
     def walk_target(self):
@@ -202,6 +208,7 @@ class Treasure(Unit):
 
 class Shopkeeper(Unit):
     def _setup(self):
+        self.abilities = [ABILITY.SHOPKEEPER, *(None for _ in range(7))]
         category = 'BASIC' if 'category' not in self.p else self.p['category'].upper()
         for icat in ICAT:
             if category == icat.name:
@@ -210,13 +217,10 @@ class Shopkeeper(Unit):
         else:
             raise ValueError(f'Unknown item category: {category}')
         self.name = f'{icat.name.lower().capitalize()} shop'
-        # self.engine.set_stats(self.uid, STAT.HP, 10, value_name=VALUE.MAX)
-        # self.engine.set_stats(self.uid, STAT.HP, 1_000_000, value_name=VALUE.DELTA)
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
 
     def action_phase(self):
         self.engine.set_status(self.uid, STATUS.SHOP, duration=0, stacks=self.category.value)
-        self.use_ability(ABILITY.SHOPKEEPER, self.engine.get_position(self.uid))
 
 
 class Fountain(Unit):
@@ -238,7 +242,7 @@ class DPSMeter(Unit):
         self.__sample[0, 0] = 1
         self.__last_tick = self.engine.tick
         self.__last_hp = self.engine.get_stats(self.uid, STAT.HP)
-        self.__tps = 120
+        self.__tps = 100
 
     def action_phase(self):
         new_hp = self.engine.get_stats(self.uid, STAT.HP)

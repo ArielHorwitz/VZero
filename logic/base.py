@@ -12,10 +12,6 @@ from engine.common import *
 from logic.mechanics import Mechanics
 
 
-GUI_STATE = collections.namedtuple('GUI_STATE', ('string', 'color'))
-MISS_COLOR = (1, 1, 1)
-
-
 class Ability:
     __defaults = defaults = {'mana_cost': 0, 'cooldown': 0}
     auto_check = {'mana', 'cooldown'}
@@ -23,11 +19,15 @@ class Ability:
     info = 'An ability.'
     lore = 'Some people know about this ability.'
     debug = False
+    miss_color = (1, 1, 1)
 
-    def __init__(self, aid, name, color, params, show_stats):
+    def __init__(self, aid, name, color, params,
+            sfx=None, show_stats=None, draftable=True):
         self.aid = aid
         self.name = name
         self.color = color
+        self.draftable = draftable
+        self.sfx = self.name if sfx is None else sfx
 
         for p in params:
             if p not in (*self.defaults.keys(), *self.__defaults.keys()):
@@ -38,6 +38,10 @@ class Ability:
                      f'Defaults: {self.defaults}')
 
         self.show_stats = list(show_stats.split(', ')) if show_stats is not None else self.p.params
+        self.setup()
+
+    def setup(self):
+        pass
 
     def passive(self, api, uid, dt):
         pass
@@ -54,8 +58,8 @@ class Ability:
             self.play_sfx()
         return r
 
-    def play_sfx(self):
-        Assets.play_sfx('ability', self.name, volume='sfx')
+    def play_sfx(self, volume='sfx', **kwargs):
+        Assets.play_sfx('ability', self.sfx, volume=volume, replay=True, **kwargs)
 
     def do_cast(self, api, uid, target):
         logger.debug(f'{self.name} do_cast not implemented. No effect.')
@@ -74,6 +78,8 @@ class Ability:
 
     # Check methods
     def check_many(self, api, uid, target=None, checks=None):
+        if checks is None:
+            checks = self.auto_check
         for check in checks:
             c = getattr(self, f'check_{check}')
             r = c(api, uid, target)
@@ -101,7 +107,7 @@ class Ability:
                 api.add_visual_effect(VisualEffect.LINE, 10, {
                     'p1': cast_pos,
                     'p2': cast_pos + miss_vector,
-                    'color': MISS_COLOR,
+                    'color': self.miss_color,
                 })
             return FAIL_RESULT.OUT_OF_RANGE
         return True
@@ -136,15 +142,16 @@ class Ability:
                 api.add_visual_effect(VisualEffect.LINE, 10, {
                     'p1': attack_pos,
                     'p2': attack_pos + miss_vector,
-                    'color': MISS_COLOR,
+                    'color': self.miss_color,
                 })
             return FAIL_RESULT.OUT_OF_RANGE
         return target_uid
 
     def mask_enemies(self, api, uid):
-        m = np.ones(len(api.units))
-        m[uid] = 0
-        return m
+        my_allegiance = api.get_stats(uid, STAT.ALLEGIANCE)
+        all_allegiances = api.get_stats(slice(None), STAT.ALLEGIANCE)
+        not_neutral = all_allegiances >= 0
+        return (all_allegiances != my_allegiance) & not_neutral
 
     def find_aoe_targets(self, api, point, radius, mask=None, alive_only=True):
         dists = api.get_distances(point)
@@ -181,21 +188,20 @@ class Ability:
     @property
     def universal_description(self):
         return '\n'.join([
-            f'{self.info}',
+            f'{self.info}\n',
             self.p.repr_universal(self.show_stats),
-            f'\n\n\n\n\n',
-            f'Class: « {self.__class__.__name__} »',
-            f'\n"{self.lore}"',
+            f'\n\n\n{"_"*30}\n\n"{self.lore}"',
+            f'\nClass: « {self.__class__.__name__} »',
         ])
 
     def description(self, api, uid, params=None):
         if params is None:
             params = self.show_stats
         return '\n'.join([
-            f'{self.info}',
+            f'{self.info}\n',
             *(f'{self.p.repr(p, api, uid)}' for p in params),
-            # f'\nClass: « {self.__class__.__name__} »',
             # f'\n> {self.lore}',
+            # f'\nClass: « {self.__class__.__name__} »',
         ])
 
     def __repr__(self):
@@ -207,6 +213,9 @@ ExpandedMod = collections.namedtuple('ExpandedMod', ['cls', 'factor'])
 
 
 class Params:
+    show_as_time = {'cooldown', 'duration'}
+    show_as_delta = {'regen', 'degen'}
+
     def __init__(self, *args, **kwargs):
         self.__raw_params = dict(*args, **kwargs)
         self._params = {}
@@ -231,8 +240,10 @@ class Params:
             formula = f' ({formula})'
         pval = self._param_value(param_name, api, uid)
         if is_floatable(pval):
-            if param_name == 'cooldown' or param_name == 'duration':
+            if param_name in self.show_as_time:
                 pval = f'{api.ticks2s(pval):.1f} seconds'
+            elif param_name in self.show_as_delta:
+                pval = f'{api.s2ticks(pval):.2f}/s'
             else:
                 pval = f'{pval:.1f}'
         return f'{self.pname_repr(param_name)}: {pval}{formula}'
@@ -296,42 +307,6 @@ class Params:
         return p.capitalize().replace('_', ' ')
 
 
-class ModReduction:
-    name = 'Reduction'
-
-    @classmethod
-    def calc(cls, base, stat, factor):
-        return base * Mechanics.diminishing_curve(stat*factor, 50, 20)
-
-    @classmethod
-    def repr(cls, base, stat, factor):
-        return f'{base} - ({factor} • {stat}) %'
-
-
-class ModPercent:
-    name = 'Percent'
-
-    @classmethod
-    def calc(cls, base, stat, factor):
-        return base * (1 + (stat * factor / 100))
-
-    @classmethod
-    def repr(cls, base, stat, factor):
-        return f'{base} + {factor}% × {stat}'
-
-
-class ModMul:
-    name = 'Mul'
-
-    @classmethod
-    def calc(cls, base, stat, factor):
-        return base * stat * factor
-
-    @classmethod
-    def repr(cls, base, stat, factor):
-        return f'{base} × {factor} × {stat}'
-
-
 class ModAdd:
     name = 'Add'
 
@@ -345,8 +320,5 @@ class ModAdd:
 
 
 PARAM_MODS = {
-    'reduc': ModReduction,
-    'bonus': ModPercent,
-    'mul': ModMul,
-    'add': ModAdd,
+    'bonus': ModAdd,
 }

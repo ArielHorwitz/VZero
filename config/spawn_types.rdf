@@ -5,14 +5,8 @@ fort: 1
 
 === Creep 1
 --- Wave
-tiny creep: 8
+small creep: 8
 === Creep 2
---- Wave
-small creep: 4
-=== Creep 3
---- Wave
-large creep: 2
-=== Creep 4
 --- Wave
 huge creep: 1
 

@@ -12,7 +12,7 @@ def humanize_ms(t, show_ms=False, show_hours=True):
     hours = int(t % 21_600_000 // 3_600_000)
     s = f'{minutes:0>2}:{seconds:0>2}'
     if show_hours:
-        s = f'{hours}:{s}'
+        s = f'{hours:0>2}:{s}'
     if show_ms:
         s = f'{s}:{ms:0<3}'
     return s

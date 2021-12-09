@@ -10,41 +10,55 @@ class Settings:
     DEFAULT_SETTINGS = {
         'General': {
             0: {
+                'dev_build': 0,
+                'dev_items': 0,
+                'start_maximized': 1,
+                'window_resolution': '1024, 768',
                 'default_zoom': 0.5,
-                'map_zoom': 0.15,
+                'map_zoom': 0.4,
             }
         },
         'Audio': {
             0: {
-                'volume_master': 1,
-                'volume_music': 1,
-                'volume_ui': 1,
-                'volume_feedback': 1,
+                'volume_master': 0.3,
                 'volume_sfx': 1,
+                'volume_ui': 0.5,
+                'volume_feedback': 0.5,
             }
         },
         'Hotkeys': {
             0: {
                 'start_encounter': 'spacebar',
                 'toggle_play': 'spacebar',
-                'toggle_play2': 'escape',
-                'modal1': 'g',
-                'modal2': 't',
-                'modal3': 'h',
-                'modal4': 'y',
+                'control0': 'escape',
+                'control1': 'f1',
+                'control2': 'f2',
+                'control3': 'f3',
+                'control4': 'f4',
                 'map_view': 'tab',
                 'open_menu1': 'f5',
                 'open_menu2': 'f6',
                 'right_click': 'q',
                 'abilities': 'qwerasdf',
                 'items': '1234zxcv',
-                'enable_hold_mouse': '0',
+                'enable_hold_mouse': 1,
                 'zoom_default': '0',
                 'zoom_in': '=',
                 'zoom_out': '-',
-                'toggle_play_dev': '^ spacebar',
+                'dev1': '^+ f9',
+                'dev2': '^+ f10',
+                'dev3': '^+ f11',
+                'dev4': '^+ f12',
             },
         },
+        'Personal': {
+            0: {
+                'preset_loadout1': 'null',
+                'preset_loadout2': 'null',
+                'preset_loadout3': 'null',
+                'preset_loadout4': 'null',
+            },
+        }
     }
 
     @classmethod

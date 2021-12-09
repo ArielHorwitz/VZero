@@ -4,15 +4,21 @@
 --- DPS
 25, 15
 --- Shop basic
-6, 20
+17, 19
 --- Shop herbal
-40, 10
+85, 18
 --- Shop potion
 14, 56
 --- Shop ornament
-85, 18
+49, 85
 --- Lighthouse
 12, 50
+
+--- Creep 1
+25, 95
+
+--- Creep 2
+95, 25
 
 --- Monsters 1
 41, 31
@@ -22,7 +28,6 @@
 32, 5
 30, 15
 20, 10
-16, 18
 8, 16
 5, 9
 14, 6

@@ -13,7 +13,7 @@ from engine.common import *
 
 
 class Encounter:
-    DEFAULT_TPS = 120
+    DEFAULT_TPS = 100  # Assumed constant by other systems
     AGENCY_PHASE_COUNT = 30
 
     def __init__(self, logic):

@@ -68,12 +68,16 @@ class FAIL_RESULT(enum.Enum):
 class COLOR:
     BLACK = (0, 0, 0)
     WHITE = (1, 1, 1)
+    GREY = (0.5, 0.5, 0.5)
     RED = (1, 0, 0)
     GREEN = (0, 1, 0)
     BLUE = (0, 0, 1)
     YELLOW = (1, 1, 0)
     PURPLE = (1, 0, 1)
+    PINK = (0.5, 0, 0)
     CYAN = (0, 1, 1)
+    BROWN = (0.5, 0.5, 0)
+    LIME = (0.65, 1, 0)
 
 
 # VFX
@@ -98,7 +102,7 @@ class VisualEffect:
         self.total_ticks = ticks
         self.elapsed_ticks = 0
         self.params = {} if params is None else params
-        
+
         if eid is self.SFX:
             category = 'ability'
             if 'category' in params:

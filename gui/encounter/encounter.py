@@ -15,7 +15,7 @@ from data.settings import Settings
 from gui import cc_int, center_position
 from gui.encounter.sprites import Sprites
 from gui.encounter.vfx import VFX
-from gui.encounter.panels import Menu, HUD, HUDAux, AgentViewer, Modal, DebugPanel
+from gui.encounter.panels import Menu, ControlOverlay, LogicLabel, HUD, HUDAux, AgentViewer, ModalGrid, ModalBrowse, DebugPanel
 
 from engine.common import *
 
@@ -49,25 +49,30 @@ class Encounter(widgets.RelativeLayout):
         self.overlays = {
             'sprites': self.add(Sprites(enc=self)),
             'vfx': self.add(VFX(enc=self)),
+            'agent_panel': self.add(AgentViewer(enc=self)),
+            'logic_label': self.add(LogicLabel(enc=self)),
             'hud': self.add(HUD(enc=self)),
             'hud_aux': self.add(HUDAux(enc=self)),
-            'agent_panel': self.add(AgentViewer(enc=self)),
-            'modal': self.add(Modal(enc=self)),
+
+            'modal_grid': self.add(ModalGrid(enc=self)),
+            'modal_browse': self.add(ModalBrowse(enc=self)),
+
             'menu': self.add(Menu(enc=self)),
             'debug': self.add(DebugPanel(enc=self)),
+            'control_overlay': self.add(ControlOverlay(enc=self)),
         }
-
-        self.simple_overlay_label = self.add(widgets.Label())
-        self.simple_overlay_label.set_size(120, 35)
 
         # User input bindings
         self.app.hotkeys.register_dict({
             # hotkeys
             **{
-                name: (Settings.get_setting(name, "Hotkeys"), lambda n=name: self.api.user_hotkey(n, self.mouse_real_pos))
-                for name in (
-                    'toggle_play', 'toggle_play2', 'toggle_play_dev',
-                    'modal1', 'modal2', 'modal3', 'modal4',
+                name: (
+                    Settings.get_setting(name, "Hotkeys"),
+                    lambda n=name: self.api.user_hotkey(n, self.mouse_real_pos)
+                ) for name in (
+                    'toggle_play',
+                    'control0', 'control1', 'control2', 'control3', 'control4',
+                    'dev1', 'dev2', 'dev3', 'dev4',
                 )
             },
             # user controls
@@ -75,22 +80,17 @@ class Encounter(widgets.RelativeLayout):
                 f'{key}', lambda *args, x=i: self.api.quickcast(x, self.mouse_real_pos)
                 ) for i, key in enumerate(Settings.get_setting('abilities', 'Hotkeys'))},
             **{f'ability {key.upper()} sort': (
-                f'!+ {key}', lambda *args, x=i: self.api.ability_sort(x, self.mouse_real_pos)
+                f'^+ {key}', lambda *args, x=i: self.api.ability_sort(x, self.mouse_real_pos)
                 ) for i, key in enumerate(Settings.get_setting('abilities', 'Hotkeys'))},
             **{f'item {key.upper()} ability': (
                 f'{key}', lambda *args, x=i: self.api.itemcast(x, self.mouse_real_pos)
                 ) for i, key in enumerate(Settings.get_setting('items', 'Hotkeys'))},
             **{f'sell item {key.upper()}': (
-                f'^+ {key}', lambda *args, x=i: self.api.itemsell(x, self.mouse_real_pos)
+                f'!+ {key}', lambda *args, x=i: self.api.itemsell(x, self.mouse_real_pos)
                 ) for i, key in enumerate(Settings.get_setting('items', 'Hotkeys'))},
             **{f'item {key.upper()} sort': (
-                f'!+ {key}', lambda *args, x=i: self.api.item_sort(x, self.mouse_real_pos)
+                f'^+ {key}', lambda *args, x=i: self.api.item_sort(x, self.mouse_real_pos)
                 ) for i, key in enumerate(Settings.get_setting('items', 'Hotkeys'))},
-            # debug
-            'toggle dev mode': (f'^+ d', lambda: self.api.debug(dev_mode=None)),
-            'normal tps': (f'^+ t', lambda: self.api.debug(tps=120)),
-            'high tps': (f'^!+ t', lambda: self.api.debug(tps=920)),
-            'single tick': (f'^ t', lambda: self.api.debug(tick=1)),
             # gui view controls
             'zoom default': (
                 f'{Settings.get_setting("zoom_default", "Hotkeys")}',
@@ -104,7 +104,7 @@ class Encounter(widgets.RelativeLayout):
             'map view': (
                 f'{Settings.get_setting("map_view", "Hotkeys")}',
                 lambda: self.toggle_map_zoom()),
-            'redraw map': (f'^+ r', lambda: self.redraw_map()),
+            'redraw map': (f'f5', lambda: self.redraw_map()),
             })
 
     def redraw_map(self):
@@ -143,14 +143,12 @@ class Encounter(widgets.RelativeLayout):
 
     def _update(self):
         if self.__cached_target is not None:
-            self.api.user_click(self.__cached_target, button='right', view_size=self.real2pix(self.size))
+            self.api.user_click(self.__cached_target, button='right', view_size=self.pix2real(self.size))
             self.__cached_target = None
         self.__player_pos = player_pos = self.api.view_center
         self.__anchor_offset = np.array(self.size) / 2
 
-        self.simple_overlay_label.pos = cc_int(np.array(self.size) - np.array(self.simple_overlay_label.size))
-        self.simple_overlay_label.text = f'{round(self.app.fps.rate)} FPS | {self.api.time_str}'
-        self.simple_overlay_label.make_bg(self.app.fps_color)
+
 
         self.tilemap.pos = cc_int(self.real2pix(np.zeros(2)))
         self.tilemap.size = cc_int(np.array(self.api.map_size) / self.__units_per_pixel)
@@ -164,7 +162,7 @@ class Encounter(widgets.RelativeLayout):
 
     # User Input
     def canvas_move(self, w, m):
-        if m.button == 'right' and Settings.get_setting('enable_hold_mouse', 'Hotkeys'):
+        if m.button == 'right' and Settings.get_setting('enable_hold_mouse', 'Hotkeys') == 1:
             self.__cached_target = self.mouse_real_pos
 
     def canvas_click(self, w, m):

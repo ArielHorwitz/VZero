@@ -14,12 +14,17 @@ class SubCategory(dict):
         del raw_data[0]
         super().__init__(raw_data)
 
+    def __repr__(self):
+        return f'<RDF SubCategory; positional {self.positional} {super().__repr__()}>'
 
 class Category(dict):
     def __init__(self, raw_data):
-        self.default = raw_data[0]
+        self.default = SubCategory(raw_data[0])
         del raw_data[0]
         super().__init__({k: SubCategory(v) for k, v in raw_data.items()})
+
+    def __repr__(self):
+        return f'<RDF Category; default: {repr(self.default)}; {f"; ".join(f"{k}: {repr(v)}" for k, v in self.items())}>'
 
 
 class RDF(dict):

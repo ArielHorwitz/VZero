@@ -12,10 +12,10 @@ from engine.common import *
 
 class HomeGUI(widgets.BoxLayout):
     def __init__(self, **kwargs):
-        super().__init__(orientation='vertical', **kwargs)
+        super().__init__(**kwargs)
 
-        self.menu = self.add(Menu())
         self.draft = self.add(Draft())
+        self.menu = self.add(Menu())
 
         self.app.hotkeys.register_dict({
             'New encounter': (
@@ -29,16 +29,21 @@ class HomeGUI(widgets.BoxLayout):
 
 class Menu(widgets.BoxLayout):
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.set_size(y=50)
+        super().__init__(orientation='vertical', **kwargs)
+        self.set_size(x=150)
 
+        top_buttons = self.add(widgets.GridLayout(cols=1))
         for t, m in {
             'Start Encounter': lambda: self.app.game.new_encounter(),
-            'Restart': nutil.restart_script,
-            'Quit': lambda *a: quit(),
+            **{b: lambda x=i: self.app.game.button_click(x) for i, b in enumerate(self.app.game.button_names)},
         }.items():
-            self.add(widgets.Button(
-                text=t, on_release=lambda *a, x=m: x())).set_size(x=150)
+            b = widgets.Button(
+                text=t, on_release=lambda *a, x=m: x())
+            top_buttons.add(b).set_size(y=50)
+        bottom_buttons = self.add(widgets.BoxLayout(orientation='vertical'))
+        bottom_buttons.add(widgets.Button(
+            text='Quit', on_release=lambda *a: quit(),
+        )).set_size(y=50)
 
 
 class Draft(widgets.BoxLayout):

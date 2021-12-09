@@ -239,6 +239,147 @@ class ConsumeTouch(Widget):
     def on_touch_move(self, m):
         return self.enable
 
+
+class InputManager(Widget):
+    """
+    ^ Control
+    ! Alt
+    + Shift
+    # Super
+    """
+    MODIFIER_SORT = '^!+#'
+
+    @property
+    def actions(self):
+        return list(self.__actions.keys())
+
+    def activate(self):
+        self.__bound_down = self.keyboard.fbind('on_key_down', self._on_key_down)
+        self.__bound_up = self.keyboard.fbind('on_key_up', self._on_key_up)
+
+    def deactivate(self):
+        self.keyboard.unbind_uid('on_key_down', self.__bound_down)
+        self.keyboard.unbind_uid('on_key_up', self.__bound_up)
+
+    def register(self, action, key=None, callback=None):
+        if key is not None:
+            self.__actions[action].keys.add(key)
+            self._refresh_all_keys()
+        if callback is not None:
+            self.__actions[action].on_press.add(callback)
+
+    def register_callbacks(self, action, callbacks):
+        self.__actions[action].on_press.update(callbacks)
+
+    def register_keys(self, action, keys):
+        self.__actions[action].keys.update(keys)
+        self._refresh_all_keys()
+
+    def remove_actions(self, actions):
+        for action in actions:
+            if action in self.__actions:
+                del self.__actions[action]
+        self._refresh_all_keys()
+
+    def remove_action(self, action):
+        if action in self.__actions:
+            del self.__actions[action]
+            self._refresh_all_keys()
+
+    def clear_all(self):
+        self.actions = defaultdict(lambda: KeyCalls(set(), set()))
+        self._refresh_all_keys()
+
+    def record(self, on_release=None, on_press=None):
+        self.__recording_release = on_release
+        self.__recording_press = on_press
+
+    MODIFIERS = {
+        'ctrl': '^',
+        'alt': '!',
+        'shift': '+',
+        'super': '#',
+        'meta': '#',
+        'control': '^',
+        'lctrl': '^',
+        'rctrl': '^',
+        'lalt': '!',
+        'ralt': '!',
+        'lshift': '+',
+        'rshift': '+',
+        'numlock': '',
+        'capslock': '',
+    }
+
+    @property
+    def debug_summary(self):
+        s = []
+        for action, kc in self.__actions.items():
+            k = ', '.join(_ for _ in kc.keys)
+            s.append(f'{action:<20} «{k}» {kc.on_press}')
+        return '\n'.join(s)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.__all_keys = set()
+        self.__actions = defaultdict(lambda: KeyCalls(set(), set()))
+        self.__last_key_code = -1
+        self.__last_keys_down = ''
+        self.__recording_release = None
+        self.__recording_press = None
+        self.block_repeat = True
+        self.keyboard = kvWindow.request_keyboard(lambda: None, self)
+        self.activate()
+
+    def _refresh_all_keys(self):
+        self.__all_keys = set()
+        for action, kc in self.__actions.items():
+            self.__all_keys.update(kc.keys)
+
+    def _convert_keys(self, modifiers, key_name):
+        if len(modifiers) == 0:
+            return key_name
+        modifiers = tuple(self.MODIFIERS[mod] for mod in modifiers)
+        sorted_modifiers = sorted(modifiers, key=lambda x: self.MODIFIER_SORT.index(x))
+        mod_str = ''.join(sorted_modifiers)
+        r = f'{mod_str}{key_name}'
+        return r
+
+    def _do_calls(self, keys):
+        all_callbacks = defaultdict(lambda: set())
+        for action, kc in self.__actions.items():
+            if keys in kc.keys:
+                all_callbacks[action].update(kc.on_press)
+        for action in all_callbacks:
+            for c in all_callbacks[action]:
+                c(action)
+
+    def _on_key_up(self, keyboard, key):
+        key_code, key_name = key
+        if key_code == self.__last_key_code:
+            self.__last_key_code = -1
+        if self.__recording_release:
+            continue_recording = self.__recording_release(self.__last_keys_down)
+            if continue_recording is not True:
+                self.record(None, None)
+            return
+        self.__last_keys_down = ''
+
+    def _on_key_down(self, keyboard, key, key_hex, modifiers):
+        key_code, key_name = key
+        if key_code == self.__last_key_code and self.block_repeat:
+            return
+        self.__last_key_code = key_code
+        self.__last_keys_down = self._convert_keys(modifiers, key_name)
+        if self.__recording_press:
+            stop_recording = self.__recording_press(self.__last_keys_down)
+            if stop_recording is True:
+                self.record(None, None)
+            return
+        if self.__last_keys_down in self.__last_keys_down:
+            self._do_calls(self.__last_keys_down)
+
+
 # LAYOUTS
 class BoxLayout(kvBoxLayout, KexWidget):
     def split(self, count=2, orientation=None):
@@ -267,7 +408,10 @@ class Label(kvLabel, KexWidget):
 
 
 class Button(kvButton, KexWidget):
-    pass
+    def on_touch_down(self, m):
+        if m.button != 'left':
+            return
+        return super().on_touch_down(m)
 
 
 class Spinner(kvSpinner, KexWidget):
@@ -512,6 +656,7 @@ class Progress(Widget):
         self._label.pos = self.pos
         self._label.size = self.size
         self._label.text_size = self.size
+
 
 def text_texture(text, font_size=16):
     label = CoreLabel(text=text, font_size=font_size)

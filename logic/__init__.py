@@ -12,6 +12,7 @@ from data.load import RDF
 
 # Builtin stats: POS_X, POS_Y, WEIGHT, HITBOX, HP
 STATS = [
+    'ALLEGIANCE',
     'MANA',
     'GOLD',
     'PHYSICAL',
@@ -19,6 +20,11 @@ STATS = [
     'EARTH',
     'AIR',
     'WATER',
+    # Mechanics
+    'ARMOR',
+    'LIFESTEAL',
+    'SPIKES',
+    'VANITY',
 ]
 
 STATUSES = [
@@ -29,6 +35,10 @@ STATUSES = [
     'MAP_EDITOR',
     # Mechanics
     'ARMOR',
+    'LIFESTEAL',
+    'SPIKES',
+    'VANITY',
+    # Temporary mechanics
     'SLOW',
 ]
 

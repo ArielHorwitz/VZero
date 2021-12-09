@@ -27,12 +27,15 @@ def _load_abilities():
             raise CorruptedDataError(f'Ability {aid.name} missing a type.')
         ability_cls = ABILITY_CLASSES[raw_data.default['type']]
         color = str2color(raw_data.default['color']) if 'color' in raw_data.default else (0.5,0.5,0.5)
+        draftable = False if 'hidden' in raw_data.default.positional else True
         show_stats = raw_data.default['show_stats'] if 'show_stats' in raw_data.default else None
+        sfx = raw_data.default['sfx'] if 'sfx' in raw_data.default else None
         stats = raw_data['stats'] if 'stats' in raw_data else {}
-        ability = ability_cls(aid, name, color, stats, show_stats)
+        ability = ability_cls(aid, name, color, stats,
+            draftable=draftable, show_stats=show_stats, sfx=sfx)
         assert len(abilities) == aid
         abilities.append(ability)
-        logger.info(f'Loaded ability: {ability} - with params: {stats}')
+        logger.info(f'Loaded ability: {ability} (draftable: {draftable}) - with params: {stats}')
     return abilities
 
 ABILITIES = _load_abilities()
@@ -51,6 +54,8 @@ def _get_default_stats():
     table[:, VALUE.MIN] = 0
     table[:, VALUE.MAX] = LARGE_ENOUGH
 
+    table[STAT.ALLEGIANCE, VALUE.MIN] = -LARGE_ENOUGH
+    table[STAT.ALLEGIANCE, VALUE.CURRENT] = 1
     table[(STAT.POS_X, STAT.POS_Y), VALUE.MIN] = -LARGE_ENOUGH
     table[STAT.WEIGHT, VALUE.MIN] = -1
     table[STAT.HITBOX, VALUE.CURRENT] = 100
@@ -60,8 +65,8 @@ def _get_default_stats():
     table[STAT.MANA, VALUE.MAX] = 20
 
     ELEMENTAL_STATS = [STAT.PHYSICAL, STAT.FIRE, STAT.EARTH, STAT.AIR, STAT.WATER]
-    table[ELEMENTAL_STATS, VALUE.CURRENT] = 10
-    table[ELEMENTAL_STATS, VALUE.MIN] = 2
+    table[ELEMENTAL_STATS, VALUE.CURRENT] = 1
+    table[ELEMENTAL_STATS, VALUE.MIN] = 1
     return table
 
 def _load_raw_stats(raw_stats):

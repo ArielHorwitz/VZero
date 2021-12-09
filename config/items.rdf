@@ -1,46 +1,112 @@
-=== Boots
+=== Dev Stone
 category: basic
-cost: 60
-ability: blink
+cost: 0
+ability: dev blink
 --- stats
-air: 8
+hp.delta: 100
+hp.max: 10000
+mana.delta: 100
+mana.max: 10000
+gold: 10000
+
+
+=== Iron Fist
+category: basic
+cost: 45
+--- stats
+hp.max: 10
+hp.delta: 0.01
+physical: 4
 earth: 4
 
-=== Slippers
+=== Mask
 category: basic
-cost: 75
+cost: 55
 --- stats
-air: 12
-mana.max: 5
+mana.max: 20
+mana.delta: 0.02
+air: 4
+water: 4
+
+
 
 === Stonks
 category: basic
-cost: 100
+cost: 120
 --- stats
-gold.delta: 0.003
+gold.delta: 0.01
+
+
+
+=== Slippers
+category: basic
+cost: 105
+--- stats
+air: 12
+mana.max: 20
+
+
+=== Iron Boots
+category: basic
+cost: 120
+--- stats
+air: 8
+earth: 8
+
+
+=== Chainmail
+category: basic
+cost: 135
+--- stats
+spikes: 15
+
+
+
+
+=== Crystal
+category: basic
+cost: 135
+--- stats
+water: 15
+hp.max: 40
+hp.delta: 0.02
+
+
+=== Heart
+category: basic
+cost: 210
+--- stats
+hp.max: 150
+hp.delta: 0.08
+
+=== Vial
+category: basic
+cost: 155
+--- stats
+mana.max: 80
+mana.delta: 0.04
 
 
 
 
 
-
-=== Branch
+=== Seed
 category: herbal
-cost: 45
+cost: 55
 --- stats
+earth: 8
 physical: 4
-earth: 12
 
 === Leaf
 category: herbal
-cost: 70
+cost: 80
 --- stats
-fire: 10
 water: 10
+air: 5
 
-=== Trunk
+=== Pear
 category: herbal
-cost: 105
+cost: 145
 --- stats
 fire: 16
 earth: 16
@@ -48,41 +114,52 @@ earth: 16
 
 
 
-
-=== Heart
+=== Viscous Tar
 category: potion
-cost: 110
+cost: 300
 --- stats
-hp.max: 50
-hp.delta: 0.03
+hp.delta: -0.05
+fire.delta: 0.0005
 
-=== Vial
+=== Fizzy Solution
 category: potion
-cost: 85
+cost: 300
 --- stats
-mana.max: 40
-mana.delta: 0.02
+hp.delta: -0.05
+physical.delta: 0.0005
 
-=== Gem
+=== Acid Punch
 category: potion
-cost: 65
+cost: 300
 --- stats
-water: 10
-hp.max: 20
-
-
+mana.delta: -0.05
+water.delta: 0.0005
 
 
 === Amulet
 category: ornament
-cost: 130
+cost: 500
 --- stats
-physical: 22
-fire: 16
+water: 44
+air: 38
 
 
-=== Dev Stone
+=== Headpiece
 category: ornament
-cost: 0
+cost: 535
 --- stats
-gold: 10000
+earth: 65
+
+
+=== Death Star
+category: ornament
+cost: 540
+--- stats
+fire: 66
+
+
+=== Golden Ring
+category: ornament
+cost: 560
+--- stats
+physical: 72

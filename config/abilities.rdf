@@ -1,20 +1,89 @@
 
-=== Dunder Beam
-type: buff
-color: purple
+=== Walk
+type: move
+color: grey
+show_stats: speed
 -- stats
-status: slow
-target: other
-mana_cost: 20
-cooldown: 600
-range: 400
-range_stat: water
-range_bonus: 0.5
-stacks: 5
-stacks_stat: air
-stacks_bonus: 1
-duration: 480
+speed: 100
+speed_stat: air
+speed_bonus: 5
 
+
+=== Jog
+type: move
+color: grey
+show_stats: speed
+-- stats
+speed: 200
+
+
+=== Sprint
+type: move
+color: grey
+show_stats: speed, cooldown
+-- stats
+range: 200
+cooldown: 600
+speed: 400
+
+
+
+
+
+=== Attack
+type: attack
+color: cyan
+show_stats: damage, cooldown, range
+-- stats
+mana_cost: 0
+cooldown: 150
+range: 10
+damage: 20
+damage_stat: physical
+damage_bonus: 1
+
+
+
+=== Shoot
+type: attack
+color: cyan
+sfx: attack
+show_stats: damage, cooldown, range
+-- stats
+mana_cost: 0
+cooldown: 120
+range: 200
+damage: 5
+damage_stat: physical
+damage_bonus: 0.5
+
+
+=== Bash
+type: attack
+color: cyan
+sfx: attack
+show_stats: damage, cooldown, range
+-- stats
+mana_cost: 0
+cooldown: 200
+range: 40
+damage: 40
+damage_stat: physical
+damage_bonus: 0
+
+
+=== Tailwhip
+type: passive_attack
+color: cyan
+sfx: attack
+show_stats: damage, cooldown, range
+-- stats
+mana_cost: 0
+cooldown: 250
+range: 30
+damage: 10
+damage_stat: earth
+damage_bonus: 2
 
 
 === Blink
@@ -25,12 +94,70 @@ mana_cost: 30
 cooldown: 800
 range: 300
 range_stat: air
+range_bonus: 6
+
+
+
+=== Yip Yip
+type: teleport
+color: green
+sfx: blink
+--- stats
+mana_cost: 30
+cooldown: 2000
+range: 500
+
+
+=== Scroll
+type: teleport home
+color: lime
+sfx: blink
+--- stats
+mana_cost: 10
+cooldown: 10000
+
+
+=== Dunder Beam
+type: buff
+color: purple
+show_stats: mana_cost, cooldown, range, stacks, duration
+-- stats
+status: slow
+target: other
+mana_cost: 20
+cooldown: 600
+range: 400
+range_stat: water
 range_bonus: 2
+stacks: 10
+stacks_stat: air
+stacks_bonus: 1
+duration: 600
+
+
+=== Compliment
+type: buff
+color: purple
+show_stats: mana_cost, cooldown, range, stacks, duration
+-- stats
+status: vanity
+target: other
+mana_cost: 20
+cooldown: 2600
+range: 500
+range_stat: water
+range_bonus: 2
+stacks: 20
+stacks_stat: air
+stacks_bonus: 1
+duration: 800
+
 
 
 === Shield
 type: buff
 color: blue
+show_stats: mana_cost, cooldown, duration, stacks
 --- stats
 status: armor
 target: self
@@ -38,10 +165,10 @@ mana_cost: 40
 cooldown: 5000
 duration: 1500
 duration_stat: water
-duration_bonus: 1
+duration_bonus: 150
 stacks: 10
 stacks_stat: earth
-stacks_bonus: 2
+stacks_bonus: 1
 
 
 === Fireblast
@@ -52,37 +179,139 @@ mana_cost: 35
 range: 600
 radius: 60
 radius_stat: water
-radius_bonus: 3
+radius_bonus: 2
 damage: 10
 damage_stat: fire
-damage_bonus: 5
+damage_bonus: 0.5
 
 
------------------------------- -
+
+=== Death Fog
+type: regen aura
+color: brown
+show_stats: degen, radius
+-- stats
+target: enemies
+destat: hp
+degen: 0.03
+degen_stat: fire
+degen_bonus: 0.005
+radius: 300
+radius_stat: water
+radius_bonus: 3
+
+
 
 
 
 === Barter
 type: barter
-color: 0.5, 0.5, 0
+color: grey
+show_stats: range, loot_multi, cooldown
+-- stats
+range: 300
+cooldown: 10000
+loot_multi: 1.5
+loot_multi_stat: water
+loot_multi_bonus: 0.06
+
+
+
+=== Hard Barter
+type: barter
+color: grey
+sfx: barter
 show_stats: range, loot_multi, cooldown
 -- stats
 range: 300
 cooldown: 10000
 loot_multi: 2
-loot_multi_stat: physical
-loot_multi_bonus: 2
+loot_multi_stat: water
+loot_multi_bonus: 0.02
 
 
-=== Walk
-type: move
-color: white
-show_stats: speed
--- stats
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---------------------------------------------------------------------- -
+
+
+=== Shopkeeper
+hidden
+type: shopkeeper
+show_stats: radius
+--- stats
+
+
+=== Fountain HP
+hidden
+type: regen aura
+color: cyan
+show_stats: regen
+--- stats
+target: allies
+include_self: 0
+status: fountain
+restat: hp
+regen: 0.1
+radius: 500
+
+
+=== Fountain Mana
+hidden
+type: regen aura
+color: cyan
+show_stats: regen
+--- stats
+target: allies
+include_self: 0
+status: fountain
+restat: mana
+regen: 0.1
+radius: 500
+
+
+
+
+
+------------------------------ -
 
 
 === Dev blink
+hidden
 type: teleport
 -- stats
 range: 10000
@@ -90,72 +319,8 @@ cooldown: 0
 mana_cost: 0
 
 
-=== Attack
-type: attack
-color: white
-show_stats: cooldown, range, damage
--- stats
-
-
-------------------------------- -
-
-=== Radiance
-type: regen aura
-color: yellow
--- stats
-target_destat: hp
-degen: 0.01
-degen_stat: fire
-degen_bonus: 1
-radius: 150
-radius_stat: water
-radius_bonus: 1
-
-
-------------------------------- -
-
-=== Shopkeeper
-type: shopkeeper
-
-
-=== Fountain HP
-type: regen aura
-color: cyan
---- stats
-status: fountain
-target_restat: hp
-regen: 0.1
-radius: 300
-
-
-=== Fountain Mana
-type: regen aura
-color: cyan
---- stats
-status: fountain
-target_restat: mana
-regen: 0.1
-radius: 300
-
-
-
-
-
------------------------------- -
-
-
-
-
-
-
-
-=== Dev consume
-type: consume
-
-
-
-
 === Dev Fireblast
+hidden
 type: blast
 - stats
 mana_cost: 0
@@ -163,27 +328,20 @@ cooldown: 0
 
 
 
-=== Dev Midas
-type: midas
-
-
-=== Test
-type: test
-
-
-
-
-
 ---------------------------- -
 
 
 === Map Editor Eraser
+hidden
 type: map_editor_eraser
 === Map Editor Toggle
+hidden
 type: map_editor_toggle
 === Map Editor Palette
+hidden
 type: map_editor_palette
 === Map Editor Droplet
+hidden
 type: map_editor_droplet
 
 ----------------- -

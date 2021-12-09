@@ -20,6 +20,7 @@ RIGHT_CLICK_ABILITY = Settings.get_setting('right_click', 'Hotkeys')
 
 class GameAPI:
     encounter_api = None
+    button_names = []
 
     def __init__(self):
         logger.warning(f'{self.__class__}.__init__() not implemented.')
@@ -35,6 +36,9 @@ class GameAPI:
         logger.warning(f'{self.__class__}.loadout_click() not implemented for {index} {button}.')
 
     # GUI properties
+    def button_click(self, index):
+        logger.warning(f'{self.__class__}.button_click() not implemented for {index}.')
+
     def draft_info_box(self):
         return SpriteLabel(None, 'draft_info_box', (0, 0, 0, 0))
 
@@ -54,9 +58,11 @@ class GameAPI:
 
 class EncounterAPI:
     dev_mode = True
+    show_debug = True
     selected_unit = 0
-    show_modal = False
     player_los = 2000
+    overlay_text = ''
+    control_buttons = ['Menu']
 
     def __init__(self):
         self.engine = EncounterEngine(self)
@@ -90,14 +96,20 @@ class EncounterAPI:
         logger.warning(f'{self.__class__}.status_zero() not implemented.')
 
     # User input
-    def toggle_play(self, set_to=None):
+    def control_button_click(self, index):
+        if index == 0:
+            self.toggle_play()
+
+    def toggle_play(self, set_to=None, play_sfx=True):
         set_to = set_to if set_to is not None else not self.engine.auto_tick
+        changed = set_to != self.engine.auto_tick
         self.engine.set_auto_tick(set_to)
-        if self.engine.auto_tick is True:
-            Assets.play_sfx('ui', 'play', volume=Settings.get_volume('ui'))
-        else:
-            Assets.play_sfx('ui', 'pause', volume=Settings.get_volume('ui'))
         logger.debug(f'Logic toggled play')
+        if play_sfx and changed:
+            if self.engine.auto_tick is True:
+                Assets.play_sfx('ui', 'play', volume=Settings.get_volume('ui'))
+            else:
+                Assets.play_sfx('ui', 'pause', volume=Settings.get_volume('ui'))
 
     def user_click(self, target, button, view_size):
         if button == 'right':
@@ -111,7 +123,7 @@ class EncounterAPI:
     def user_select(self, target, view_size):
         uid, dist = self.engine.nearest_uid(target, alive_only=False)
         hb = self.engine.get_stats(uid, STAT.HITBOX)
-        if dist < max(50, hb) or not self.visible_uid(uid):
+        if dist < max(50, hb) and self.get_visible_uids(view_size)[uid]:
             self.select_unit(uid)
             Assets.play_sfx('ui', 'select',
                 volume=Settings.get_volume('feedback'))
@@ -120,7 +132,7 @@ class EncounterAPI:
             uid, hb = 0, self.engine.get_stats(0, STAT.HITBOX)
         self.engine.add_visual_effect(VisualEffect.SPRITE, 60, {
             'uid': uid,
-            'fade': 120,
+            'fade': 100,
             'category': 'ui',
             'source': 'crosshair2',
             'size': (hb*2.1, hb*2.1),
@@ -144,9 +156,9 @@ class EncounterAPI:
 
     def user_hotkey(self, hotkey, target):
         logger.warning(f'{self.__class__}.user_hotkey() not implemented.')
-        if 'toggle_play' in hotkey:
+        if hotkey == 'toggle_play':
             self.toggle_play()
-        elif 'modal' in hotkey:
+        elif 'control' in hotkey:
             self.show_modal = not self.show_modal
 
     def select_unit(self, uid):
@@ -156,6 +168,10 @@ class EncounterAPI:
     hotkeys = {
         'hotkey': ('^ a', lambda: logger.warning(f'{self.__class__}.hotkeys not implemented.')),
     }
+
+    @property
+    def general_label_text(self):
+        return self.time_str
 
     # Units and vfx
     map_size = np.full(2, 5_000)
@@ -167,9 +183,6 @@ class EncounterAPI:
         if self.dev_mode:
             max_los = max(max_los, np.linalg.norm(np.array(view_size) / 2))
         return self.engine.unit_distance(0) <= max_los
-
-    def visible_uid(self, uid):
-        return self.engine.unit_distance(0, uid) <= self.player_los
 
     def get_all_positions(self):
         return self.engine.get_position()
@@ -188,15 +201,15 @@ class EncounterAPI:
         return self.engine.get_visual_effects()
 
     # Menu
+    menu_text = ''
+
     @property
     def show_menu(self):
         return not self.engine.auto_tick and not self.dev_mode
 
     # Unit panel
     def agent_panel_sprite(self):
-        sprite = self.units[self.selected_unit].sprite
-        s = self.get_sprite_size(self.selected_unit)
-        return sprite, (s, s)
+        return self.units[self.selected_unit].sprite
 
     def agent_panel_bars(self):
         return [
@@ -213,9 +226,6 @@ class EncounterAPI:
     def debug_panel_labels(self):
         return [f'{self.__class__}.debug_panel_label() not implemented.']
 
-    def debug(self, *a, **k):
-        pass
-
     # HUD
     def hud_sprite_labels(self):
         return [SpriteLabel(None, 'HUD not\nimplemented', (0, 0, 0, 0.5)) for _ in range(8)]
@@ -224,10 +234,22 @@ class EncounterAPI:
         return [SpriteLabel(None, 'HUD Aux not implemented', (0, 0, 0, 0.5)) for _ in range(8)]
 
     # Modal
-    def modal_stls(self):
+    show_modal_grid = False
+    show_modal_browse = False
+
+    def modal_browse_main(self):
+        return SpriteTitleLabel(None, 'Title', f'{self.__class__}.modal_browse_main() not implemented.', (0.2, 0, 0, 0.5))
+
+    def modal_browse_sts(self):
+        return [SpriteLabel(
+            None, f'#{_} {self.__class__}.modal_browse_sts() not implemented.',
+            (0.1*_, 0, 1-0.1*_, 0.5)) for _ in range(7)
+        ]
+
+    def modal_grid(self):
         return [SpriteTitleLabel(
             None, 'Title',
-            f'#{_} {self.__class__}.modal_stls() not implemented.',
+            f'#{_} {self.__class__}.modal_grid() not implemented.',
             (0.1*_, 0, 1-0.1*_, 0.5)) for _ in range(7)
         ]
 

@@ -10,7 +10,7 @@ LOG_LEVEL = LOG_LEVELS[3]
 
 def configure_logging():
     from nutil.file import file_dump
-    file_dump(DEBUG_LOGFILE, f'Roguesque Debug Log (log level: {LOG_LEVEL})\n\n')
+    file_dump(DEBUG_LOGFILE, f'VZero Debug Log (log level: {LOG_LEVEL})\n\n')
     logging.basicConfig(level=LOG_LEVEL, filename=DEBUG_LOGFILE)
 
     # Prevent kivy console output
