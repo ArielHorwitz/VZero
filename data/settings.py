@@ -12,7 +12,8 @@ class Settings:
             0: {
                 'dev_build': 0,
                 'dev_items': 0,
-                'start_maximized': 1,
+                'default_window': 'borderless',
+                'full_resolution': '1920, 1080',
                 'window_resolution': '1024, 768',
                 'default_zoom': 0.5,
                 'map_zoom': 0.4,

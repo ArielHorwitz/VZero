@@ -47,11 +47,12 @@ air: 3
 
 === Meef
 type: camper
-aggro_range: 350
+aggro_range: 450
 deaggro_range: 600
 reaggro_range: 400
 camp_spread: 200
 -- stats
+spikes: 20
 hitbox: 40
 gold: 5
 hp.max: 40
@@ -79,7 +80,7 @@ air: 25
 
 ====== Ratzan
 type: camper
-aggro_range: 300
+aggro_range: 400
 deaggro_range: 500
 reaggro_range: 150
 camp_spread: 250
@@ -228,9 +229,9 @@ water: 35
 
 ====== Skull
 type: camper
-aggro_range: 200
-deaggro_range: 400
-reaggro_range: 250
+aggro_range: 400
+deaggro_range: 600
+reaggro_range: 300
 camp_spread: 500
 --- stats
 hitbox: 170
@@ -275,9 +276,9 @@ air: 5
 
 ====== Winged Snake
 type: camper
-aggro_range: 400
+aggro_range: 500
 deaggro_range: 700
-reaggro_range: 200
+reaggro_range: 300
 camp_spread: 100
 --- stats
 allegiance: 1000

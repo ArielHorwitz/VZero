@@ -115,12 +115,10 @@ class Mechanics:
             damages = 0
         api.set_stats(targets_mask, STAT.HP, -damages, additive=True)
         # Play ouch feedback if player uid is in targets
-        if targets_mask[0] > 0:
-            api.add_visual_effect(VisualEffect.BACKGROUND, 40)
-            api.add_visual_effect(VisualEffect.SFX, 1, params={'sfx': 'ouch', 'category': 'ui', 'volume': 'feedback'})
-        # Check if non player is in list
-        if targets_mask.sum() - targets_mask[0] > 0:
-            api.add_visual_effect(VisualEffect.SFX, 5, params={'sfx': 'hit', 'category': 'ui', 'volume': 'feedback'})
+        if targets_mask[0] and not isinstance(damages, np.ndarray):
+            if damages > 0:
+                api.add_visual_effect(VisualEffect.BACKGROUND, 40)
+                api.add_visual_effect(VisualEffect.SFX, 1, params={'sfx': 'ouch', 'category': 'ui', 'volume': 'feedback'})
         logger.debug(f'{targets_mask.nonzero()[0]} took {damages} pure damage.')
 
     @classmethod

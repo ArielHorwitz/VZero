@@ -19,7 +19,6 @@ class Sprites(widgets.RelativeLayout, EncounterViewComponent):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.drawn_count = 0
-        # Redraw must be called before any other method
         self.redraw()
 
     def redraw(self):

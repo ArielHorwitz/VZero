@@ -17,7 +17,7 @@ from engine.common import *
 Box = namedtuple('Box', ['box', 'sprite', 'label'])
 
 HUD_HEIGHT = 150
-HUD_WIDTH = 525
+HUD_WIDTH = 500
 HUDAUX_WIDTH = 500
 
 
@@ -95,7 +95,7 @@ class AgentViewer(widgets.AnchorLayout, EncounterViewComponent):
         self.last_selected = -1
 
         frame = self.add(widgets.BoxLayout(orientation='vertical'))
-        frame.set_size(x=300, y=500)
+        frame.set_size(x=300, y=600)
         frame.add(widgets.Widget()).set_size(y=30)
         self.panel = frame.add(widgets.BoxLayout(orientation='vertical'))
         self.panel.make_bg((0, 0, 0, 0.3))

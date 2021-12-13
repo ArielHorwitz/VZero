@@ -1,8 +1,8 @@
-VERSION = 0.009
+VERSION = 0.010
 
 NAME = f'VZero'
 
-TITLE = f'{NAME} v{VERSION}'
+TITLE = f'{NAME} v{VERSION:.3f}'
 
 FPS = 60
 

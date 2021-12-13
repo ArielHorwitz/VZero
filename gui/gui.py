@@ -20,7 +20,7 @@ class App(widgets.App):
         logger.info(f'Initializing GUI @ {FPS} fps.')
         super().__init__(make_bg=False, make_menu=False, **kwargs)
         self.hotkeys.register_dict({
-            'Maximize': ('f11', lambda *a: self.toggle_maximize()),
+            'Borderless': ('f11', lambda *a: self.toggle_borderless()),
             'Fullscreen': ('! f11', lambda *a: self.toggle_fullscreen()),
             'Tab: Home': ('^+ home', lambda: self.switch.switch_screen('home')),
             'Tab: Encounter': ('^+ end', lambda: self.switch.switch_screen('enc')),
@@ -28,8 +28,13 @@ class App(widgets.App):
         self.icon = str(Path.cwd()/'icon.png')
 
         self.set_window_size(self.configured_resolution(full=False))
-        if Settings.get_setting('start_maximized') == 1:
-            widgets.Clock.schedule_once(lambda *a: self.toggle_fullscreen(), 0.1)
+        default_window_state = Settings.get_setting('default_window')
+        if default_window_state == 'fullscreen':
+            self.toggle_fullscreen(True)
+        elif default_window_state == 'borderless':
+            self.toggle_borderless(True)
+        else:
+            self.toggle_borderless(False)
 
         self.game = get_api()
 
@@ -48,14 +53,36 @@ class App(widgets.App):
         raw_resolution = Settings.get_setting('full_resolution' if full else 'window_resolution', 'General').split(', ')
         return tuple(int(_) for _ in raw_resolution)
 
-    def toggle_maximize(self):
-        last = widgets.kvWindow.borderless
-        if last:
-            widgets.kvWindow.borderless = False
-            widgets.kvWindow.restore()
-        else:
+    def toggle_borderless(self, set_as=None):
+        if widgets.kvWindow.fullscreen:
+            self.toggle_fullscreen(set_as=False)
+            return
+        set_as = not widgets.kvWindow.borderless if set_as is None else set_as
+        logger.debug(f'Setting borderless: {set_as}')
+        if set_as is True:
             widgets.kvWindow.borderless = True
-            widgets.kvWindow.maximize()
+            widgets.Clock.schedule_once(lambda *a: widgets.kvWindow.maximize(), 0)
+        else:
+            widgets.kvWindow.borderless = False
+            widgets.Clock.schedule_once(lambda *a: self._restore(), 0)
+
+    def toggle_fullscreen(self, set_as=None):
+        set_as = not widgets.kvWindow.fullscreen if set_as is None else set_as
+        logger.debug(f'Setting fullscreen: {set_as}')
+        if set_as is True:
+            self.set_window_size(self.configured_resolution(full=True))
+            widgets.Clock.schedule_once(lambda *a: self._toggle_fullscreen(), 0)
+        else:
+            widgets.kvWindow.fullscreen = False
+            widgets.kvWindow.borderless = False
+            widgets.Clock.schedule_once(lambda *a: self.set_window_size(self.configured_resolution(full=False)), 0)
+
+    def _toggle_fullscreen(self, *a):
+        widgets.kvWindow.fullscreen = not widgets.kvWindow.fullscreen
+
+    def _restore(self):
+        widgets.kvWindow.restore()
+        widgets.Clock.schedule_once(lambda *a: self.set_window_size(self.configured_resolution(full=False)), 0)
 
     @property
     def fps_color(self):
