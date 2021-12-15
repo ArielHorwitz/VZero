@@ -172,12 +172,13 @@ class Ability:
         cd = api.get_cooldown(uid, self.aid)
         excess_mana = api.get_stats(uid, STAT.MANA) - self.p.mana_cost
         strings = []
-        color = (0, 0.9, 0, 1)
+        # color = (0, 0.9, 0, 1)
+        color = (0, 0, 0, 0)
         if cd > 0:
-            strings.append(f'CD: {api.ticks2s(cd):.1f}')
+            strings.append(f'C: {api.ticks2s(cd):.1f}')
             color = (1, 0.3, 0, 1)
             miss += 1
-        if excess_mana <= 0:
+        if excess_mana < 0:
             strings.append(f'M: {-excess_mana:.1f}')
             color = (0, 0, 0.8, 1)
             miss += 1

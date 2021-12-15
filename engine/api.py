@@ -3,6 +3,7 @@ logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
 
+from collections import defaultdict
 import math
 import numpy as np
 from nutil.time import humanize_ms
@@ -63,6 +64,21 @@ class EncounterAPI:
     player_los = 2000
     overlay_text = ''
     control_buttons = ['Menu']
+    gui_flags = defaultdict(lambda: False, {
+        'menu': False,
+        'menu_dismiss': False,
+        'browse': False,
+        'browse_toggle': False,
+        'browse_dismiss': False,
+    })
+
+    def raise_gui_flag(self, flag):
+        self.gui_flags[flag] = True
+
+    def check_flag(self, flag):
+        r = self.gui_flags[flag]
+        self.gui_flags[flag] = False
+        return r
 
     def __init__(self):
         self.engine = EncounterEngine(self)
@@ -110,6 +126,8 @@ class EncounterAPI:
                 Assets.play_sfx('ui', 'play', volume=Settings.get_volume('ui'))
             else:
                 Assets.play_sfx('ui', 'pause', volume=Settings.get_volume('ui'))
+        self.gui_flags['menu'] = not self.engine.auto_tick
+        self.gui_flags['menu_dismiss'] = self.engine.auto_tick
 
     def user_click(self, target, button, view_size):
         if button == 'right':
@@ -158,8 +176,6 @@ class EncounterAPI:
         logger.warning(f'{self.__class__}.user_hotkey() not implemented.')
         if hotkey == 'toggle_play':
             self.toggle_play()
-        elif 'control' in hotkey:
-            self.show_modal = not self.show_modal
 
     def select_unit(self, uid):
         self.selected_unit = uid
@@ -203,56 +219,45 @@ class EncounterAPI:
     # Menu
     menu_text = ''
 
-    @property
-    def show_menu(self):
-        return not self.engine.auto_tick and not self.dev_mode
+    # HUD
+    def hud_click(self, hud, index, button):
+        logger.warning(f'{self.__class__}.hud_click() not implemented. hud: {hud} index: {index} button: {button}')
+        return SpriteTitleLabel(None, 'Title', f'{self.__class__}.hud_click() not implemented. hud: {hud} index: {index} button: {button}', (0.2, 0, 0, 0.5))
 
-    # Unit panel
-    def agent_panel_sprite(self):
+    def hud_statuses(self):
+        return [SpriteLabel(None, 'status', (0, 0, 0, 0.5)) for _ in range(3)]
+
+    def hud_portrait(self):
         return self.units[self.selected_unit].sprite
 
-    def agent_panel_bars(self):
+    def hud_bars(self):
         return [
             ProgressBar(1, f'api.agent_panel_bar() not implemented.', (1, 0, 1, 1)),
             ProgressBar(0.5, '', (1, 1, 1, 0.25)),
         ]
 
-    def agent_panel_boxes(self):
-        return [SpriteLabel(None, f'{self.__class__}.agent_panel_boxes_labels() not implemented.', None) for _ in range(6)]
+    def hud_left(self):
+        return [SpriteLabel(None, f'{self.__class__}.hud_left() not implemented.', None) for _ in range(6)]
 
-    def agent_panel_label(self):
-        return f'{self.__class__}.agent_panel_label() not implemented.'
+    def hud_middle(self):
+        return [SpriteLabel(None, f'{self.__class__}.hud_right() not implemented.', None) for _ in range(6)]
+
+    def hud_right(self):
+        return [SpriteLabel(None, f'{self.__class__}.hud_right() not implemented.', None) for _ in range(6)]
+
+    # Browse
+    def browse_main(self):
+        return SpriteTitleLabel(None, 'Title', f'{self.__class__}.browse_main() not implemented.', (0.2, 0, 0, 0.5))
+
+    def browse_elements(self):
+        return [SpriteLabel(
+            None, f'#{_} {self.__class__}.browse_elements() not implemented.',
+            (0.1*_, 0, 1-0.1*_, 0.5)) for _ in range(7)
+        ]
+
+    def browse_click(self, index, button):
+        logger.warning(f'{self.__class__}.browse_click() not implemented.')
+        Assets.play_sfx('ui', 'target', volume=Settings.get_volume('ui'))
 
     def debug_panel_labels(self):
         return [f'{self.__class__}.debug_panel_label() not implemented.']
-
-    # HUD
-    def hud_sprite_labels(self):
-        return [SpriteLabel(None, 'HUD not\nimplemented', (0, 0, 0, 0.5)) for _ in range(8)]
-
-    def hud_aux_sprite_labels(self):
-        return [SpriteLabel(None, 'HUD Aux not implemented', (0, 0, 0, 0.5)) for _ in range(8)]
-
-    # Modal
-    show_modal_grid = False
-    show_modal_browse = False
-
-    def modal_browse_main(self):
-        return SpriteTitleLabel(None, 'Title', f'{self.__class__}.modal_browse_main() not implemented.', (0.2, 0, 0, 0.5))
-
-    def modal_browse_sts(self):
-        return [SpriteLabel(
-            None, f'#{_} {self.__class__}.modal_browse_sts() not implemented.',
-            (0.1*_, 0, 1-0.1*_, 0.5)) for _ in range(7)
-        ]
-
-    def modal_grid(self):
-        return [SpriteTitleLabel(
-            None, 'Title',
-            f'#{_} {self.__class__}.modal_grid() not implemented.',
-            (0.1*_, 0, 1-0.1*_, 0.5)) for _ in range(7)
-        ]
-
-    def modal_click(self, index, button):
-        logger.warning(f'{self.__class__}.modal_click() not implemented.')
-        Assets.play_sfx('ui', 'target', volume=Settings.get_volume('ui'))

@@ -13,9 +13,10 @@ from nutil.kex import widgets
 from data.assets import Assets
 from data.settings import Settings
 from gui import cc_int, center_position
+from gui.common import Tooltip
 from gui.encounter.sprites import Sprites
 from gui.encounter.vfx import VFX
-from gui.encounter.panels import Menu, ControlOverlay, LogicLabel, HUD, HUDAux, AgentViewer, ModalGrid, ModalBrowse, DebugPanel
+from gui.encounter.panels import Menu, ControlOverlay, LogicLabel, HUD, ModalBrowse, DebugPanel
 
 from engine.common import *
 
@@ -49,18 +50,16 @@ class Encounter(widgets.RelativeLayout):
         self.overlays = {
             'sprites': self.add(Sprites(enc=self)),
             'vfx': self.add(VFX(enc=self)),
-            'agent_panel': self.add(AgentViewer(enc=self)),
+
             'logic_label': self.add(LogicLabel(enc=self)),
-            'hud': self.add(HUD(enc=self)),
-            'hud_aux': self.add(HUDAux(enc=self)),
-
-            'modal_grid': self.add(ModalGrid(enc=self)),
             'modal_browse': self.add(ModalBrowse(enc=self)),
+            'hud': self.add(HUD(enc=self)),
 
+            'control_overlay': self.add(ControlOverlay(enc=self)),
             'menu': self.add(Menu(enc=self)),
             'debug': self.add(DebugPanel(enc=self)),
-            'control_overlay': self.add(ControlOverlay(enc=self)),
         }
+        self.tooltip = self.add(Tooltip())
 
         # User input bindings
         self.app.hotkeys.register_dict({

@@ -49,13 +49,11 @@ class Sprites(widgets.RelativeLayout, EncounterViewComponent):
 
         for uid in np.argwhere(newly_visible):
             uid = uid[0] # np.argwhere returns some nd-shape
-            logger.debug(f'Entering draw range: {uid}')
             self.canvas.add(self.cached_sprites[uid])
             self.canvas.add(self.cached_hpbars[uid])
 
         for uid in np.argwhere(newly_invisible):
             uid = uid[0] # np.argwhere returns some nd-shape
-            logger.debug(f'Leaving draw range: {uid}')
             self.canvas.remove(self.cached_sprites[uid])
             self.canvas.remove(self.cached_hpbars[uid])
 

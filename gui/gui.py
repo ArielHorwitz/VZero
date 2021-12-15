@@ -74,8 +74,7 @@ class App(widgets.App):
             widgets.Clock.schedule_once(lambda *a: self._toggle_fullscreen(), 0)
         else:
             widgets.kvWindow.fullscreen = False
-            widgets.kvWindow.borderless = False
-            widgets.Clock.schedule_once(lambda *a: self.set_window_size(self.configured_resolution(full=False)), 0)
+            widgets.Clock.schedule_once(lambda *a: self.toggle_borderless(set_as=False), 0)
 
     def _toggle_fullscreen(self, *a):
         widgets.kvWindow.fullscreen = not widgets.kvWindow.fullscreen

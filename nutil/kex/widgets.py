@@ -226,18 +226,45 @@ class Widget(kvWidget, KexWidget):
 
 
 class ConsumeTouch(Widget):
-    def __init__(self, enable=True, **kwargs):
+    def __init__(self, enable=True, widget=None, consume_keys=False, **kwargs):
         super().__init__(**kwargs)
         self.enable = enable
+        self.widget = widget
+        self.consume_keys = consume_keys
+        self.__mpos = -1, -1
+        self.size = 0, 0
+        kvWindow.bind(mouse_pos=self._on_mouse_pos, on_key_down=self.on_key_down)
+
+    def _on_mouse_pos(self, w, p):
+        self.__mpos = p
+
+    def on_key_down(self, *a):
+        if self.consume_keys is True:
+            if self.widget is not None:
+                r = self.widget.collide_point(*self.__mpos)
+                return r
+        return False
 
     def on_touch_down(self, m):
-        return self.enable
+        if not self.enable:
+            return False
+        if self.widget is not None:
+            return self.widget.collide_point(*m.pos)
+        return True
 
     def on_touch_up(self, m):
-        return self.enable
+        if not self.enable:
+            return False
+        if self.widget is not None:
+            return self.widget.collide_point(*m.pos)
+        return True
 
     def on_touch_move(self, m):
-        return self.enable
+        if not self.enable:
+            return False
+        if self.widget is not None:
+            return self.widget.collide_point(*m.pos)
+        return True
 
 
 class InputManager(Widget):
@@ -603,7 +630,7 @@ class Progress(Widget):
             self._bg_rect = kvRectangle(pos=self.pos, size=self.size)
             self._fg_color = kvColor()
             self._fg_rect = kvRectangle(pos=self.pos, size=(0, 0))
-        self._label = self.add(Label(halign='left'))
+        self._label = self.add(Label(halign='center', valign='middle'))
 
         self.bg_color = bg_color
         self.fg_color = fg_color

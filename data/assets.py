@@ -103,7 +103,7 @@ class Assets:
                     raise RuntimeError(m)
                 if image_name not in cls.missing_images:
                     cls.missing_images.add(image_name)
-                    logger.warning(f'Cannot find category or image name: {category}, {image_name}. Using fallback: {FALLBACK_SPRITE}')
+                    logger.warning(f'Cannot find category {category} or image name {image_name}. Using fallback: {FALLBACK_SPRITE}')
                 return FALLBACK_SPRITE
 
     SFX = {

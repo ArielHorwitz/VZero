@@ -29,7 +29,6 @@ from logic.items import ITEM, ITEMS, ITEM_CATEGORIES
 
 RNG = np.random.default_rng()
 STAT_SPRITES = tuple(Assets.get_sprite('ability', s) for s in ('physical', 'fire', 'earth', 'air', 'water', 'gold'))
-MODAL_MODES = ['abilities', 'items', 'shop', 'shop']
 
 
 class EncounterAPI(BaseEncounterAPI):
@@ -75,19 +74,14 @@ class EncounterAPI(BaseEncounterAPI):
 
     @property
     def control_buttons(self):
-        return ['Pause' if self.engine.auto_tick else 'Play', 'Abilities', 'Items', 'Shop']
+        return ['Pause' if self.engine.auto_tick else 'Play', 'Shop']
 
     def control_button_click(self, index):
         if index == 0:
             self.toggle_play()
-            self.set_modal_mode(None, toggle_play=False)
-        elif index == 1: self.set_modal_mode('abilities')
-        elif index == 2: self.set_modal_mode('items')
-        elif index == 3: self.set_modal_mode('shop')
-
-    @property
-    def show_menu(self):
-        return not self.engine.auto_tick and not self.dev_mode and not self.modal_mode
+        elif index == 1:
+            self.selected_unit = 0
+            self.raise_gui_flag('browse_toggle')
 
     def quickcast(self, ability_index, target):
         # Ability from player input (requires handling user feedback)
@@ -145,27 +139,16 @@ class EncounterAPI(BaseEncounterAPI):
         elif hotkey == 'dev2':
             self.show_debug = not self.show_debug
         elif hotkey == 'dev3':
-            self.show_debug = not self.show_debug
-        elif hotkey == 'dev4':
             self.debug(tick=1)
+        elif hotkey == 'dev4':
+            self.engine.set_auto_tick()
         elif 'control' in hotkey:
             control = int(hotkey[-1])
             if control == 0:
+                self.toggle_play()
+            elif control == 1:
                 self.selected_unit = 0
-                if self.modal_mode is None:
-                    self.toggle_play()
-                else:
-                    self.set_modal_mode(None)
-            elif 0 < control < 4:
-                self.set_modal_mode(MODAL_MODES[control-1])
-
-    def set_modal_mode(self, new_mode, toggle_play=True):
-        if new_mode == self.modal_mode:
-            self.modal_mode = None
-        else:
-            self.modal_mode = new_mode
-        if toggle_play:
-            self.toggle_play(self.modal_mode is None)
+                self.raise_gui_flag('browse_toggle')
 
     @property
     def map_size(self):
@@ -189,11 +172,105 @@ class EncounterAPI(BaseEncounterAPI):
         is_ally = self.engine.get_stats(slice(None), STAT.ALLEGIANCE) == self.engine.get_stats(0, STAT.ALLEGIANCE)
         return in_los | is_neutral | is_special | is_ally
 
-    # Agent viewer
-    def agent_panel_name(self):
-        return self.units[self.selected_unit].name
+    # HUD
+    def hud_left(self):
+        uid = self.selected_unit
+        sls = []
+        for aid in self.units[uid].abilities:
+            if aid is None:
+                sls.append(SpriteLabel(str(Assets.get_sprite('ui', 'empty')), '', (0,0,0,0)))
+                continue
+            ability = self.abilities[aid]
+            sprite = Assets.get_sprite('ability', ability.sprite)
+            s, color = ability.gui_state(self.engine, uid)
+            sls.append(SpriteLabel(sprite, s, modify_color(color, a=0.4)))
+        return sls
 
-    def agent_panel_bars(self):
+    def hud_right(self):
+        uid = self.selected_unit
+        sls = []
+        for iid in self.units[uid].item_slots:
+            if iid is None:
+                sls.append(SpriteLabel(Assets.get_sprite('ui', 'empty'), '', (0,0,0,0)))
+                continue
+            item = ITEMS[iid]
+            sprite = Assets.get_sprite('ability', item.name)
+            s, color = item.gui_state(self.engine, uid)
+            sls.append(SpriteLabel(sprite, s, modify_color(color, a=0.4)))
+        return sls
+
+    def hud_middle(self):
+        uid = self.selected_unit
+        current = self.engine.get_stats(uid, [
+            STAT.PHYSICAL, STAT.FIRE, STAT.EARTH,
+            STAT.AIR, STAT.WATER, STAT.GOLD,
+        ])
+        return tuple(SpriteLabel(STAT_SPRITES[i], f'{math.floor(current[i])}', (0,0,0,0)) for i in range(6))
+
+    def hud_statuses(self):
+        def get(s):
+            return Mechanics.get_status(self.engine, uid, s)
+        def format_time(t):
+            return math.ceil(self.engine.ticks2s(t))
+        def format_rp(v):
+            return round((1-Mechanics.rp2reduction(v))*100)
+
+        uid = self.selected_unit
+        strs = []
+        respawn = self.engine.get_status(uid, STATUS.RESPAWN)
+        if respawn > 0:
+            duration = self.engine.get_status(uid, STATUS.RESPAWN, STATUS_VALUE.DURATION)
+            strs.append(SpriteLabel(
+                Assets.get_sprite('ability', 'respawn'),
+                f'* {format_time(duration)}s\n',
+                (0,0,0,0.25),
+            ))
+
+        if self.engine.get_status(uid, STATUS.FOUNTAIN) > 0:
+            strs.append(SpriteLabel(
+                Assets.get_sprite('unit', 'fort'),
+                '',
+                (0,0,0,0),
+            ))
+
+        shop = self.engine.get_status(uid, STATUS.SHOP)
+        if shop > 0:
+            shop = list(ITEM_CATEGORIES)[round(shop)-1].name.lower().capitalize()
+            strs.append(SpriteLabel(
+                Assets.get_sprite('unit', 'basic-shop'),
+                f'{shop}',
+                (0,0,0,0.25),
+            ))
+
+        for stat, status in Mechanics.STATUSES.items():
+            v = get(stat)
+            if v > 0:
+                name = stat.name.lower().capitalize()
+                duration = self.engine.get_status(uid, status, STATUS_VALUE.DURATION)
+                ds = f'* {format_time(duration)}s' if duration > 0 else ''
+                strs.append(SpriteLabel(
+                    Assets.get_sprite('ability', name),
+                    # f'{round(v)}/{format_rp(v)}% {name}{ds}',
+                    f'{ds}\n{round(v)}',
+                    (0,0,0,0.25),
+                ))
+
+        for status in [STATUS.SLOW]:
+            d = self.engine.get_status(uid, status, STATUS_VALUE.DURATION)
+            v = self.engine.get_status(uid, status, STATUS_VALUE.STACKS)
+            if d > 0:
+                name = status.name.lower().capitalize()
+                ds = f'* {format_time(d)}s'
+                strs.append(SpriteLabel(
+                    Assets.get_sprite('ability', name),
+                    # f'{round(v)}/{format_rp(v)}% {name}{ds}',
+                    f'{ds}\n{round(v)}',
+                    (0,0,0,0.25),
+                ))
+
+        return strs
+
+    def hud_bars(self):
         uid = self.selected_unit
         hp = self.engine.get_stats(uid, STAT.HP)
         max_hp = self.engine.get_stats(uid, STAT.HP, value_name=VALUE.MAX)
@@ -208,174 +285,110 @@ class EncounterAPI(BaseEncounterAPI):
             ProgressBar(mana/max_mana, f'Mana: {mana:.1f}/{max_mana:.1f} {delta_mana}', (0, 0, 1, 1)),
         ]
 
-    def agent_panel_boxes(self):
-        uid = self.selected_unit
-        current = self.engine.get_stats(uid, [
-            STAT.PHYSICAL, STAT.FIRE, STAT.EARTH,
-            STAT.AIR, STAT.WATER, STAT.GOLD,
-        ])
-        delta = self.engine.get_stats(uid, [
-            STAT.PHYSICAL, STAT.FIRE, STAT.EARTH,
-            STAT.AIR, STAT.WATER, STAT.GOLD,
-        ], value_name=VALUE.DELTA)
-        stats = []
-        for i in range(6):
-            dval = round(self.engine.s2ticks(delta[i])*60, 1)
+    def hud_name(self):
+        # uid = self.selected_unit
+        # player_dist = self.engine.unit_distance(0, uid)
+        # velocity = self.engine.s2ticks(self.engine.get_velocity(uid))
+        # return '\n'.join([
+        #     f'Speed: {velocity:.1f}',
+        #     f'Distance: {player_dist:.1f}',
+        # ])
+        return self.units[self.selected_unit].name
+
+    def hud_click(self, hud, index, button):
+        if button == 'left' and hud == 'left':
+            aid = self.units[self.selected_unit].abilities[index]
+            if aid is None:
+                return None
+            ability = self.abilities[aid]
+            color = modify_color(ability.color, v=0.3, a=0.85)
+            stl = SpriteTitleLabel(
+                Assets.get_sprite('ability', ability.name), ability.name,
+                ability.description(self.engine, self.selected_unit), color)
+            return stl
+        elif button == 'left' and hud == 'right':
+            iid = self.engine.units[self.selected_unit].item_slots[index]
+            if iid is None:
+                return
+            item = ITEMS[iid]
+            color = modify_color(item.color, v=0.3, a=0.85)
+            text = item.shop_text(self.engine, 0)
+            stl = SpriteTitleLabel(
+                Assets.get_sprite('ability', item.name), item.name, text, color)
+            return stl
+        elif button == 'left' and hud == 'middle':
+            stat = [
+                STAT.PHYSICAL, STAT.FIRE, STAT.EARTH,
+                STAT.AIR, STAT.WATER, STAT.GOLD,
+            ][index]
+            current = self.engine.get_stats(self.selected_unit, stat)
+            delta = self.engine.get_stats(self.selected_unit, stat, value_name=VALUE.DELTA)
+            dval = round(self.engine.s2ticks(delta)*60, 2)
             ds = ''
             if dval != 0:
-                ds = f'     {nsign_str(dval)} /m'
-            stats.append(f'{math.floor(current[i])}{ds}')
-        return tuple(SpriteLabel(STAT_SPRITES[i], f'{stats[i]}', None) for i in range(6))
+                ds = f'\n{nsign_str(dval)} /m'
+            s = f'{current:.2f}{ds}'
+            title = f'{stat.name.lower().capitalize()}'
+            return SpriteTitleLabel(
+                STAT_SPRITES[index], title, f'{s}', (0,0,0,0.85))
+        # Sorting, selling, etc. only relevant for player
+        elif self.selected_unit == 0:
+            if hud == 'left':
+                if button == 'middle':
+                    List.move_bottom(self.units[0].abilities, index)
+                elif button == 'scrollup':
+                    List.move_down(self.units[0].abilities, index)
+                elif button == 'scrolldown':
+                    List.move_up(self.units[0].abilities, index)
+            if hud == 'right':
+                if button == 'right':
+                    self.itemsell(index, (0,0))
+                elif button == 'middle':
+                    List.move_bottom(self.units[0].item_slots, index)
+                elif button == 'scrollup':
+                    List.move_down(self.units[0].item_slots, index)
+                elif button == 'scrolldown':
+                    List.move_up(self.units[0].item_slots, index)
+        logger.debug(f'hud_click: {hud} {index} {button}')
 
-    def agent_panel_label(self):
-        uid = self.selected_unit
-        player_dist = self.engine.unit_distance(0, uid)
-        velocity = self.engine.s2ticks(self.engine.get_velocity(uid))
-        return '\n'.join([
-            f'Speed: {velocity:.1f}',
-            f'Distance: {player_dist:.1f}',
-            '',
-            *self.status_summary(uid),
-        ])
-
-    def status_summary(self, uid):
-        def get(s):
-            return Mechanics.get_status(self.engine, uid, s)
-        def format_time(t):
-            return math.ceil(self.engine.ticks2s(t))
-        def format_rp(v):
-            return round((1-Mechanics.rp2reduction(v))*100)
-
-        strs = []
-        respawn = self.engine.get_status(uid, STATUS.RESPAWN)
-        if respawn > 0:
-            duration = self.engine.get_status(uid, STATUS.RESPAWN, STATUS_VALUE.DURATION)
-            strs.append(f'Respawning in {format_time(duration)}s')
-
-        if self.engine.get_status(uid, STATUS.FOUNTAIN) > 0:
-            strs.append(f'~ Fountain ~')
-
-        shop = self.engine.get_status(uid, STATUS.SHOP)
-        if shop > 0:
-            shop = list(ITEM_CATEGORIES)[round(shop)-1].name.lower().capitalize()
-            strs.append(f'At shop: {shop}')
-
-        for stat, status in Mechanics.STATUSES.items():
-            v = get(stat)
-            if v > 0:
-                name = stat.name.lower().capitalize()
-                duration = self.engine.get_status(uid, status, STATUS_VALUE.DURATION)
-                ds = f'* {format_time(duration)}s' if duration > 0 else ''
-                strs.append(f'{round(v)}/{format_rp(v)}% {name}{ds}')
-
-        for status in [STATUS.SLOW]:
-            d = self.engine.get_status(uid, status, STATUS_VALUE.DURATION)
-            v = self.engine.get_status(uid, status, STATUS_VALUE.STACKS)
-            if d > 0:
-                name = status.name.lower().capitalize()
-                ds = f'* {format_time(d)}s'
-                strs.append(f'{round(v)}/{format_rp(v)}% {name}{ds}')
-
-        return strs
-
-    # HUD
-    def hud_sprite_labels(self):
-        sls = []
-        for aid in self.units[0].abilities:
-            if aid is None:
-                sls.append(SpriteLabel(str(Assets.FALLBACK_SPRITE), '', (0,0,0,0)))
-                continue
-            ability = self.abilities[aid]
-            sprite = Assets.get_sprite('ability', ability.sprite)
-            s, color = ability.gui_state(self.engine, 0)
-            s = f'{ability.name}\n{s}'
-            sls.append(SpriteLabel(sprite, s, modify_color(color, a=0.4)))
-        return sls
-
-    def hud_aux_sprite_labels(self):
-        sls = []
-        for iid in self.units[0].item_slots:
-            if iid is None:
-                sls.append(SpriteLabel(Assets.get_sprite('ui', 'empty'), '', (0,0,0,0)))
-                continue
-            item = ITEMS[iid]
-            sprite = Assets.get_sprite('ability', item.name)
-            s, color = item.gui_state(self.engine, 0)
-            s = f'{item.name}\n{s}'
-            sls.append(SpriteLabel(sprite, s, modify_color(color, a=0.4)))
-        return sls
-
-    # Modal
-    @property
-    def show_modal_grid(self):
-        return self.modal_mode in {'abilities', 'items'}
-
-    @property
-    def show_modal_browse(self):
-        return self.modal_mode == 'shop'
-
-    def modal_browse_main(self):
+    # Browse
+    def browse_main(self):
         item = ITEMS[self.shop_browse_item]
         return SpriteTitleLabel(
             Assets.get_sprite('ability', item.name),
             item.shop_name, item.shop_text(self.engine, 0),
             modify_color(item.color, a=0.5))
 
-    def modal_browse_sts(self):
+    def browse_elements(self):
         sts = []
         near_shop = self.engine.get_status(0, STATUS.SHOP) > 0
         for item in ITEMS:
             active = False
             if near_shop:
-                active = item.check_buy(self.engine, 0)
-            a = 0.7 if active is True else 0.3
-            color = modify_color(item.color, a=a)
+                r = item.check_buy(self.engine, 0)
+                active = not isinstance(r, FAIL_RESULT)
+            color = item.color
+            v = 0
+            a = 0.7
+            s = ''
+            if active:
+                a = 0.2
+                s = str(round(item.cost))
+            final_color = modify_color(color, v=v, a=a)
             sts.append(SpriteLabel(
-                Assets.get_sprite('ability', item.name), item.shop_name, color))
+                Assets.get_sprite('ability', item.name),
+                s, final_color))
         return sts
 
-    def modal_grid(self):
-        if self.modal_mode == 'abilities':
-            return self.modal_abilities()
-        if self.modal_mode == 'items':
-            return self.modal_items()
-
-    def modal_abilities(self):
-        sts = []
-        for aid in self.engine.units[self.selected_unit].abilities:
-            if aid is None:
-                sts.append(SpriteTitleLabel(str(Assets.FALLBACK_SPRITE), '', '', (0, 0, 0, 0)))
-                continue
-            ability = self.abilities[aid]
-            color = modify_color(ability.color, a=0.3)
-            sts.append(SpriteTitleLabel(
-                Assets.get_sprite('ability', ability.name), ability.name,
-                ability.description(self.engine, self.selected_unit), color))
-        return sts
-
-    def modal_items(self):
-        sts = []
-        for iid in self.engine.units[self.selected_unit].item_slots:
-            if iid is None:
-                sts.append(SpriteTitleLabel(
-                    Assets.get_sprite('ui', 'empty'), 'Empty Slot', '', (0, 0, 0, 0)))
-                continue
-            item = ITEMS[iid]
-            color = modify_color(item.color, a=0.3)
-            text = item.shop_text(self.engine, 0)
-            sts.append(SpriteTitleLabel(
-                Assets.get_sprite('ability', item.name), item.name, text, color))
-        return sts
-
-    def modal_click(self, index, button):
-        if button == 'right' and self.modal_mode == 'shop':
+    def browse_click(self, index, button):
+        if button == 'right':
             r = ITEMS[index].buy_item(self.engine, 0)
             if not isinstance(r, FAIL_RESULT):
                 Assets.play_sfx('ability', 'shop', volume='feedback')
                 return
             if isinstance(r, FAIL_RESULT) and r in FAIL_SFX:
                 Assets.play_sfx('ui', FAIL_SFX[r], volume='feedback')
-        if button == 'left' and self.modal_mode == 'shop':
+        if button == 'left':
             self.shop_browse_item = ITEMS[index].iid
 
     # Misc
@@ -455,9 +468,8 @@ class EncounterAPI(BaseEncounterAPI):
         return text_performance, text_unit
 
     def __init__(self, game, player_abilities):
-        self.dev_mode = False
+        self.dev_mode = Settings.get_setting('dev_build', 'General')
         self.show_debug = False
-        self.modal_mode = None
         self.shop_browse_item = ITEMS[0].iid
         self.game = game
         self.engine = EncounterEngine(self)
