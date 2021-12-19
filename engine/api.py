@@ -10,7 +10,7 @@ from nutil.time import humanize_ms
 from gui.api import SpriteLabel, SpriteTitleLabel, ProgressBar
 from data.load import RDF
 from data.settings import Settings
-from data.assets import Assets, FALLBACK_SPRITE
+from data.assets import Assets
 from engine.encounter import Encounter as EncounterEngine
 from engine.common import *
 
@@ -141,7 +141,7 @@ class EncounterAPI:
     def user_select(self, target, view_size):
         uid, dist = self.engine.nearest_uid(target, alive_only=False)
         hb = self.engine.get_stats(uid, STAT.HITBOX)
-        if dist < max(50, hb) and self.get_visible_uids(view_size)[uid]:
+        if dist < max(50, hb) and self.sprite_visible_mask(view_size)[uid]:
             self.select_unit(uid)
             Assets.play_sfx('ui', 'select',
                 volume=Settings.get_volume('feedback'))
@@ -189,29 +189,30 @@ class EncounterAPI:
     def general_label_text(self):
         return self.time_str
 
-    # Units and vfx
+    # Sprites and vfx
     map_size = np.full(2, 5_000)
-    map_image_source = FALLBACK_SPRITE
+    map_image_source = Assets.FALLBACK_SPRITE
     request_redraw = 0
 
-    def get_visible_uids(self, view_size):
+    def sprite_visible_mask(self, view_size):
         max_los = self.player_los
         if self.dev_mode:
             max_los = max(max_los, np.linalg.norm(np.array(view_size) / 2))
         return self.engine.unit_distance(0) <= max_los
 
-    def get_all_positions(self):
+    def sprite_positions(self):
         return self.engine.get_position()
 
-    def get_sprite_bars(self):
+    def sprite_bars(self):
         max_hps = self.engine.get_stats(slice(None), STAT.HP, value_name=VALUE.MAX)
         hps = self.engine.get_stats(slice(None), STAT.HP) / max_hps
-        return hps, max_hps
+        return hps, np.full(hps.shape, .5)
 
-    def get_sprite_size(self, uid=None):
-        if uid is None:
-            uid = slice(None)
-        return self.engine.get_stats(uid, STAT.HITBOX)
+    def sprite_sizes(self):
+        return self.engine.get_stats(slice(None), STAT.HITBOX)
+
+    def sprite_statuses(self, uid):
+        return [str(Assets.FALLBACK_SPRITE) for _ in range(uid%3)]
 
     def get_visual_effects(self):
         return self.engine.get_visual_effects()

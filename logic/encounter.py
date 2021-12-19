@@ -135,7 +135,7 @@ class EncounterAPI(BaseEncounterAPI):
         if hotkey == 'toggle_play':
             self.toggle_play()
         elif hotkey == 'dev1':
-            self.debug(dev_mode=None)
+            self.debug(dev_mode=None, test=True)
         elif hotkey == 'dev2':
             self.show_debug = not self.show_debug
         elif hotkey == 'dev3':
@@ -162,7 +162,8 @@ class EncounterAPI(BaseEncounterAPI):
     def request_redraw(self):
         return self.map.request_redraw
 
-    def get_visible_uids(self, view_size):
+    # Sprites
+    def sprite_visible_mask(self, view_size):
         max_los = self.player_los
         if self.dev_mode:
             max_los = max(max_los, np.linalg.norm(np.array(view_size) / 2))
@@ -171,6 +172,37 @@ class EncounterAPI(BaseEncounterAPI):
         is_special = self.engine.get_stats(slice(None), STAT.ALLEGIANCE) >= 1000
         is_ally = self.engine.get_stats(slice(None), STAT.ALLEGIANCE) == self.engine.get_stats(0, STAT.ALLEGIANCE)
         return in_los | is_neutral | is_special | is_ally
+
+    def sprite_bars(self):
+        max_hps = self.engine.get_stats(slice(None), STAT.HP, value_name=VALUE.MAX)
+        hps = self.engine.get_stats(slice(None), STAT.HP) / max_hps
+        max_manas = self.engine.get_stats(slice(None), STAT.MANA, value_name=VALUE.MAX)
+        manas = self.engine.get_stats(slice(None), STAT.MANA) / max_manas
+        manas[hps<=0] = 0
+        return hps, manas
+
+    def sprite_statuses(self, uid):
+        icons = []
+        respawn = self.engine.get_status(uid, STATUS.RESPAWN)
+        if respawn > 0:
+            duration = self.engine.get_status(uid, STATUS.RESPAWN, STATUS_VALUE.DURATION)
+            icons.append(Assets.get_sprite('ability', 'respawn'))
+
+        if self.engine.get_status(uid, STATUS.FOUNTAIN) > 0:
+            icons.append(Assets.get_sprite('unit', 'fort'))
+
+        shop = self.engine.get_status(uid, STATUS.SHOP)
+        if shop > 0:
+            shop = list(ITEM_CATEGORIES)[round(shop)-1].name.lower().capitalize()
+            icons.append(Assets.get_sprite('unit', 'basic-shop'))
+
+        for status in [*Mechanics.STATUSES.values(), STATUS.SLOW]:
+            d = self.engine.get_status(uid, status, STATUS_VALUE.DURATION)
+            if d > 0:
+                name = status.name.lower().capitalize()
+                icons.append(Assets.get_sprite('ability', name))
+
+        return icons
 
     # HUD
     def hud_left(self):
@@ -481,7 +513,7 @@ class EncounterAPI(BaseEncounterAPI):
             unit.action_phase()
         Assets.play_sfx('ui', 'play', volume=Settings.get_volume('feedback'))
 
-    def debug(self, *args, dev_mode=-1, tick=None, tps=None, **kwargs):
+    def debug(self, *args, dev_mode=-1, tick=None, tps=None, test=None, **kwargs):
         logger.debug(f'Logic Debug called (extra args: {args} {kwargs})')
         self.engine.set_tps(tps)
         if dev_mode == -1:
@@ -491,7 +523,8 @@ class EncounterAPI(BaseEncounterAPI):
         self.dev_mode = dev_mode
         if tick is not None:
             self.engine._do_ticks(tick)
-
+        if test is not None:
+            pass
 
 FAIL_SFX = {
     FAIL_RESULT.INACTIVE: 'pause',

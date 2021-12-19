@@ -134,3 +134,7 @@ class RateCounter:
     @property
     def last_elapsed_ms(self):
         return self.sample[-1]
+
+    @property
+    def time_block(self):
+        return ratecounter(self)

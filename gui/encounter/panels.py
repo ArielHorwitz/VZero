@@ -71,7 +71,6 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
 
         main_frame = self.add(widgets.BoxLayout())
         main_frame.set_size(x=TOTAL_HUD_WIDTH, y=TOTAL_HUD_HEIGHT)
-        main_frame.make_bg((0,0,0,0))
 
         self.portrait = main_frame.add(widgets.Image(allow_stretch=True)).set_size(x=HUD_PORTRAIT, y=HUD_PORTRAIT)
         self.portrait.make_bg((0,0,0,0.5))

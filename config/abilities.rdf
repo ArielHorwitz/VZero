@@ -219,6 +219,7 @@ duration_bonus: 150
 stacks: 10
 stacks_stat: earth
 stacks_bonus: 1
+vfx_radius: 1
 
 
 === Fireblast

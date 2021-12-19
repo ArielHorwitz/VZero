@@ -38,6 +38,7 @@ class Unit(BaseUnit):
     def use_ability(self, aid, target):
         with ratecounter(self.engine.timers['ability_single']):
             if not self.engine.auto_tick and not self.api.dev_mode:
+                logger.warning(f'Unit {self.uid} tried using ability {aid.name} while paused')
                 return FAIL_RESULT.INACTIVE
 
             if not self.is_alive:

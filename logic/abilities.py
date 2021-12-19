@@ -175,13 +175,13 @@ class Buff(BaseAbility):
                 'p2': api.get_position(target_uid),
                 'color': self.color,
             })
-        vfx_radius = 1 if self.p.vfx_radius is None else self.p.vfx_radius
-        api.add_visual_effect(VisualEffect.CIRCLE, duration, params={
-            'color': (*self.status_color, 0.4),
-            'radius': api.get_stats(vfx_target, STAT.HITBOX)*vfx_radius,
-            'uid': vfx_target,
-            'fade': duration*4,
-        })
+        if self.p.vfx_radius is not None:
+            api.add_visual_effect(VisualEffect.CIRCLE, duration, params={
+                'color': (*self.status_color, 0.4),
+                'radius': api.get_stats(vfx_target, STAT.HITBOX)*self.p.vfx_radius,
+                'uid': vfx_target,
+                'fade': duration*4,
+            })
         return self.aid
 
     def setup(self):
