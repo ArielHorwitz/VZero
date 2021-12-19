@@ -2,7 +2,7 @@ import logging
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
-
+import numpy as np
 from nutil.kex import widgets
 from data.assets import Assets
 
@@ -38,10 +38,10 @@ class SpriteBox(widgets.Widget):
 
 
 class CenteredSpriteBox(widgets.AnchorLayout):
-    def __init__(self, **kwargs):
+    def __init__(self, size_hint=(.75, .75), **kwargs):
         super().__init__(**kwargs)
         self.sb = self.add(SpriteBox())
-        self.sb.size_hint = 0.75, 0.75
+        self.sb.size_hint = size_hint
 
     def update(self, *a, **k):
         self.sb.update(*a, **k)
@@ -117,6 +117,12 @@ class Stack(widgets.StackLayout):
         if self.callback is not None:
             self.bind(on_touch_down=lambda w, m: self.on_touch_down(m))
 
+    def set_boxsize(self, size=None):
+        if size is not None:
+            self.__x, self.__y = size
+        for box in self.boxes:
+            box.set_size(self.__x, self.__y)
+
     def reset_box_count(self, count):
         if count > len(self.boxes):
             self.boxes.extend([self.add(self.__wtype()) for _ in range(count-len(self.boxes))])
@@ -125,8 +131,7 @@ class Stack(widgets.StackLayout):
             for b in remove_boxes:
                 self.remove_widget(b)
                 self.boxes.remove(b)
-        for box in self.boxes:
-            box.set_size(self.__x, self.__y)
+        self.set_boxsize()
 
     def on_touch_down(self, m):
         if self.callback is None:
@@ -147,16 +152,30 @@ class Stack(widgets.StackLayout):
 
 
 class Tooltip(widgets.BoxLayout):
-    def __init__(self, **kwargs):
+    def __init__(self, bounding_widget=None, **kwargs):
         super().__init__(**kwargs)
+        self.bounding_widget = bounding_widget
         self.__frame = SpriteTitleLabel()
         self.__frame.set_size(300, 250)
         self.set_size(300, 250)
         self.bind(on_touch_down=self._check_click)
 
-    def activate(self, pos, stl):
+    def activate(self, pos, stl, bounding_widget=None):
         if self.__frame not in self.children:
             self.add(self.__frame)
+            if bounding_widget is None:
+                bounding_widget = self.bounding_widget
+            if bounding_widget is not None:
+                fix = np.zeros(2)
+                if not bounding_widget.collide_point(*pos):
+                    blfix = np.array(bounding_widget.pos) - pos
+                    blfix[blfix<0] = 0
+                    fix += blfix
+                if not bounding_widget.collide_point(*(np.array(pos)+self.size)):
+                    trfix = (np.array(bounding_widget.pos) + bounding_widget.size) - (np.array(pos) + self.size)
+                    trfix[trfix>0] = 0
+                    fix += trfix
+                pos = tuple(float(_) for _ in (fix + pos))
             self.pos = pos
         self.__frame.update(stl)
 
@@ -172,9 +191,8 @@ class Tooltip(widgets.BoxLayout):
 class Modal(widgets.AnchorLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.consume_touch = self.add(widgets.ConsumeTouch())
-        self.__frame = widgets.Label(text='Popup missing content')
-        self.__frame.set_size(200, 50)
+        self.consume_touch = self.add(widgets.ConsumeTouch(enable=False))
+        self.__frame = widgets.Label(text='Popup missing content').set_size(200, 50)
         self.auto_dismiss = True
         self.bind(on_touch_down=self._check_click)
 

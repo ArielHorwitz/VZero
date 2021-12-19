@@ -58,11 +58,12 @@ STATUS_VALUE = AutoIntEnum('STATUS_VALUE', ['DURATION', 'STACKS'])
 class FAIL_RESULT(enum.Enum):
     CRITICAL_ERROR = enum.auto()
     INACTIVE = enum.auto()
-    OUT_OF_BOUNDS = enum.auto()
+    MISSING_ACTIVE = enum.auto()
+    MISSING_TARGET = enum.auto()
     MISSING_COST = enum.auto()
+    OUT_OF_BOUNDS = enum.auto()
     OUT_OF_RANGE = enum.auto()
     ON_COOLDOWN = enum.auto()
-    MISSING_TARGET = enum.auto()
 
 
 class COLOR:

@@ -21,10 +21,14 @@ STATS = [
     'AIR',
     'WATER',
     # Mechanics
-    'ARMOR',
-    'LIFESTEAL',
-    'SPIKES',
+    'SLOW',
+    'BOUNDED',
+    'CUTS',
     'VANITY',
+    'ARMOR',
+    'REFLECT',
+    'SPIKES',
+    'LIFESTEAL',
 ]
 
 STATUSES = [
@@ -38,8 +42,10 @@ STATUSES = [
     'LIFESTEAL',
     'SPIKES',
     'VANITY',
-    # Temporary mechanics
     'SLOW',
+    'REFLECT',
+    'CUTS',
+    'BOUNDED',
 ]
 
 ABILITIES = [*RDF(RDF.CONFIG_DIR / 'abilities.rdf').keys()]

@@ -7,9 +7,10 @@ import collections
 import numpy as np
 
 import kivy
+from kivy.config import Config as kvConfig
 from kivy.app import App as kvApp
 from kivy.core.window import Window as kvWindow
-from kivy.clock import Clock
+from kivy.clock import Clock as kvClock
 from kivy.core.text import Label as CoreLabel
 from kivy.uix.behaviors.button import ButtonBehavior as kvButtonBehavior
 from kivy.uix.behaviors.drag import DragBehavior as kvDragBehavior
@@ -239,7 +240,7 @@ class ConsumeTouch(Widget):
         self.__mpos = p
 
     def on_key_down(self, *a):
-        if self.consume_keys is True:
+        if self.enable and self.consume_keys is True:
             if self.widget is not None:
                 r = self.widget.collide_point(*self.__mpos)
                 return r

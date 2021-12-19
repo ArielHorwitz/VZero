@@ -47,11 +47,14 @@ class Item:
         if 'ability' in raw_data.default:
             self.aid = str2ability(raw_data.default['ability'])
             self.ability = ABILITIES[self.aid]
+        elif hasattr(ABILITY, internal_name(self.name).upper()):
+            self.aid = str2ability(self.name)
+            self.ability = ABILITIES[self.aid]
 
         self.stats = {}
         if 'stats' in raw_data:
             self.stats = _load_raw_stats(raw_data['stats'])
-        self.shop_name = f'{self.name} - {round(self.cost)} ({self.category.name.lower().capitalize()})'
+        self.shop_name = f'{self.name}\n{round(self.cost)} ({self.category.name.lower().capitalize()})'
 
     def shop_text(self, engine, uid):
         stat_str = []
@@ -95,11 +98,11 @@ class Item:
     def gui_state(self, api, uid, target=None):
         if self.ability is not None:
             return self.ability.gui_state(api, uid, target)
-        return '', (0, 0, 0, 1)
+        return '', (0, 0, 0, 0)
 
-    def quickcast(self, api, uid, target):
+    def cast(self, api, uid, target):
         if self.aid is None:
-            return
+            return FAIL_RESULT.MISSING_ACTIVE
         r = api.abilities[self.aid].cast(api.engine, uid, target)
         return r
 

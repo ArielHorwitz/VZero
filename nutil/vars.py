@@ -120,6 +120,19 @@ class List:
         l.insert(new_index, item)
         return new_index
 
+    @staticmethod
+    def swap(l: list, index1: int, index2: int):
+        """
+        Swap the position of two items of a list in place (without copying).
+
+        :param l:       List
+        :param index1:  First index
+        :param index2:  Second index
+        """
+        a = l[index1]
+        b = l[index2]
+        l[index2] = a
+        l[index1] = b
 
 class AutoIntEnum(enum.IntEnum):
     def _generate_next_value_(name, start, count, last_values):

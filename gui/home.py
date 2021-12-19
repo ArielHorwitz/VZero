@@ -1,21 +1,38 @@
+import logging
+logger = logging.getLogger(__name__)
+# logger.setLevel(logging.DEBUG)
+
 
 import numpy as np
 import nutil
 from nutil import kex
 from nutil.display import make_title
 from nutil.kex import widgets
+from data import TITLE
 from data.assets import Assets
 from data.settings import Settings
-from gui.common import SpriteLabel
+from gui.common import SpriteLabel, SpriteTitleLabel, CenteredSpriteBox, Stack
 from engine.common import *
 
 
-class HomeGUI(widgets.BoxLayout):
+class HomeGUI(widgets.AnchorLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.make_bg((1,1,1,1))
+        self._bg.source = Assets.get_sprite('ui', 'portrait-frame')
 
-        self.draft = self.add(Draft())
-        self.menu = self.add(Menu())
+        main_anchor = self.add(widgets.AnchorLayout()).set_size(1024, 768)
+
+
+        main_frame = main_anchor.add(widgets.BoxLayout(orientation='vertical'))
+        main_frame.make_bg((0,0,0,0.5))
+        main_frame.add(widgets.Label(text=f'{TITLE}\n\n« Drafting Phase »', halign='center', valign='middle')).set_size(y=100)
+        self.menu = main_frame.add(Menu())
+        self.menu.set_size(y=30)
+        self.draft = main_frame.add(Draft())
+
+        quit_anchor = main_anchor.add(widgets.AnchorLayout(anchor_x='right', anchor_y='top'))
+        quit_anchor.add(widgets.Button(text='Quit', on_release=lambda *a: quit())).set_size(x=100, y=30)
 
         self.app.hotkeys.register_dict({
             'New encounter': (
@@ -29,66 +46,43 @@ class HomeGUI(widgets.BoxLayout):
 
 class Menu(widgets.BoxLayout):
     def __init__(self, **kwargs):
-        super().__init__(orientation='vertical', **kwargs)
-        self.set_size(x=150)
+        super().__init__(**kwargs)
 
-        top_buttons = self.add(widgets.GridLayout(cols=1))
         for t, m in {
-            'Start Encounter': lambda: self.app.game.new_encounter(),
+            'Play': lambda: self.app.game.new_encounter(),
             **{b: lambda x=i: self.app.game.button_click(x) for i, b in enumerate(self.app.game.button_names)},
         }.items():
             b = widgets.Button(
                 text=t, on_release=lambda *a, x=m: x())
-            top_buttons.add(b).set_size(y=50)
-        bottom_buttons = self.add(widgets.BoxLayout(orientation='vertical'))
-        bottom_buttons.add(widgets.Button(
-            text='Quit', on_release=lambda *a: quit(),
-        )).set_size(y=50)
+            self.add(b).set_size(x=100, y=30)
 
 
 class Draft(widgets.BoxLayout):
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.viewer = self.add(widgets.BoxLayout(orientation='vertical'))
-        self.viewer.make_bg((0, 0.2, 0.5, 0.5))
-        self.slbox = self.viewer.add(SpriteLabel())
-        self.slbox.set_size(y=200)
-        self.label = self.viewer.add(widgets.Label(valign='top'))
-        self.label.make_bg((0, 0, 0, 0.2))
+        super().__init__(orientation='vertical', **kwargs)
 
-        right_frame = self.add(widgets.BoxLayout(orientation='vertical'))
-        draft_frame = right_frame.add(widgets.StackLayout())
-        loadout_frame = right_frame.add(widgets.GridLayout(cols=4))
-        loadout_frame.set_size(hy=0.2)
+        top_frame = self.add(widgets.BoxLayout())
+        self.details = top_frame.add(SpriteTitleLabel()).set_size(x=300)
+        self.draft = top_frame.add(Stack(
+            wtype=lambda *a: CenteredSpriteBox(*a, size_hint=(.9, .9)),
+            callback=self.app.game.draft_click,
+            x=50, y=50))
+        self.draft.make_bg((.1,.1,.1,1))
 
-        sample_draft = self.app.game.draft_boxes()
-        self.draft_boxes = []
-        for i in range(len(sample_draft)):
-            btn = DraftButton(i, self.draft_click)
-            draft_frame.add(btn)
-            btn.set_size(x=150, y=50)
-            self.draft_boxes.append(btn)
-        self.loadout_boxes = [loadout_frame.add(DraftButton(_, self.loadout_click)) for _ in range(8)]
-
-        self.bind(size=self.reposition)
-
-    def reposition(self, *a):
-        self.viewer.set_size(x=300 if self.size[0] <= 1024 else 400)
+        bottom_frame = self.add(widgets.BoxLayout()).set_size(y=100)
+        self.label = bottom_frame.add(widgets.Label(valign='top'))
+        self.loadout = bottom_frame.add(Stack(
+            wtype=SpriteLabel,
+            x=150, y=50,
+            callback=self.app.game.loadout_click))
+        self.loadout.set_size(x=600)
 
     def update(self):
-        for i, sl in enumerate(self.app.game.draft_boxes()):
-            self.draft_boxes[i].update(sl)
-        for i, sl in enumerate(self.app.game.loadout_boxes()):
-            self.loadout_boxes[i].update(sl)
-        self.slbox.update(self.app.game.draft_info_box())
-        self.label.text = self.app.game.draft_info_label()
+        self.draft.update(self.app.game.draft_boxes())
+        self.loadout.update(self.app.game.loadout_boxes())
+        self.details.update(self.app.game.draft_details())
+        self.label.text = self.app.game.draft_label()
         self.label.text_size = self.label.size
-
-    def draft_click(self, index, m):
-        self.app.game.draft_click(index, m.button)
-
-    def loadout_click(self, index, m):
-        self.app.game.loadout_click(index, m.button)
 
 
 class DraftButton(SpriteLabel):
@@ -101,3 +95,6 @@ class DraftButton(SpriteLabel):
     def click(self, w, m):
         if self.collide_point(*m.pos):
             self.callback(self.index, m)
+
+
+#

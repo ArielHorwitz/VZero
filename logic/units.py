@@ -21,19 +21,42 @@ RNG = np.random.default_rng()
 
 
 class Unit(BaseUnit):
-    _respawn_timer = 14400  # ~ 2 minutes
+    _respawn_timer = 12000  # ~ 2 minutes
     def __init__(self, api, uid, name, params):
         super().__init__(uid, name)
         self.api = api
         self.engine = api.engine
         self.name = self.__start_name = name
         self.p = params
-        abilities = [ABILITY.WALK, ABILITY.ATTACK]
         if 'abilities' in params:
             abilities = [str2ability(a) for a in params['abilities'].split(', ')]
+        else:
+            abilities = [ABILITY.WALK, ABILITY.ATTACK]
         self.abilities = abilities
         self.abilities.extend([None for i in range(8-len(self.abilities))])
         self.item_slots = [None for i in range(8)]
+
+    def use_item(self, iid, target):
+        with ratecounter(self.engine.timers['ability_single']):
+
+            if not self.engine.auto_tick and not self.api.dev_mode:
+                logger.warning(f'Unit {self.uid} tried using item {iid.name} while paused')
+                return FAIL_RESULT.INACTIVE
+
+            if not self.is_alive:
+                logger.warning(f'Unit {self.uid} is dead and requested item {iid.name}')
+                return FAIL_RESULT.INACTIVE
+
+            target = np.array(target)
+            if (target > self.api.map_size).any() or (target < 0).any():
+                return FAIL_RESULT.OUT_OF_BOUNDS
+
+            item = ITEMS[iid]
+            r = item.cast(self.api, self.uid, target)
+            if r is None:
+                m = f'Item {item} ability {item.ability.__class__}.cast() method returned None. Must return FAIL_RESULT on fail or aid on success.'
+                logger.warning(m)
+            return r
 
     def use_ability(self, aid, target):
         with ratecounter(self.engine.timers['ability_single']):
@@ -52,9 +75,8 @@ class Unit(BaseUnit):
             ability = self.api.abilities[aid]
             r = ability.cast(self.engine, self.uid, target)
             if r is None:
-                m = f'Ability {ability.__class__} cast() method returned None. Must return FAIL_RESULT on fail or aid on success.'
-                logger.error(m)
-                raise ValueError(m)
+                m = f'Ability {ability.__class__}.cast() method returned None. Must return FAIL_RESULT on fail or aid on success.'
+                logger.warning(m)
             return r
 
     def setup(self):
@@ -120,12 +142,12 @@ class Player(Unit):
 
 
 class Creep(Unit):
-    WAVE_INTERVAL = 28_800  # 4 minutes
+    WAVE_INTERVAL = 30000  # 5 minutes
 
     def _setup(self):
         self.color = (1, 0, 0)
         self.wave_offset = float(self.p['wave']) * self.WAVE_INTERVAL
-        self.scaling = float(self.p['scaling']) if 'scaling' in self.p else 1.05
+        self.scaling = float(self.p['scaling']) if 'scaling' in self.p else 1
         # Ensure the whole wave does not spawn too close, as collision is finnicky at the time of writing
         self._respawn_location += RNG.random(2) * self.engine.get_stats(self.uid, STAT.HITBOX)
         self.engine.set_position(self.uid, self._respawn_location)
@@ -144,9 +166,12 @@ class Creep(Unit):
         self.use_ability(ABILITY.WALK, self.target)
 
     def scale_power(self):
-        self.engine.set_stats(self.uid, [
-            STAT.PHYSICAL, STAT.FIRE, STAT.EARTH, STAT.AIR, STAT.WATER, STAT.GOLD,
-        ], self.scaling, multiplicative=True)
+        currents = [STAT.PHYSICAL, STAT.FIRE, STAT.EARTH, STAT.WATER, STAT.GOLD]
+        deltas = maxs = [STAT.HP, STAT.MANA]
+        self.engine.set_stats(self.uid, currents, self.scaling, multiplicative=True)
+        self.engine.set_stats(self.uid, deltas, self.scaling, value_name=VALUE.DELTA, multiplicative=True)
+        self.engine.set_stats(self.uid, maxs, self.scaling, value_name=VALUE.MAX, multiplicative=True)
+        self.engine.set_stats(self.uid, maxs, 1_000_000)
 
     @property
     def _respawn_timer(self):
@@ -175,19 +200,16 @@ class Camper(Unit):
 
     def action_phase(self):
         player_pos = self.engine.get_position(0)
-        my_pos = self.engine.get_position(self.uid)
-        in_aggro_range = math.dist(my_pos, player_pos) < self.__aggro_range
+        camp_dist = self.engine.get_distances(self.camp, self.uid)
+        in_aggro_range = self.engine.unit_distance(self.uid, 0) < self.__aggro_range
         if in_aggro_range and not self.__deaggro and self.engine.units[0].is_alive:
             for aid in self.abilities:
                 if aid is None: continue
                 self.use_ability(aid, player_pos)
-            camp_dist = math.dist(my_pos, self.camp)
             if camp_dist > self.__deaggro_range:
                 self.__deaggro = True
         else:
-            if self.__deaggro is True:
-                camp_dist = math.dist(my_pos, self.camp)
-                if camp_dist < self.__reaggro_range:
+            if self.__deaggro is True and camp_dist < self.__reaggro_range:
                     self.__deaggro = False
             self.use_ability(self.abilities[0], self.walk_target)
 
@@ -236,6 +258,7 @@ class DPSMeter(Unit):
         self.engine.set_stats(self.uid, STAT.HP, 10**12)
         self.engine.set_stats(self.uid, STAT.HP, 0, value_name=VALUE.DELTA)
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
+        self.abilities = []
         self.__started = False
         self.__sample_size = 10
         self.__sample_index = 0
@@ -258,7 +281,7 @@ class DPSMeter(Unit):
         total_time = self.__sample[:, 0].sum()
         total_damage = self.__sample[:, 1].sum()
         dps = total_damage / total_time
-        self.name = f'DPS: {dps*self.__tps:.2f} ({total_damage:.2f} / {total_time:.2f}) [{self.__sample_index}]'
+        self.name = f'DPS: {dps*self.__tps:.2f}'
 
 
 UNIT_CLASSES = {

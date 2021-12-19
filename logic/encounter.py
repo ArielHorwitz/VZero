@@ -53,24 +53,12 @@ class EncounterAPI(BaseEncounterAPI):
             f'{self.time_str}',
         ]
         if self.dev_mode:
-            s.insert(0, 'DEV MODE')
-            s.extend([
-                '\n__ RP Table __',
-                '5 rp =  9 %',
-                '10 rp = 17 %',
-                '20 rp = 30 %',
-                '30 rp = 38 %',
-                '40 rp = 44 %',
-                '50 rp = 50 %',
-                '100 rp = 67 %',
-                '150 rp = 75 %',
-                '200 rp = 80 %',
-            ])
-        return '\n'.join(s)
+            s.insert(0, 'DEBUG MODE')
+        return ' - '.join(s)
 
     @property
     def general_label_color(self):
-        return (0,0,0,0) if not self.dev_mode else (0.5,0,1,0.4)
+        return (1,1,1,1) if not self.dev_mode else (0.5,0,1,1)
 
     @property
     def control_buttons(self):
@@ -90,8 +78,6 @@ class EncounterAPI(BaseEncounterAPI):
             return
         ability = self.abilities[aid]
         r = self.units[0].use_ability(aid, target)
-        if r is None:
-            logger.warning(f'Ability {ability.__class__} failed to return a result!')
         if isinstance(r, FAIL_RESULT) and r in FAIL_SFX:
             Assets.play_sfx('ui', FAIL_SFX[r], replay=False,
                 volume=Settings.get_volume('feedback'))
@@ -109,10 +95,20 @@ class EncounterAPI(BaseEncounterAPI):
         iid = self.units[0].item_slots[item_index]
         if iid is None:
             return
-        item = ITEMS[iid]
-        r = item.quickcast(self, 0, target)
+        r = self.units[0].use_item(iid, target)
         if isinstance(r, FAIL_RESULT) and r in FAIL_SFX:
             Assets.play_sfx('ui', FAIL_SFX[r], volume='feedback')
+        if r not in (FAIL_RESULT.INACTIVE, FAIL_RESULT.MISSING_ACTIVE):
+            a = ITEMS[iid].ability
+            color = (1,1,1,1) if a is None else a.color
+            self.engine.add_visual_effect(VisualEffect.SPRITE, 15, {
+                'point': target,
+                'fade': 30,
+                'category': 'ui',
+                'source': 'crosshair',
+                'size': (40, 40),
+                'tint': color,
+            })
 
     def itemsell(self, item_index, target):
         iid = self.units[0].item_slots[item_index]
@@ -124,12 +120,6 @@ class EncounterAPI(BaseEncounterAPI):
             Assets.play_sfx('ui', FAIL_SFX[r], volume='feedback')
         else:
             Assets.play_sfx('ability', 'shop', volume=Settings.get_volume('feedback'))
-
-    def ability_sort(self, ability_index, target):
-        List.move_bottom(self.units[0].abilities, ability_index)
-
-    def item_sort(self, item_index, target):
-        List.move_bottom(self.units[0].item_slots, item_index)
 
     def user_hotkey(self, hotkey, target):
         if hotkey == 'toggle_play':
@@ -196,7 +186,7 @@ class EncounterAPI(BaseEncounterAPI):
             shop = list(ITEM_CATEGORIES)[round(shop)-1].name.lower().capitalize()
             icons.append(Assets.get_sprite('unit', 'basic-shop'))
 
-        for status in [*Mechanics.STATUSES.values(), STATUS.SLOW]:
+        for status in [*Mechanics.STATUSES.values()]:
             d = self.engine.get_status(uid, status, STATUS_VALUE.DURATION)
             if d > 0:
                 name = status.name.lower().capitalize()
@@ -210,7 +200,7 @@ class EncounterAPI(BaseEncounterAPI):
         sls = []
         for aid in self.units[uid].abilities:
             if aid is None:
-                sls.append(SpriteLabel(str(Assets.get_sprite('ui', 'empty')), '', (0,0,0,0)))
+                sls.append(SpriteLabel(str(Assets.get_sprite('ui', 'blank')), '', (0,0,0,0)))
                 continue
             ability = self.abilities[aid]
             sprite = Assets.get_sprite('ability', ability.sprite)
@@ -223,7 +213,7 @@ class EncounterAPI(BaseEncounterAPI):
         sls = []
         for iid in self.units[uid].item_slots:
             if iid is None:
-                sls.append(SpriteLabel(Assets.get_sprite('ui', 'empty'), '', (0,0,0,0)))
+                sls.append(SpriteLabel(Assets.get_sprite('ui', 'blank'), '', (0,0,0,0)))
                 continue
             item = ITEMS[iid]
             sprite = Assets.get_sprite('ability', item.name)
@@ -258,6 +248,12 @@ class EncounterAPI(BaseEncounterAPI):
                 (0,0,0,0.25),
             ))
 
+        strs.append(SpriteLabel(
+            Assets.get_sprite('ability', 'walk'),
+            str(round(self.engine.s2ticks(self.engine.get_velocity(uid)))),
+            (0,0,0,0),
+        ))
+
         if self.engine.get_status(uid, STATUS.FOUNTAIN) > 0:
             strs.append(SpriteLabel(
                 Assets.get_sprite('unit', 'fort'),
@@ -287,19 +283,6 @@ class EncounterAPI(BaseEncounterAPI):
                     (0,0,0,0.25),
                 ))
 
-        for status in [STATUS.SLOW]:
-            d = self.engine.get_status(uid, status, STATUS_VALUE.DURATION)
-            v = self.engine.get_status(uid, status, STATUS_VALUE.STACKS)
-            if d > 0:
-                name = status.name.lower().capitalize()
-                ds = f'* {format_time(d)}s'
-                strs.append(SpriteLabel(
-                    Assets.get_sprite('ability', name),
-                    # f'{round(v)}/{format_rp(v)}% {name}{ds}',
-                    f'{ds}\n{round(v)}',
-                    (0,0,0,0.25),
-                ))
-
         return strs
 
     def hud_bars(self):
@@ -317,52 +300,43 @@ class EncounterAPI(BaseEncounterAPI):
             ProgressBar(mana/max_mana, f'Mana: {mana:.1f}/{max_mana:.1f} {delta_mana}', (0, 0, 1, 1)),
         ]
 
-    def hud_name(self):
-        # uid = self.selected_unit
-        # player_dist = self.engine.unit_distance(0, uid)
-        # velocity = self.engine.s2ticks(self.engine.get_velocity(uid))
-        # return '\n'.join([
-        #     f'Speed: {velocity:.1f}',
-        #     f'Distance: {player_dist:.1f}',
-        # ])
-        return self.units[self.selected_unit].name
-
     def hud_click(self, hud, index, button):
-        if button == 'left' and hud == 'left':
-            aid = self.units[self.selected_unit].abilities[index]
-            if aid is None:
-                return None
-            ability = self.abilities[aid]
-            color = modify_color(ability.color, v=0.3, a=0.85)
-            stl = SpriteTitleLabel(
-                Assets.get_sprite('ability', ability.name), ability.name,
-                ability.description(self.engine, self.selected_unit), color)
-            return stl
-        elif button == 'left' and hud == 'right':
-            iid = self.engine.units[self.selected_unit].item_slots[index]
-            if iid is None:
-                return
-            item = ITEMS[iid]
-            color = modify_color(item.color, v=0.3, a=0.85)
-            text = item.shop_text(self.engine, 0)
-            stl = SpriteTitleLabel(
-                Assets.get_sprite('ability', item.name), item.name, text, color)
-            return stl
-        elif button == 'left' and hud == 'middle':
-            stat = [
-                STAT.PHYSICAL, STAT.FIRE, STAT.EARTH,
-                STAT.AIR, STAT.WATER, STAT.GOLD,
-            ][index]
-            current = self.engine.get_stats(self.selected_unit, stat)
-            delta = self.engine.get_stats(self.selected_unit, stat, value_name=VALUE.DELTA)
-            dval = round(self.engine.s2ticks(delta)*60, 2)
-            ds = ''
-            if dval != 0:
-                ds = f'\n{nsign_str(dval)} /m'
-            s = f'{current:.2f}{ds}'
-            title = f'{stat.name.lower().capitalize()}'
-            return SpriteTitleLabel(
-                STAT_SPRITES[index], title, f'{s}', (0,0,0,0.85))
+        if button == 'left':
+            if hud == 'left':
+                aid = self.units[self.selected_unit].abilities[index]
+                if aid is None:
+                    return None
+                ability = self.abilities[aid]
+                color = modify_color(ability.color, v=0.3, a=0.85)
+                stl = SpriteTitleLabel(
+                    Assets.get_sprite('ability', ability.name), ability.name,
+                    ability.description(self.engine, self.selected_unit), color)
+                return stl
+            elif hud == 'right':
+                iid = self.engine.units[self.selected_unit].item_slots[index]
+                if iid is None:
+                    return
+                item = ITEMS[iid]
+                color = modify_color(item.color, v=0.3, a=0.85)
+                text = item.shop_text(self.engine, 0)
+                stl = SpriteTitleLabel(
+                    Assets.get_sprite('ability', item.name), item.name, text, color)
+                return stl
+            elif hud == 'middle':
+                stat = [
+                    STAT.PHYSICAL, STAT.FIRE, STAT.EARTH,
+                    STAT.AIR, STAT.WATER, STAT.GOLD,
+                ][index]
+                current = self.engine.get_stats(self.selected_unit, stat)
+                delta = self.engine.get_stats(self.selected_unit, stat, value_name=VALUE.DELTA)
+                dval = round(self.engine.s2ticks(delta)*60, 2)
+                ds = ''
+                if dval != 0:
+                    ds = f'\n{nsign_str(dval)} /m'
+                s = f'{current:.2f}{ds}'
+                title = f'{stat.name.lower().capitalize()}'
+                return SpriteTitleLabel(
+                    STAT_SPRITES[index], title, f'{s}', (0,0,0,0.85))
         # Sorting, selling, etc. only relevant for player
         elif self.selected_unit == 0:
             if hud == 'left':
@@ -381,7 +355,6 @@ class EncounterAPI(BaseEncounterAPI):
                     List.move_down(self.units[0].item_slots, index)
                 elif button == 'scrolldown':
                     List.move_up(self.units[0].item_slots, index)
-        logger.debug(f'hud_click: {hud} {index} {button}')
 
     # Browse
     def browse_main(self):
@@ -402,10 +375,9 @@ class EncounterAPI(BaseEncounterAPI):
             color = item.color
             v = 0
             a = 0.7
-            s = ''
+            s = str(round(item.cost))
             if active:
                 a = 0.2
-                s = str(round(item.cost))
             final_color = modify_color(color, v=v, a=a)
             sts.append(SpriteLabel(
                 Assets.get_sprite('ability', item.name),
@@ -470,19 +442,41 @@ class EncounterAPI(BaseEncounterAPI):
     def debug_panel_labels(self):
         uid = self.selected_unit
         unit = self.engine.units[uid]
+
+        rp_table = njoin([
+            make_title('Reduction Points (RP) Table', length=30),
+            '5 rp =  9 %',
+            '10 rp = 17 %',
+            '20 rp = 30 %',
+            '30 rp = 38 %',
+            '40 rp = 44 %',
+            '50 rp = 50 %',
+            '100 rp = 67 %',
+            '150 rp = 75 %',
+            '200 rp = 80 %',
+        ])
+
         text_unit = '\n'.join([
             make_title(f'{unit.name} (#{unit.uid})', length=30),
+            make_title(f'Stat', length=30),
             f'{self.pretty_stats(uid)}',
             make_title(f'Status', length=30),
             f'{self.pretty_statuses(uid)}',
             make_title(f'Cooldown', length=30),
             f'{self.pretty_cooldowns(uid)}',
-            f'Abilities: {unit.abilities}',
-            f'Items: {unit.item_slots}',
+        ])
+
+        text_unit2 = '\n'.join([
+            make_title(f'{unit.name} (#{unit.uid})', length=30),
+            make_title(f'Abilities', length=30),
+            *(str(_) for _ in unit.abilities),
+            make_title(f'Items', length=30),
+            *(str(_) for _ in unit.item_slots),
             make_title(f'Debug', length=30),
             f'{unit.debug_str}',
             f'Action phase: {unit.uid % self.engine.AGENCY_PHASE_COUNT}',
             f'Agency: {self.engine.timers["agency"][unit.uid].mean_elapsed_ms:.3f} ms',
+            f'Distance to player: {self.engine.unit_distance(0, uid):.1f}',
         ])
 
         timer_strs = []
@@ -497,7 +491,7 @@ class EncounterAPI(BaseEncounterAPI):
             f'Map size: {self.map_size}',
             f'Agency phase: {self.engine.tick % self.engine.AGENCY_PHASE_COUNT}',
         ])
-        return text_performance, text_unit
+        return rp_table, text_unit, text_unit2, text_performance
 
     def __init__(self, game, player_abilities):
         self.dev_mode = Settings.get_setting('dev_build', 'General')
@@ -526,10 +520,11 @@ class EncounterAPI(BaseEncounterAPI):
         if test is not None:
             pass
 
+
 FAIL_SFX = {
     FAIL_RESULT.INACTIVE: 'pause',
-    FAIL_RESULT.MISSING_COST: 'cost',
     FAIL_RESULT.MISSING_TARGET: 'target',
+    FAIL_RESULT.MISSING_COST: 'cost',
     FAIL_RESULT.OUT_OF_BOUNDS: 'range',
     FAIL_RESULT.OUT_OF_RANGE: 'range',
     FAIL_RESULT.ON_COOLDOWN: 'cooldown',

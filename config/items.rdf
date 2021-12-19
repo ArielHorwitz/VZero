@@ -1,180 +1,358 @@
 
-
+---------------- TIER 1
 === Iron Fist
 category: basic
-cost: 45
+cost: 30
 --- stats
-hp.max: 10
-physical: 4
-earth: 4
-
+physical: 5
+spikes: 10
 === Mask
 category: basic
-cost: 55
+cost: 30
+--- stats
+fire: 5
+mana.max: 20
+=== Stone
+category: basic
+cost: 30
+--- stats
+earth: 5
+armor: 10
+=== Rune
+category: basic
+cost: 30
+--- stats
+air: 5
+hp.delta: 0.01
+=== Crystal
+category: basic
+cost: 30
+--- stats
+water: 5
+mana.delta: 0.02
+
+
+=== Net
+category: basic
+cost: 50
+--- stats
+air: 3
+=== Shard
+category: basic
+cost: 100
+--- stats
+hp.max: 80
+hp.delta: 0.015
+=== Crown
+category: basic
+cost: 100
 --- stats
 mana.max: 20
-air: 4
-water: 4
-
-
-=== Starfish
-category: basic
-cost: 55
-ability: starfish
---- stats
-armor: 5
-fire: 5
-
-
+mana.delta: 0.04
 === Stonks
 category: basic
-cost: 120
+cost: 100
 --- stats
 gold.delta: 0.015
-
-
-
-=== Slippers
+=== Buckler
 category: basic
-cost: 105
-ability: slippers
+cost: 130
 --- stats
-air: 12
-mana.max: 20
+reflect: 10
 
 
-=== Iron Boots
+
+
+---------------- TIER 2
+=== Gauntlets
 category: basic
-cost: 120
-ability: iron boots
+cost: 200
 --- stats
-air: 8
-earth: 8
-
-
-=== Chainmail
-category: basic
-cost: 185
---- stats
-armor: 20
-spikes: 15
-earth: 10
-
-
+physical: 15
 === Cape
 category: basic
-cost: 235
-ability: cape
+cost: 200
 --- stats
-mana.delta: 0.05
-fire: 25
+fire: 15
+=== Chainmail
+category: basic
+cost: 200
+--- stats
+earth: 15
+=== Slippers
+category: basic
+cost: 200
+--- stats
+=== Vial
+air: 15
+category: basic
+cost: 200
+--- stats
+water: 15
+
+=== Sophist Hat
+category: basic
+cost: 300
+--- stats
+hp.max: 30
+mana.delta: 0.08
+=== Iron Boots
+category: basic
+cost: 300
+--- stats
+armor: 30
+=== Necklace
+category: basic
+cost: 400
+--- stats
+hp.delta: 0.07
+=== Gloves
+category: basic
+cost: 400
+--- stats
+armor: 10
+reflect: 10
+lifesteal: 5
+spikes: 10
+=== Silk Vest
+category: basic
+cost: 500
+--- stats
 vanity: 15
 
 
 
 
-=== Crystal
+---------------- TIER 3
+=== Axe
 category: basic
-cost: 235
+cost: 600
 --- stats
-hp.max: 40
-hp.delta: 0.03
-water: 15
-
-
-=== Heart
+physical: 30
+=== Staff
 category: basic
-cost: 410
+cost: 600
 --- stats
-hp.max: 150
-hp.delta: 0.08
-
-=== Vial
+fire: 30
+=== Helmet
 category: basic
-cost: 255
+cost: 600
 --- stats
-mana.max: 80
-mana.delta: 0.04
+earth: 30
+=== Fan
+category: basic
+cost: 600
+--- stats
+air: 30
+=== Lamp
+category: basic
+cost: 600
+--- stats
+water: 30
+
+=== Fine Shield
+category: basic
+cost: 600
+--- stats
+hp.max: 50
+reflect: 50
+=== Broadsword
+category: basic
+cost: 600
+--- stats
+physical: 5
+water: 10
+=== Staff of the Deep
+category: basic
+cost: 800
+--- stats
+lifesteal: 20
+=== Plated Armor
+category: basic
+cost: 800
+--- stats
+armor: 35
+spikes: 45
+=== Cold Staff
+category: basic
+cost: 800
+ability: dunder beam
+--- stats
+mana.delta: 0.15
 
 
+
+
+
+---------------- TIER 4
+=== Art of War
+category: basic
+cost: 2400
+--- stats
+physical: 60
+=== Principia Mathematica
+category: basic
+cost: 2400
+--- stats
+fire: 75
+cuts: 25
+=== On the Origin of Species
+category: basic
+cost: 2400
+--- stats
+earth: 70
+slow: 20
+=== Book of Flight
+category: basic
+cost: 2400
+--- stats
+air: 60
+=== Book of Study
+category: basic
+cost: 2400
+--- stats
+water: 60
+
+=== Amulet
+category: basic
+cost: 1000
+--- stats
+hp.max: 120
+hp.delta: 0.1
+=== Headpiece
+category: basic
+cost: 1200
+--- stats
+armor: 30
+=== Pulsar
+category: basic
+cost: 1600
+--- stats
+hp.max: 300
+hp.delta: 0.1
+=== Eye
+category: basic
+cost: 2100
+--- stats
+mana.max: 450
+mana.delta: 0.25
+cuts: 25
+=== Book of Death
+category: basic
+cost: 2600
+--- stats
+reflect: 500
+hp.delta: -0.25
+
+
+
+
+=== Golden Ring
+category: ornament
+cost: 5200
+--- stats
+physical: 100
+=== Tourmaline Ring
+category: ornament
+cost: 5200
+--- stats
+fire: 125
+vanity: 25
+=== Silver Ring
+category: ornament
+cost: 5200
+--- stats
+earth: 115
+slow: 40
+=== Wings
+category: ornament
+cost: 5200
+--- stats
+air: 100
+=== Orb
+category: ornament
+cost: 5200
+--- stats
+water: 100
 
 
 
 === Seed
 category: herbal
-cost: 575
+cost: 700
 --- stats
-physical: 16
-vanity: 10
-
+physical: 15
+earth: 15
+hp.max: 150
+hp.delta: 0.05
 === Leaf
 category: herbal
-cost: 780
+cost: 700
 --- stats
-mana.max: 80
-water: 30
-air: 25
-
+fire: 15
+water: 15
+hp.max: 150
+hp.delta: 0.05
 === Pear
 category: herbal
-cost: 845
+cost: 700
 --- stats
-hp.max: 35
-fire: 20
-earth: 36
-
-
-
-
-=== Viscous Tar
-category: potion
-cost: 300
+earth: 15
+air: 15
+hp.max: 150
+hp.delta: 0.05
+=== Banana
+category: herbal
+cost: 700
 --- stats
-hp.delta: -0.05
-fire.delta: 0.0005
+air: 15
+physical: 15
+hp.max: 150
+hp.delta: 0.05
+=== Lemon
+category: herbal
+cost: 700
+--- stats
+water: 15
+fire: 15
+hp.max: 150
+hp.delta: 0.05
+
+
+
 
 === Fizzy Solution
 category: potion
 cost: 300
 --- stats
-hp.delta: -0.05
 physical.delta: 0.0005
-
+hp.delta: -0.05
+=== Viscous Tar
+category: potion
+cost: 300
+--- stats
+fire.delta: 0.0005
+hp.delta: -0.05
 === Acid Punch
 category: potion
 cost: 300
 --- stats
+earth.delta: 0.0005
+hp.delta: -0.05
+=== Bottled Breeze
+category: potion
+cost: 300
+--- stats
+air.delta: 0.0005
 mana.delta: -0.05
+=== Distilled Essense
+category: potion
+cost: 300
+--- stats
 water.delta: 0.0005
+mana.delta: -0.05
 
 
-=== Amulet
-category: ornament
-cost: 980
---- stats
-water: 84
-air: 68
-
-
-=== Headpiece
-category: ornament
-cost: 1025
---- stats
-earth: 150
-
-
-=== Death Star
-category: ornament
-cost: 1130
---- stats
-fire: 150
-
-
-=== Golden Ring
-category: ornament
-cost: 1200
---- stats
-physical: 150
 
 
 
@@ -189,4 +367,4 @@ hp.delta: 100
 hp.max: 10000
 mana.delta: 100
 mana.max: 10000
-gold: 10000
+gold: 1000000

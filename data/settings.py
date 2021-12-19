@@ -12,12 +12,17 @@ class Settings:
             0: {
                 'dev_build': 0,
                 'dev_items': 0,
-                'default_window': 'borderless',
+                'default_window': 'fullscreen',
                 'full_resolution': '1920, 1080',
                 'window_resolution': '1024, 768',
                 'default_zoom': 0.5,
                 'map_zoom': 0.4,
             }
+        },
+        'UI': {
+            0: {
+                'hud_scale': 1,
+            },
         },
         'Audio': {
             0: {

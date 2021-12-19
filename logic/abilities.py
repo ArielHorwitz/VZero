@@ -25,7 +25,7 @@ class Move(BaseAbility):
     lore = 'We can all thank Tony the fish for this one.'
 
     def do_cast(self, api, uid, target):
-        speed = self.p.get_speed(api, uid)
+        speed = self.p.get_speed(api, uid) / 100
         range = self.p.get_range(api, uid)
         target = self.fix_vector(api, uid, target, range)
         Mechanics.apply_move(api, uid, target=target, move_speed=speed)
@@ -39,9 +39,7 @@ class Attack(BaseAbility):
         'mana_cost': 0,
         'cooldown': 150,
         'range': 10,
-        'damage': 20,
-        'damage_stat': 'physical',
-        'damage_add': 1,
+        'damage': 0,
     }
 
     def do_cast(self, api, uid, target):
@@ -72,8 +70,6 @@ class PassiveAttack(BaseAbility):
         'cooldown': 150,
         'range': 20,
         'damage': 10,
-        'damage_stat': 'physical',
-        'damage_add': 1,
     }
 
     def passive(self, api, uid, dt):
@@ -98,6 +94,9 @@ class PassiveAttack(BaseAbility):
             'p2': api.get_position(target_uid),
             'color': (0, 0, 0),
         })
+        api.add_visual_effect(VisualEffect.SFX, 5, {
+            'sfx': self.sfx,
+        })
         return self.aid
 
     def cast(self, api, uid, target):
@@ -118,7 +117,7 @@ class Barter(BaseAbility):
     def cast(self, api, uid, target):
         # loot nearest target regardless of check
         range = self.p.get_range(api, uid)
-        loot_result, loot_target, loot_pos = Mechanics.apply_loot(api, uid, api.get_position(uid), range)
+        loot_result, loot_target = Mechanics.apply_loot(api, uid, api.get_position(uid), range)
         # apply loot with bonus if success
         if not isinstance(loot_result, FAIL_RESULT):
             looted_gold = loot_result
@@ -132,7 +131,7 @@ class Barter(BaseAbility):
             self.play_sfx()
             api.add_visual_effect(VisualEffect.SPRITE, 50, params={
                 'source': 'coin',
-                'point': loot_pos,
+                'point': api.get_position(loot_target),
                 'fade': 50,
                 'size': api.units[loot_target].size,
                 })
@@ -177,7 +176,7 @@ class Buff(BaseAbility):
             })
         if self.p.vfx_radius is not None:
             api.add_visual_effect(VisualEffect.CIRCLE, duration, params={
-                'color': (*self.status_color, 0.4),
+                'color': (*self.color, 0.4),
                 'radius': api.get_stats(vfx_target, STAT.HITBOX)*self.p.vfx_radius,
                 'uid': vfx_target,
                 'fade': duration*4,
@@ -186,7 +185,6 @@ class Buff(BaseAbility):
 
     def setup(self):
         self.__status = str2status(self.p.status)
-        self.status_color = Mechanics.STATUS_COLORS[self.__status]
         if self.p.target == 'self':
             self.info = f'Gain {self.p.status}.'
         elif self.p.target == 'other':
@@ -210,13 +208,9 @@ class Teleport(BaseAbility):
         range = self.p.get_range(api, uid)
         target = self.fix_vector(api, uid, target, range)
         # teleport effect
-        api.set_position(uid, target)
-        api.set_position(uid, target, VALUE.TARGET)
+        Mechanics.apply_teleport(api, uid, target)
         api.add_visual_effect(VisualEffect.LINE, 10, {
-            'p1': pos,
-            'p2': target,
-            'color': self.color,
-        })
+            'p1': pos, 'p2': target, 'color': self.color})
         return self.aid
 
 
@@ -230,16 +224,11 @@ class TeleportHome(BaseAbility):
 
     def do_cast(self, api, uid, target):
         pos = api.get_position(uid)
-        # TODO remove reference to internal attribute
         target = api.units[uid]._respawn_location
         # teleport effect
-        api.set_position(uid, target)
-        api.set_position(uid, target, VALUE.TARGET)
+        Mechanics.apply_teleport(api, uid, target)
         api.add_visual_effect(VisualEffect.LINE, 10, {
-            'p1': pos,
-            'p2': target,
-            'color': self.color,
-        })
+            'p1': pos, 'p2': target, 'color': self.color})
         return self.aid
 
 

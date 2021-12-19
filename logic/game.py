@@ -3,13 +3,13 @@ logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
 
-from nutil.vars import modify_color
+from nutil.vars import modify_color, List
 from data.load import RDF
 from data.assets import Assets
 from data.settings import Settings
 from engine.common import *
 from engine.api import GameAPI as BaseGameAPI
-from gui.api import SpriteLabel
+from gui.api import SpriteLabel, SpriteTitleLabel
 
 from logic.data import ABILITIES
 from logic.encounter import EncounterAPI
@@ -24,7 +24,7 @@ class GameAPI(BaseGameAPI):
                 continue
             self.draftables.append(aid)
         self.loadout = [None for _ in range(8)]
-        self.selected_aid = AID_LIST[0]
+        self.selected_aid = self.draftables[0]
         self.load_preset(0)
 
     def load_preset(self, index):
@@ -41,14 +41,11 @@ class GameAPI(BaseGameAPI):
     def select_ability(self, aid):
         if aid is None:
             return
-        aid = AID_LIST[aid]
+        aid = self.draftables[aid]
         self.selected_aid = aid
         ABILITIES[self.selected_aid].play_sfx(volume='ui')
 
     def draft(self, aid):
-        if aid is None:
-            return
-        aid = AID_LIST[aid]
         if aid in self.loadout:
             i = self.loadout.index(aid)
             self.loadout[i] = None
@@ -91,24 +88,43 @@ class GameAPI(BaseGameAPI):
         if button == 'right':
             aid = self.loadout[index]
             self.draft(aid)
+        if button == 'middle':
+            List.swap(self.loadout, index, -1)
+        elif button == 'scrollup':
+            List.move_down(self.loadout, index)
+        elif button == 'scrolldown':
+            List.move_up(self.loadout, index)
 
     # GUI properties
-    def draft_info_box(self):
-        ability = ABILITIES[self.selected_aid]
-        name = ability.name
-        color = ability.color
-        return SpriteLabel(Assets.get_sprite('ability', name), name, modify_color(color, a=0.5))
+    def draft_label(self):
+        s = sum(ABILITIES[a].draft_cost for a in self.loadout if a is not None)
+        score_multiplier = 400/(s+1)
+        return "\n".join([
+            f'Score multiplier: {score_multiplier:.2f}',
+            f'Used points: {s}',
+        ])
 
-    def draft_info_label(self):
-        return ABILITIES[self.selected_aid].universal_description
+    def draft_details(self):
+        ability = ABILITIES[self.selected_aid]
+        s = f'{ability.name}\nDraft cost: {ability.draft_cost}'
+        color = ability.color
+        return SpriteTitleLabel(
+            Assets.get_sprite('ability', ability.name),
+            s, ability.universal_description,
+            modify_color(color, a=0.5))
 
     def draft_boxes(self):
         b = []
         for aid in self.draftables:
             ability = ABILITIES[aid]
             name = ability.name
-            a = 0.7 if ability.aid not in self.loadout else 0.15
-            sl = SpriteLabel(Assets.get_sprite('ability', name), name, (*ability.color, a))
+            drafted = ability.aid in self.loadout
+            v = 0 if drafted else 1
+            a = 0.85 if drafted else 0.15
+            color = modify_color(ability.color, v=v, a=a)
+            sl = SpriteLabel(
+                Assets.get_sprite('ability', name),
+                str(ability.draft_cost), color)
             b.append(sl)
         return b
 
@@ -116,9 +132,13 @@ class GameAPI(BaseGameAPI):
         b = []
         for aid in self.loadout:
             if aid is None:
-                b.append(SpriteLabel(str(Assets.FALLBACK_SPRITE), '', (0, 0, 0, 0.5)))
+                b.append(
+                    SpriteLabel(Assets.get_sprite('ui', 'blank'),
+                    '', (.1,.1,.1,1)))
             else:
                 ability = ABILITIES[aid]
-                name = ability.name
-                b.append(SpriteLabel(Assets.get_sprite('ability', name), name, (*ability.color, 0.4)))
+                s = f'{ability.name}\n({ability.draft_cost})'
+                b.append(
+                    SpriteLabel(Assets.get_sprite('ability', ability.name),
+                    s, (*ability.color, 0.4)))
         return b

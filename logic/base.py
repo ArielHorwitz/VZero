@@ -20,13 +20,17 @@ class Ability:
     lore = 'Some people know about this ability.'
     debug = False
     miss_color = (1, 1, 1)
+    draft_cost = 100
 
     def __init__(self, aid, name, color, params,
-            sfx=None, show_stats=None, draftable=True):
+            draftable=True, draft_cost=None,
+            show_stats=None, sfx=None):
         self.aid = aid
         self.name = name
         self.color = color
         self.draftable = draftable
+        if draft_cost is not None:
+            self.draft_cost = round(draft_cost)
         self.sfx = self.name if sfx is None else sfx
 
         for p in params:
@@ -242,7 +246,7 @@ class Params:
         pval = self._param_value(param_name, api, uid)
         if is_floatable(pval):
             if param_name in self.show_as_time:
-                pval = f'{api.ticks2s(pval):.1f} seconds'
+                pval = f'{api.ticks2s(pval):.1f} s'
             elif param_name in self.show_as_delta:
                 pval = f'{api.s2ticks(pval):.2f}/s'
             else:

@@ -50,16 +50,14 @@ class Encounter(widgets.RelativeLayout):
         self.overlays = {
             'sprites': self.add(Sprites(enc=self)),
             'vfx': self.add(VFX(enc=self)),
-
             'logic_label': self.add(LogicLabel(enc=self)),
             'modal_browse': self.add(ModalBrowse(enc=self)),
             'hud': self.add(HUD(enc=self)),
-
-            'control_overlay': self.add(ControlOverlay(enc=self)),
-            'menu': self.add(Menu(enc=self)),
-            'debug': self.add(DebugPanel(enc=self)),
         }
-        self.tooltip = self.add(Tooltip())
+        self.tooltip = self.add(Tooltip(bounding_widget=self))
+        self.overlays['control_overlay'] = self.add(ControlOverlay(enc=self))
+        self.overlays['menu'] = self.add(Menu(enc=self))
+        self.overlays['debug'] = self.add(DebugPanel(enc=self))
 
         # User input bindings
         self.app.hotkeys.register_dict({
@@ -78,17 +76,8 @@ class Encounter(widgets.RelativeLayout):
             **{f'ability {key.upper()}': (
                 f'{key}', lambda *args, x=i: self.api.quickcast(x, self.mouse_real_pos)
                 ) for i, key in enumerate(Settings.get_setting('abilities', 'Hotkeys'))},
-            **{f'ability {key.upper()} sort': (
-                f'^+ {key}', lambda *args, x=i: self.api.ability_sort(x, self.mouse_real_pos)
-                ) for i, key in enumerate(Settings.get_setting('abilities', 'Hotkeys'))},
             **{f'item {key.upper()} ability': (
                 f'{key}', lambda *args, x=i: self.api.itemcast(x, self.mouse_real_pos)
-                ) for i, key in enumerate(Settings.get_setting('items', 'Hotkeys'))},
-            **{f'sell item {key.upper()}': (
-                f'!+ {key}', lambda *args, x=i: self.api.itemsell(x, self.mouse_real_pos)
-                ) for i, key in enumerate(Settings.get_setting('items', 'Hotkeys'))},
-            **{f'item {key.upper()} sort': (
-                f'^+ {key}', lambda *args, x=i: self.api.item_sort(x, self.mouse_real_pos)
                 ) for i, key in enumerate(Settings.get_setting('items', 'Hotkeys'))},
             # gui view controls
             'zoom default': (

@@ -29,7 +29,7 @@ class Sprites(widgets.RelativeLayout, EncounterViewComponent):
         for unit in self.api.units:
             s = Sprite(source=unit.sprite)
             s.bar1.fg = (1, 0, 0, 1)
-            s.bar2.fg = (0, 0, 0.75, .75)
+            s.bar2.fg = (0, 0, .9, 1)
             s.bar2.bg = (0, 0, 0, 0)
             self.sprites.append(s)
 
@@ -91,9 +91,9 @@ class Sprite(widgets.kvInstructionGroup):
     def pos(self, x):
         self.sprite.pos = nx = center_position(x, self.size)
         centered_x = nx[0]+self.size[0]/2
+        self.icons.pos = centered_x, nx[1]+self.size[1] + 15
         self.bar1.pos = centered_x, nx[1]+self.size[1] + 5
         self.bar2.pos = centered_x, nx[1]+self.size[1]
-        self.icons.pos = centered_x, nx[1]+self.size[1]+15
 
     @property
     def size(self):
@@ -117,7 +117,7 @@ class Bar(widgets.kvInstructionGroup):
     def __init__(self, size=(50, 5), **kwargs):
         super().__init__(**kwargs)
         self._pos = 0, 0
-        self.padding = 2
+        self.padding = 3
         self._size = size
         self._progress = 0
         self._bg_color = widgets.kvColor(0,0,0,1)

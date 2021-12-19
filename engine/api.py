@@ -40,11 +40,11 @@ class GameAPI:
     def button_click(self, index):
         logger.warning(f'{self.__class__}.button_click() not implemented for {index}.')
 
-    def draft_info_box(self):
-        return SpriteLabel(None, 'draft_info_box', (0, 0, 0, 0))
+    def draft_label(self):
+        return f'{self.__class__}.draft_label() not implemented'
 
-    def draft_info_label(self):
-        return f'{self.__class__}.draft_info_label()\nnot implemented.'
+    def draft_details(self):
+        return SpriteTitleLabel(None, 'draft_details', '', (0, 0, 0, 0))
 
     def draft_boxes(self):
         return [
@@ -185,6 +185,8 @@ class EncounterAPI:
         'hotkey': ('^ a', lambda: logger.warning(f'{self.__class__}.hotkeys not implemented.')),
     }
 
+    general_label_color = (1,1,1,1)
+
     @property
     def general_label_text(self):
         return self.time_str
@@ -230,6 +232,9 @@ class EncounterAPI:
 
     def hud_portrait(self):
         return self.units[self.selected_unit].sprite
+
+    def hud_name(self):
+        return self.units[self.selected_unit].name
 
     def hud_bars(self):
         return [

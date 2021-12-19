@@ -50,8 +50,10 @@ glob: 2
 infester: 3
 --- Crab patch
 crab: 2
+glob: 1
 --- Aquadome
 folphin: 2
+blood imp: 1
 --- Phaser
 phaser: 1
 meef: 2
@@ -62,13 +64,16 @@ spiker: 1
 infester: 2
 --- Zombies
 zombie: 3
+glob: 1
 
 === Monsters 4
 --- Fire hole
 fire elemental: 2
+folphin: 1
 --- Skull nest
 isolate
 skull: 2
+ratzan: 1
 
 === Boss
 --- Snake Lair

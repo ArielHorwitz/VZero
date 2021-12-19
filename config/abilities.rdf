@@ -3,6 +3,7 @@
 type: move
 color: grey
 show_stats: speed
+draft_cost: 60
 -- stats
 speed: 100
 speed_stat: air
@@ -13,6 +14,7 @@ speed_bonus: 5
 type: move
 color: grey
 show_stats: speed
+draft_cost: 80
 -- stats
 speed: 200
 
@@ -21,6 +23,7 @@ speed: 200
 type: move
 color: grey
 show_stats: range, speed, cooldown
+draft_cost: 60
 -- stats
 range: 2000
 cooldown: 2200
@@ -33,6 +36,7 @@ speed: 600
 type: attack
 color: cyan
 show_stats: damage, cooldown, range
+draft_cost: 120
 -- stats
 mana_cost: 0
 cooldown: 150
@@ -42,17 +46,17 @@ damage_stat: physical
 damage_bonus: 1
 
 
-
 === Shoot
 type: attack
 color: cyan
 sfx: attack
 show_stats: damage, cooldown, range
+draft_cost: 80
 -- stats
 mana_cost: 0
 cooldown: 120
-range: 200
-damage: 5
+range: 225
+damage: 15
 damage_stat: physical
 damage_bonus: 0.5
 
@@ -62,15 +66,14 @@ type: attack
 color: cyan
 sfx: attack
 show_stats: damage, cooldown, range, mana_cost
+draft_cost: 80
 -- stats
 mana_cost: 5
-cooldown: 50
-range: 300
-range_stat: air
-range_bonus: 0.75
-damage: 1
+cooldown: 100
+range: 350
+damage: 12
 damage_stat: physical
-damage_bonus: 0.75
+damage_bonus: 0.25
 
 
 === Bash
@@ -78,13 +81,12 @@ type: attack
 color: cyan
 sfx: attack
 show_stats: damage, cooldown, range
+draft_cost: 75
 -- stats
 mana_cost: 0
 cooldown: 200
 range: 40
 damage: 40
-damage_stat: physical
-damage_bonus: 0
 
 
 === Tailwhip
@@ -92,18 +94,20 @@ type: passive_attack
 color: cyan
 sfx: attack
 show_stats: damage, cooldown, range
+draft_cost: 120
 -- stats
 mana_cost: 0
 cooldown: 250
 range: 30
 damage: 10
 damage_stat: earth
-damage_bonus: 2
+damage_bonus: 1.75
 
 
 === Blink
 type: teleport
 color: green
+draft_cost: 65
 --- stats
 mana_cost: 30
 cooldown: 800
@@ -116,6 +120,7 @@ range_bonus: 6
 === Yip Yip
 type: teleport
 color: green
+draft_cost: 55
 --- stats
 mana_cost: 30
 cooldown: 2000
@@ -125,6 +130,7 @@ range: 500
 === Scroll
 type: teleport home
 color: lime
+draft_cost: 10
 --- stats
 mana_cost: 10
 cooldown: 10000
@@ -134,6 +140,7 @@ cooldown: 10000
 type: buff
 color: purple
 show_stats: mana_cost, cooldown, range, stacks, duration
+draft_cost: 20
 -- stats
 status: slow
 target: other
@@ -148,21 +155,40 @@ stacks_bonus: 1
 duration: 600
 
 
+
+=== Root
+type: buff
+color: purple
+show_stats: mana_cost, cooldown, range, duration
+draft_cost: 65
+--- stats
+status: bounded
+target: other
+mana_cost: 35
+cooldown: 2000
+range: 600
+duration: 500
+duration_stat: water
+duration_bonus: 8
+stacks: 1
+
+
+
+
 === Compliment
 type: buff
 color: purple
 show_stats: mana_cost, cooldown, range, stacks, duration
+draft_cost: 25
 -- stats
 status: vanity
 target: other
 mana_cost: 20
 cooldown: 2600
 range: 500
-range_stat: water
-range_bonus: 2
 stacks: 20
 stacks_stat: air
-stacks_bonus: 1
+stacks_bonus: 0.1
 duration: 800
 
 
@@ -171,6 +197,7 @@ duration: 800
 type: buff
 color: purple
 show_stats: mana_cost, cooldown, range, stacks, duration
+draft_cost: 35
 -- stats
 status: vanity
 target: other
@@ -181,7 +208,7 @@ range_stat: water
 range_bonus: 2
 stacks: 20
 stacks_stat: air
-stacks_bonus: 1
+stacks_bonus: 0.1
 duration: 100
 
 
@@ -190,6 +217,7 @@ duration: 100
 type: buff
 color: purple
 show_stats: mana_cost, cooldown, duration, stacks
+draft_cost: 70
 --- stats
 status: lifesteal
 target: self
@@ -197,64 +225,98 @@ mana_cost: 40
 cooldown: 5000
 duration: 1500
 duration_stat: water
-duration_bonus: 150
+duration_bonus: 15
 stacks: 10
 stacks_stat: fire
 stacks_bonus: 0.1
 
 
 
+=== Slash
+type: buff
+color: red
+show_stats: mana_cost, cooldown, duration, stacks
+draft_cost: 50
+--- stats
+status: cuts
+target: other
+mana_cost: 35
+range: 200
+cooldown: 500
+duration: 250
+stacks: 10
+stacks_stat: air
+stacks_bonus: 0.1
+
+
 === Shield
 type: buff
 color: blue
 show_stats: mana_cost, cooldown, duration, stacks
+draft_cost: 50
 --- stats
 status: armor
 target: self
 mana_cost: 40
-cooldown: 5000
+cooldown: 2500
 duration: 1500
-duration_stat: water
-duration_bonus: 150
 stacks: 10
 stacks_stat: earth
 stacks_bonus: 1
-vfx_radius: 1
 
 
 === Fireblast
 type: blast
 color: red
+sfx: implosion
+draft_cost: 70
 -- stats
-mana_cost: 35
+mana_cost: 30
 cooldown: 500
 range: 600
 radius: 60
 radius_stat: water
 radius_bonus: 2
-damage: 10
+damage: 20
 damage_stat: fire
-damage_bonus: 0.5
+damage_bonus: 1.25
+
+
+=== Vortex
+type: blast
+color: red
+sfx: implosion
+draft_cost: 90
+-- stats
+mana_cost: 45
+cooldown: 0.25
+range: 120
+radius: 50
+damage: 15
+damage_stat: fire
+damage_bonus: 1.5
 
 
 === Implosion
 type: blast
 color: red
+draft_cost: 100
 -- stats
 mana_cost: 60
-cooldown: 0
+cooldown: 0.25
 range: 400
 radius: 30
 radius_stat: water
 radius_bonus: 2
 damage: 10
 damage_stat: fire
-damage_bonus: 1
+damage_bonus: 1.75
 
 
 === Nuke
 type: blast
 color: red
+draft_cost: 40
 -- stats
 mana_cost: 0
 range: 0
@@ -269,16 +331,14 @@ damage_bonus: 1
 type: regen aura
 color: brown
 show_stats: degen, radius
+draft_cost: 140
 -- stats
 target: enemies
 destat: hp
 degen: 0.03
 degen_stat: fire
 degen_bonus: 0.005
-radius: 300
-radius_stat: water
-radius_bonus: 3
-
+radius: 350
 
 
 
@@ -287,8 +347,9 @@ radius_bonus: 3
 type: barter
 color: grey
 show_stats: range, loot_multi, cooldown
+draft_cost: 20
 -- stats
-range: 500
+range: 300
 cooldown: 10000
 loot_multi: 1.5
 loot_multi_stat: water
@@ -301,8 +362,9 @@ type: barter
 color: grey
 sfx: barter
 show_stats: range, loot_multi, cooldown
+draft_cost: 20
 -- stats
-range: 500
+range: 50
 cooldown: 10000
 loot_multi: 2
 loot_multi_stat: water
@@ -344,24 +406,44 @@ loot_multi_bonus: 0.02
 
 
 
-=== Iron Boots
+=== Buckler
 hidden
-type: passive_attack
-color: cyan
-sfx: attack
-show_stats: damage, cooldown, range
--- stats
-mana_cost: 0
-cooldown: 250
-range: 30
-damage: 10
-damage_stat: earth
-damage_bonus: 1.5
+type: buff
+color: blue
+show_stats: mana_cost, cooldown, duration, stacks
+draft_cost: 50
+--- stats
+status: armor
+target: self
+mana_cost: 10
+cooldown: 5000
+duration: 1500
+duration_stat: water
+duration_bonus: 15
+stacks: 20
+stacks_stat: earth
+stacks_bonus: 1
 
 
 
+=== Net
+hidden
+type: buff
+color: purple
+show_stats: mana_cost, cooldown, range, duration
+--- stats
+status: bounded
+target: other
+mana_cost: 25
+cooldown: 1800
+range: 200
+range_stat: air
+range_bonus: 3
+duration: 500
+stacks: 1
 
-=== Slippers
+
+=== Iron Boots
 hidden
 type: move
 color: grey
@@ -372,7 +454,37 @@ cooldown: 600
 speed: 400
 
 
-=== Starfish
+=== Silk Vest
+hidden
+type: buff
+color: purple
+show_stats: mana_cost, cooldown, duration, stacks
+--- stats
+status: lifesteal
+target: self
+mana_cost: 5
+cooldown: 1800
+duration: 300
+stacks: 70
+
+
+=== Broadsword
+hidden
+type: buff
+color: red
+show_stats: mana_cost, cooldown, range, duration, stacks
+--- stats
+status: cuts
+target: other
+mana_cost: 10
+cooldown: 400
+range: 100
+duration: 400
+stacks: 20
+stacks_stat: water
+stacks_bonus: 0.5
+
+=== Headpiece
 hidden
 type: buff
 color: blue
@@ -383,23 +495,12 @@ target: self
 mana_cost: 25
 cooldown: 5000
 duration: 1500
-stacks: 10
+duration_stat: water
+duration_bonus: 15
+stacks: 20
 stacks_stat: earth
-stacks_bonus: 0.5
+stacks_bonus: 2.5
 
-
-=== Cape
-hidden
-type: buff
-color: purple
-show_stats: mana_cost, cooldown, duration, stacks
---- stats
-status: lifesteal
-target: self
-mana_cost: 30
-cooldown: 1800
-duration: 300
-stacks: 30
 
 
 
@@ -427,7 +528,9 @@ target: allies
 include_self: 0
 status: fountain
 restat: hp
-regen: 0.1
+regen: 0
+regen_stat: earth
+regen_bonus: 0.01
 radius: 500
 
 
@@ -441,7 +544,9 @@ target: allies
 include_self: 0
 status: fountain
 restat: mana
-regen: 0.1
+regen: 0
+regen_stat: water
+regen_bonus: 0.01
 radius: 500
 
 

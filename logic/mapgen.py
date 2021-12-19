@@ -70,7 +70,7 @@ class MapGenerator:
                 p = [float(_) for _ in raw_point.split(', ')]
                 p = np.array(p, dtype=np.float64)/100
                 if spawn == 'Spawn':
-                    self.player_spawn = self.size * p - (0, 0.1)
+                    self.player_spawn = self.size * p + (0.1, 0.1)
                 self.add_spawn(spawn, p)
         if self.player_spawn is None:
             raise ValueError(f'Missing player spawn in map config!')
