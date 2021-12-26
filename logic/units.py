@@ -24,6 +24,8 @@ class Unit(BaseUnit):
     _respawn_timer = 12000  # ~ 2 minutes
     def __init__(self, api, uid, name, params):
         super().__init__(uid, name)
+        self.win_on_death = False
+        self.lose_on_death = False
         self.api = api
         self.engine = api.engine
         self.name = self.__start_name = name
@@ -130,7 +132,19 @@ class Unit(BaseUnit):
 
 
 class Player(Unit):
-    _respawn_timer = 1000
+    _max_hp_delta_interval = 1000
+
+    def _setup(self):
+        self._respawn_timer = 500
+        self._max_hp_delta = float(self.p['max_hp_delta']) * self._max_hp_delta_interval if 'max_hp_delta' in self.p else 0
+        self._next_max_hp_delta = self._max_hp_delta_interval
+
+    def passive_phase(self, *a, **k):
+        if self.engine.tick >= self._next_max_hp_delta:
+            self.engine.set_stats(self.uid, STAT.HP, self._max_hp_delta, value_name=VALUE.MAX, additive=True)
+            self.engine.set_stats(self.uid, STAT.HP, self._max_hp_delta, additive=True)
+            self._next_max_hp_delta = self._next_max_hp_delta + self._max_hp_delta_interval
+        super().passive_phase(*a, **k)
 
     def hp_zero(self):
         logger.info(f'Player {self.name} {self.uid} died.')
@@ -139,6 +153,7 @@ class Player(Unit):
     def respawn(self):
         logger.info(f'Player {self.name} {self.uid} respawned.')
         super().respawn(reset_gold=False)
+        self._respawn_timer += 500
 
 
 class Creep(Unit):
@@ -149,7 +164,7 @@ class Creep(Unit):
         self.wave_offset = float(self.p['wave']) * self.WAVE_INTERVAL
         self.scaling = float(self.p['scaling']) if 'scaling' in self.p else 1
         # Ensure the whole wave does not spawn too close, as collision is finnicky at the time of writing
-        self._respawn_location += RNG.random(2) * self.engine.get_stats(self.uid, STAT.HITBOX)
+        self._respawn_location += RNG.random(2) * self.engine.get_stats(self.uid, STAT.HITBOX) * 5
         self.engine.set_position(self.uid, self._respawn_location)
         # Start the first wave on the correct interval
         self.engine.set_stats(self.uid, STAT.HP, 0)
@@ -225,6 +240,12 @@ class Camper(Unit):
         return f'Camping at: {self.camp}'
 
 
+class Boss(Camper):
+    def _setup(self):
+        self.win_on_death = True
+        super()._setup()
+
+
 class Treasure(Unit):
     pass
 
@@ -251,6 +272,11 @@ class Fountain(Unit):
         self.abilities = [ABILITY.FOUNTAIN_HP, ABILITY.FOUNTAIN_MANA]
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
 
+
+class Fort(Fountain):
+    def _setup(self):
+        super()._setup()
+        self.lose_on_death = True
 
 class DPSMeter(Unit):
     def _setup(self):
@@ -285,7 +311,9 @@ class DPSMeter(Unit):
 
 
 UNIT_CLASSES = {
+    'fort': Fort,
     'player': Player,
+    'boss': Boss,
     'creep': Creep,
     'camper': Camper,
     'treasure': Treasure,

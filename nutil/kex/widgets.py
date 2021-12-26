@@ -3,7 +3,7 @@ logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
 
-import collections
+from collections import namedtuple, defaultdict
 import numpy as np
 
 import kivy
@@ -68,21 +68,21 @@ class App(kvApp):
                  escape_exits=False, enable_multitouch=False,
                  **kwargs):
         super().__init__(**kwargs)
+        # Mouse binding
         self.__mouse_pos = (0, 0)
         kvWindow.bind(mouse_pos=self._on_mouse_pos)
+        # Configurations
         if escape_exits:
             kex.Config.enable_escape_exit()
         else:
             kex.Config.disable_escape_exit()
         if not enable_multitouch:
             kex.Config.disable_multitouch()
+        # Widgets
         self.root = BoxLayout()
         if make_bg:
             self.root.make_bg((*kex.random_color()[:3], 0.2))
-        if make_menu:
-            self.root.orientation = 'vertical'
-            self.menu = self.add(Menu(add_quit_buttons=True))
-        self.hotkeys = Hotkeys(self.root)
+        # self.hotkeys = Hotkeys(self.root)
 
     def run(self, **kwargs):
         super().run(**kwargs)
@@ -112,114 +112,6 @@ class App(kvApp):
     @property
     def mouse_pos(self):
         return self.__mouse_pos
-
-
-class Hotkeys:
-    """
-    ^ Control
-    ! Alt
-    + Shift
-    # Super
-    """
-    HotkeyAction = collections.namedtuple('HotkeyAction', ['keys', 'calls'])
-    MODIFIERS = {
-        'ctrl': '^',
-        'alt': '!',
-        'shift': '+',
-        'meta': '#',
-        'control': '^',
-        'lctrl': '^',
-        'rctrl': '^',
-        'lalt': '!',
-        'ralt': '!',
-        'lshift': '+',
-        'rshift': '+',
-        'numlock': '',
-        'capslock': '',
-        }
-    MODIFIER_SORT = '^!+#'
-    def __init__(self, root, default_hotkeys=True):
-        DEFAULT_HOTKEYS = [
-            ('Debug hotkeys', '^+ f9', self.print_hotkeys),
-            ('Restart', '+ escape', nutil.restart_script),
-            ('Quit', '^+ escape', lambda *a: quit()),
-        ]
-        self.__all_keys = set()
-        self.actions = {}
-        if default_hotkeys:
-            for _ in DEFAULT_HOTKEYS:
-                self.register(*_)
-        self.keyboard = kvWindow.request_keyboard(self.keyboard_released, root)
-        self.keyboard.bind(on_key_down=self.on_key_down)
-
-    def print_hotkeys(self):
-        s = []
-        for name, (keys, calls) in self.actions.items():
-            ks = []
-            for k in keys:
-                mods, key_ = k.split(" ") if ' ' in k else ('', k)
-                ks.append(f'{mods:>3} {key_:<7}')
-            s.append(f'<{" ¦ ".join(ks)}> {name:<30} ({len(calls)} calls: {calls})')
-        m = ndis.make_title(f'Hotkeys Debug')+ndis.njoin(s)
-        print(m)
-        logger.debug(m)
-        return s
-
-    def convert_keys(self, modifiers, key_name):
-        if len(modifiers) == 0:
-            return f'{key_name}'
-        modifiers = tuple(Hotkeys.MODIFIERS[mod] for mod in modifiers)
-        sorted_modifiers = sorted(modifiers, key=lambda x: Hotkeys.MODIFIER_SORT.index(x))
-        mod_str = ndis.njoin(sorted_modifiers, split='')
-        if not mod_str == '':
-            mod_str += ' '
-        r = f'{mod_str}{key_name}'
-        return r
-
-    def check_keys(self, keys):
-        if keys in self.__all_keys:
-            calls = set()
-            for aname, action in self.actions.items():
-                if keys in action.keys:
-                    logger.debug(f'Found action: {aname}')
-                    for call in action.calls:
-                        calls.add(call)
-            for call in calls:
-                call()
-            return True
-        else:
-            return False
-
-    def register_dict(self, d):
-        for action, (keys, calls) in d.items():
-            self.register(action, keys, calls)
-
-    def register(self, action, keys=None, calls=None):
-        calls = set() if calls is None else calls
-        keys = set() if keys is None else keys
-        if not isinstance(keys, set):
-            keys = {keys}
-        if not isinstance(calls, set):
-            calls = {calls}
-        if action not in self.actions:
-            self.actions[action] = Hotkeys.HotkeyAction(keys=set(), calls=set())
-        action = self.actions[action]
-        action.keys.update(keys)
-        self.__all_keys.update(keys)
-        action.calls.update(calls)
-
-    def keyboard_released(self, *args):
-        logger.debug(f'Hotkeys keyboard_released args: {ndis.strfy(args)}')
-
-    def on_key_down(self, keyboard, key, key_hex, modifiers):
-        key_code, key_name = key
-        keys = self.convert_keys(modifiers, key_name)
-        logger.debug(f'Key down: {modifiers} + <{key_name}> ({key_code}) | «{keys}»')
-        found = self.check_keys(keys)
-
-    def on_key_up(self, keyboard, key):
-        key_code, key_name = key
-        logger.debug(f'Key up: {key_name} ({key_code})')
 
 
 class Widget(kvWidget, KexWidget):
@@ -268,6 +160,9 @@ class ConsumeTouch(Widget):
         return True
 
 
+KeyCalls = namedtuple('KeyCalls', ['keys', 'on_press'])
+
+
 class InputManager(Widget):
     """
     ^ Control
@@ -295,12 +190,15 @@ class InputManager(Widget):
             self._refresh_all_keys()
         if callback is not None:
             self.__actions[action].on_press.add(callback)
+        logger.debug(f'Input manager registering: {self.__actions[action]}')
 
     def register_callbacks(self, action, callbacks):
         self.__actions[action].on_press.update(callbacks)
+        logger.debug(f'Input manager registering: {self.__actions[action]}')
 
     def register_keys(self, action, keys):
         self.__actions[action].keys.update(keys)
+        logger.debug(f'Input manager registering: {self.__actions[action]}')
         self._refresh_all_keys()
 
     def remove_actions(self, actions):
@@ -315,7 +213,7 @@ class InputManager(Widget):
             self._refresh_all_keys()
 
     def clear_all(self):
-        self.actions = defaultdict(lambda: KeyCalls(set(), set()))
+        self.__actions = defaultdict(lambda: KeyCalls(set(), set()))
         self._refresh_all_keys()
 
     def record(self, on_release=None, on_press=None):
@@ -347,7 +245,7 @@ class InputManager(Widget):
             s.append(f'{action:<20} «{k}» {kc.on_press}')
         return '\n'.join(s)
 
-    def __init__(self, **kwargs):
+    def __init__(self, defaults=True, **kwargs):
         super().__init__(**kwargs)
         self.__all_keys = set()
         self.__actions = defaultdict(lambda: KeyCalls(set(), set()))
@@ -358,6 +256,9 @@ class InputManager(Widget):
         self.block_repeat = True
         self.keyboard = kvWindow.request_keyboard(lambda: None, self)
         self.activate()
+        if defaults is True:
+            self.register('Restart', '+ escape', lambda *a: nutil.restart_script())
+            self.register('Quit', '^+ escape', lambda *a: quit())
 
     def _refresh_all_keys(self):
         self.__all_keys = set()
@@ -365,12 +266,12 @@ class InputManager(Widget):
             self.__all_keys.update(kc.keys)
 
     def _convert_keys(self, modifiers, key_name):
-        if len(modifiers) == 0:
-            return key_name
-        modifiers = tuple(self.MODIFIERS[mod] for mod in modifiers)
+        modifiers = set(self.MODIFIERS[mod] for mod in modifiers)
+        if '' in modifiers: modifiers.remove('')
+        if len(modifiers) == 0: return key_name
         sorted_modifiers = sorted(modifiers, key=lambda x: self.MODIFIER_SORT.index(x))
         mod_str = ''.join(sorted_modifiers)
-        r = f'{mod_str}{key_name}'
+        r = f'{mod_str} {key_name}'
         return r
 
     def _do_calls(self, keys):
@@ -379,6 +280,7 @@ class InputManager(Widget):
             if keys in kc.keys:
                 all_callbacks[action].update(kc.on_press)
         for action in all_callbacks:
+            logger.debug(f'InputManager making calls: {all_callbacks[action]}')
             for c in all_callbacks[action]:
                 c(action)
 

@@ -411,7 +411,7 @@ hidden
 type: buff
 color: blue
 show_stats: mana_cost, cooldown, duration, stacks
-draft_cost: 50
+sfx: shield
 --- stats
 status: armor
 target: self
@@ -420,9 +420,9 @@ cooldown: 5000
 duration: 1500
 duration_stat: water
 duration_bonus: 15
-stacks: 20
+stacks: 35
 stacks_stat: earth
-stacks_bonus: 1
+stacks_bonus: 0.25
 
 
 
@@ -459,12 +459,13 @@ hidden
 type: buff
 color: purple
 show_stats: mana_cost, cooldown, duration, stacks
+sfx: bloodlust
 --- stats
 status: lifesteal
 target: self
 mana_cost: 5
 cooldown: 1800
-duration: 300
+duration: 500
 stacks: 70
 
 
@@ -473,6 +474,7 @@ hidden
 type: buff
 color: red
 show_stats: mana_cost, cooldown, range, duration, stacks
+sfx: slash
 --- stats
 status: cuts
 target: other

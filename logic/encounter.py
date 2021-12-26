@@ -33,12 +33,20 @@ STAT_SPRITES = tuple(Assets.get_sprite('ability', s) for s in ('physical', 'fire
 
 class EncounterAPI(BaseEncounterAPI):
     RNG = np.random.default_rng()
+    enc_over = False
+    win = False
 
     # Logic handlers
     def hp_zero(self, uid):
         unit = self.engine.units[uid]
         logger.debug(f'Unit {unit.name} died')
-        self.engine.units[uid].hp_zero()
+        if unit.lose_on_death or unit.win_on_death:
+            self.enc_over = True
+            self.win = unit.win_on_death
+            self.toggle_play(set_to=False)
+            self.raise_gui_flag('menu')
+        else:
+            self.engine.units[uid].hp_zero()
 
     def status_zero(self, uid, status):
         unit = self.engine.units[uid]
@@ -48,13 +56,23 @@ class EncounterAPI(BaseEncounterAPI):
 
     # GUI handlers
     @property
+    def menu_text(self):
+        if self.enc_over:
+            if self.win:
+                return f'You win!\nScore: {self.score}'
+            else:
+                return f'You lose :(\nScore: {self.score}'
+        else:
+            return f'Paused\nScore: {self.score}'
+
+    @property
     def general_label_text(self):
         s = [
-            f'{self.time_str}',
+            f'{self.time_str} - {self.score} score',
         ]
         if self.dev_mode:
-            s.insert(0, 'DEBUG MODE')
-        return ' - '.join(s)
+            s.insert(0, 'DEBUG MODE - ')
+        return ''.join(s)
 
     @property
     def general_label_color(self):
@@ -125,7 +143,8 @@ class EncounterAPI(BaseEncounterAPI):
         if hotkey == 'toggle_play':
             self.toggle_play()
         elif hotkey == 'dev1':
-            self.debug(dev_mode=None, test=True)
+            if Settings.get_setting('dev_build', 'General'):
+                self.debug(dev_mode=None, test=True)
         elif hotkey == 'dev2':
             self.show_debug = not self.show_debug
         elif hotkey == 'dev3':
@@ -398,6 +417,10 @@ class EncounterAPI(BaseEncounterAPI):
     # Misc
     abilities = ABILITIES
 
+    def update(self):
+        if not self.enc_over:
+            self.engine.update()
+
     @property
     def unit_count(self):
         return len(self.units)
@@ -444,6 +467,9 @@ class EncounterAPI(BaseEncounterAPI):
         unit = self.engine.units[uid]
 
         rp_table = njoin([
+            make_title('Score', length=30),
+            f'Draft cost: {self.draft_cost}',
+            f'Score: {self.score}',
             make_title('Reduction Points (RP) Table', length=30),
             '5 rp =  9 %',
             '10 rp = 17 %',
@@ -500,12 +526,23 @@ class EncounterAPI(BaseEncounterAPI):
         self.game = game
         self.engine = EncounterEngine(self)
         self.map = MapGenerator(self)
-        a = list(ABILITY)
+        self.draft_cost = sum(ABILITIES[_].draft_cost for _ in player_abilities if _ is not None)
         self.engine.units[0].abilities = player_abilities
         # Setup units
         for unit in self.engine.units:
             unit.action_phase()
         Assets.play_sfx('ui', 'play', volume=Settings.get_volume('feedback'))
+
+    def leave(self):
+        self.enc_over = True
+
+    @property
+    def score(self):
+        score = 0
+        if self.win or not self.enc_over:
+            elapsed_minutes = self.engine.tick/6000
+            score = self.game.calc_score(self.draft_cost, elapsed_minutes)
+        return score
 
     def debug(self, *args, dev_mode=-1, tick=None, tps=None, test=None, **kwargs):
         logger.debug(f'Logic Debug called (extra args: {args} {kwargs})')

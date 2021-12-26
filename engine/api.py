@@ -22,6 +22,7 @@ RIGHT_CLICK_ABILITY = Settings.get_setting('right_click', 'Hotkeys')
 class GameAPI:
     encounter_api = None
     button_names = []
+    title_text = '« Drafting Phase »'
 
     def __init__(self):
         logger.warning(f'{self.__class__}.__init__() not implemented.')
@@ -29,6 +30,9 @@ class GameAPI:
     # GUI handlers
     def new_encounter(self):
         logger.warning(f'{self.__class__}.new_encounter() not implemented.')
+
+    def leave_encounter(self):
+        logger.warning(f'{self.__class__}.leave_encounter() not implemented.')
 
     def draft_click(self, index, button):
         logger.warning(f'{self.__class__}.draft_click() not implemented for {index} {button}.')
@@ -91,7 +95,7 @@ class EncounterAPI:
 
     @property
     def time_str(self):
-        return humanize_ms(self.engine.ticktime * self.engine.tick)
+        return humanize_ms(self.engine.ticktime * self.engine.tick, show_hours=False)
 
     @property
     def view_center(self):
@@ -220,7 +224,7 @@ class EncounterAPI:
         return self.engine.get_visual_effects()
 
     # Menu
-    menu_text = ''
+    menu_text = 'Paused'
 
     # HUD
     def hud_click(self, hud, index, button):

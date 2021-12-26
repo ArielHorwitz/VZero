@@ -59,41 +59,7 @@ class Encounter(widgets.RelativeLayout):
         self.overlays['menu'] = self.add(Menu(enc=self))
         self.overlays['debug'] = self.add(DebugPanel(enc=self))
 
-        # User input bindings
-        self.app.hotkeys.register_dict({
-            # hotkeys
-            **{
-                name: (
-                    Settings.get_setting(name, "Hotkeys"),
-                    lambda n=name: self.api.user_hotkey(n, self.mouse_real_pos)
-                ) for name in (
-                    'toggle_play',
-                    'control0', 'control1', 'control2', 'control3', 'control4',
-                    'dev1', 'dev2', 'dev3', 'dev4',
-                )
-            },
-            # user controls
-            **{f'ability {key.upper()}': (
-                f'{key}', lambda *args, x=i: self.api.quickcast(x, self.mouse_real_pos)
-                ) for i, key in enumerate(Settings.get_setting('abilities', 'Hotkeys'))},
-            **{f'item {key.upper()} ability': (
-                f'{key}', lambda *args, x=i: self.api.itemcast(x, self.mouse_real_pos)
-                ) for i, key in enumerate(Settings.get_setting('items', 'Hotkeys'))},
-            # gui view controls
-            'zoom default': (
-                f'{Settings.get_setting("zoom_default", "Hotkeys")}',
-                lambda: self.set_zoom()),
-            'zoom in': (
-                f'{Settings.get_setting("zoom_in", "Hotkeys")}',
-                lambda: self.set_zoom(d=1.15)),
-            'zoom out': (
-                f'{Settings.get_setting("zoom_out", "Hotkeys")}',
-                lambda: self.set_zoom(d=-1.15)),
-            'map view': (
-                f'{Settings.get_setting("map_view", "Hotkeys")}',
-                lambda: self.toggle_map_zoom()),
-            'redraw map': (f'f5', lambda: self.redraw_map()),
-            })
+        self.make_hotkeys()
 
     def redraw_map(self):
         self.tilemap.source = str(self.api.map_image_source)
@@ -161,6 +127,46 @@ class Encounter(widgets.RelativeLayout):
         if not self.collide_point(*m.pos):
             return False
         self.api.user_click(self.pix2real(m.pos), m.button, self.pix2real(self.size))
+
+    def make_hotkeys(self):
+        hotkeys = []
+        # Logic API
+        api_actions = (
+            'toggle_play',
+            'control0', 'control1', 'control2', 'control3', 'control4',
+            'dev1', 'dev2', 'dev3', 'dev4',
+        )
+        for action_name in api_actions:
+            hotkeys.append((
+                action_name,
+                Settings.get_setting(action_name, "Hotkeys"),
+                lambda action_name_: self.api.user_hotkey(action_name_, self.mouse_real_pos)
+            ))
+        # Abilities
+        for i, key in enumerate(Settings.get_setting('abilities', 'Hotkeys')):
+            hotkeys.append((
+                f'ability {key.upper()}',
+                key,
+                lambda *a, x=i: self.api.quickcast(x, self.mouse_real_pos)
+            ))
+        # Items
+        for i, key in enumerate(Settings.get_setting('items', 'Hotkeys')):
+            hotkeys.append((
+                f'item {key.upper()} ability',
+                key,
+                lambda *a, x=i: self.api.itemcast(x, self.mouse_real_pos)
+            ))
+        # View control
+        hotkeys.extend([
+            ('zoom default', f'{Settings.get_setting("zoom_default", "Hotkeys")}', lambda *a: self.set_zoom()),
+            ('zoom in', f'{Settings.get_setting("zoom_in", "Hotkeys")}', lambda *a: self.set_zoom(d=1.15)),
+            ('zoom out', f'{Settings.get_setting("zoom_out", "Hotkeys")}', lambda *a: self.set_zoom(d=-1.15)),
+            ('map view', f'{Settings.get_setting("map_view", "Hotkeys")}', lambda *a: self.toggle_map_zoom()),
+            ('redraw map', f'f5', lambda: self.redraw_map()),
+        ])
+        # Register
+        for params in hotkeys:
+            self.app.enc_hotkeys.register(*params)
 
     # Control
     def toggle_map_zoom(self):

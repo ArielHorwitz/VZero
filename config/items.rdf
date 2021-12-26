@@ -47,7 +47,7 @@ hp.delta: 0.015
 category: basic
 cost: 100
 --- stats
-mana.max: 20
+mana.max: 30
 mana.delta: 0.04
 === Stonks
 category: basic
@@ -58,7 +58,7 @@ gold.delta: 0.015
 category: basic
 cost: 130
 --- stats
-reflect: 10
+reflect: 20
 
 
 
@@ -83,8 +83,8 @@ earth: 15
 category: basic
 cost: 200
 --- stats
-=== Vial
 air: 15
+=== Vial
 category: basic
 cost: 200
 --- stats
@@ -94,7 +94,7 @@ water: 15
 category: basic
 cost: 300
 --- stats
-hp.max: 30
+hp.max: 50
 mana.delta: 0.08
 === Iron Boots
 category: basic
@@ -105,7 +105,8 @@ armor: 30
 category: basic
 cost: 400
 --- stats
-hp.delta: 0.07
+hp.delta: 0.04
+fire: 8
 === Gloves
 category: basic
 cost: 400
@@ -152,32 +153,33 @@ water: 30
 
 === Fine Shield
 category: basic
-cost: 600
+cost: 800
 --- stats
-hp.max: 50
+hp.max: 75
 reflect: 50
 === Broadsword
 category: basic
-cost: 600
+cost: 900
 --- stats
-physical: 5
+physical: 10
 water: 10
 === Staff of the Deep
 category: basic
-cost: 800
+cost: 1200
 --- stats
-lifesteal: 20
+lifesteal: 30
 === Plated Armor
 category: basic
-cost: 800
+cost: 1600
 --- stats
 armor: 35
 spikes: 45
 === Cold Staff
 category: basic
-cost: 800
+cost: 2000
 ability: dunder beam
 --- stats
+water: 25
 mana.delta: 0.15
 
 
@@ -189,7 +191,7 @@ mana.delta: 0.15
 category: basic
 cost: 2400
 --- stats
-physical: 60
+physical: 55
 === Principia Mathematica
 category: basic
 cost: 2400
@@ -202,12 +204,12 @@ cost: 2400
 --- stats
 earth: 70
 slow: 20
-=== Book of Flight
+=== Zur Elektrodynamik
 category: basic
 cost: 2400
 --- stats
 air: 60
-=== Book of Study
+=== On Computable Numbers
 category: basic
 cost: 2400
 --- stats
@@ -215,34 +217,33 @@ water: 60
 
 === Amulet
 category: basic
-cost: 1000
+cost: 2500
 --- stats
-hp.max: 120
-hp.delta: 0.1
+reflect: 80
 === Headpiece
 category: basic
-cost: 1200
+cost: 2700
 --- stats
-armor: 30
-=== Pulsar
-category: basic
-cost: 1600
---- stats
-hp.max: 300
-hp.delta: 0.1
+armor: 50
 === Eye
 category: basic
-cost: 2100
+cost: 2800
 --- stats
 mana.max: 450
 mana.delta: 0.25
 cuts: 25
+=== Pulsar
+category: basic
+cost: 3000
+--- stats
+hp.max: 400
+hp.delta: 0.15
 === Book of Death
 category: basic
-cost: 2600
+cost: 3200
 --- stats
 reflect: 500
-hp.delta: -0.25
+hp.delta: -0.2
 
 
 
@@ -251,7 +252,7 @@ hp.delta: -0.25
 category: ornament
 cost: 5200
 --- stats
-physical: 100
+physical: 90
 === Tourmaline Ring
 category: ornament
 cost: 5200
@@ -262,7 +263,7 @@ vanity: 25
 category: ornament
 cost: 5200
 --- stats
-earth: 115
+earth: 125
 slow: 40
 === Wings
 category: ornament
@@ -277,46 +278,36 @@ water: 100
 
 
 
-=== Seed
-category: herbal
-cost: 700
---- stats
-physical: 15
-earth: 15
-hp.max: 150
-hp.delta: 0.05
 === Leaf
 category: herbal
-cost: 700
+cost: 2000
 --- stats
-fire: 15
-water: 15
-hp.max: 150
-hp.delta: 0.05
-=== Pear
-category: herbal
-cost: 700
---- stats
-earth: 15
-air: 15
-hp.max: 150
-hp.delta: 0.05
-=== Banana
-category: herbal
-cost: 700
---- stats
-air: 15
-physical: 15
-hp.max: 150
-hp.delta: 0.05
+physical: 30
+earth: 30
 === Lemon
 category: herbal
-cost: 700
+cost: 2000
 --- stats
-water: 15
-fire: 15
-hp.max: 150
-hp.delta: 0.05
+fire: 30
+water: 30
+=== Seed
+category: herbal
+cost: 2000
+--- stats
+earth: 30
+air: 30
+=== Pear
+category: herbal
+cost: 2000
+--- stats
+air: 30
+fire: 30
+=== Banana
+category: herbal
+cost: 2000
+--- stats
+water: 30
+physical: 30
 
 
 

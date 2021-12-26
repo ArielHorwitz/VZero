@@ -18,6 +18,7 @@ from logic.base import Ability
 
 class GameAPI(BaseGameAPI):
     def __init__(self):
+        self.high_score = 0
         self.draftables = []
         for aid in AID_LIST:
             if not ABILITIES[aid].draftable and not Settings.get_setting('dev_build', 'General'):
@@ -26,6 +27,10 @@ class GameAPI(BaseGameAPI):
         self.loadout = [None for _ in range(8)]
         self.selected_aid = self.draftables[0]
         self.load_preset(0)
+
+    def calc_score(self, draft_cost, elapsed_minutes):
+        time_penalty = elapsed_minutes * 10
+        return int(1000*1000/(1000+draft_cost+time_penalty))
 
     def load_preset(self, index):
         self.loadout = []
@@ -63,17 +68,31 @@ class GameAPI(BaseGameAPI):
     # GUI handlers
     button_names = ['Clear']+[f'Preset {i+1}' for i in range(4)]
 
+    @property
+    def title_text(self):
+        return '\n'.join([
+            f'High score: {self.high_score}',
+        ])
+
+    def new_encounter(self):
+        if self.encounter_api is None:
+            logger.info(f'Logic creating encounter with loadout: {self.loadout}')
+            self.encounter_api = EncounterAPI(self, self.loadout)
+
+    def leave_encounter(self):
+        if self.encounter_api is not None:
+            logger.info(f'Logic ending encounter: {self.encounter_api}')
+            self.encounter_api.leave()
+            score = self.encounter_api.score
+            self.high_score = max(score, self.high_score)
+            self.encounter_api = None
+
     def button_click(self, index):
         if index == 0:
             self.loadout = [None for _ in range(8)]
         else:
             self.load_preset(index-1)
         Assets.play_sfx('ui', 'select', volume=Settings.get_volume('ui'))
-
-    def new_encounter(self):
-        if self.encounter_api is None:
-            logger.info(f'Creating encounter with loadout: {self.loadout}')
-            self.encounter_api = EncounterAPI(self, self.loadout)
 
     def draft_click(self, index, button):
         aid = self.draftables[index]
@@ -98,10 +117,11 @@ class GameAPI(BaseGameAPI):
     # GUI properties
     def draft_label(self):
         s = sum(ABILITIES[a].draft_cost for a in self.loadout if a is not None)
-        score_multiplier = 400/(s+1)
         return "\n".join([
-            f'Score multiplier: {score_multiplier:.2f}',
-            f'Used points: {s}',
+            f'Starting score: {self.calc_score(s, 0)}',
+            '',
+            f'Score @20 min: {self.calc_score(s, 20)}, @30 min: {self.calc_score(s, 30)}, @40 min: {self.calc_score(s, 40)}',
+            f'Score penalty: {s} draft cost + 10 / minute',
         ])
 
     def draft_details(self):

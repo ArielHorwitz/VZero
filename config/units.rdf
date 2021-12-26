@@ -1,6 +1,7 @@
 
 ====== Player
 type: player
+max_hp_delta: 0.002
 --- stats
 allegiance: 0
 gold: 20
@@ -23,7 +24,7 @@ water.delta: 0.0001666
 
 === Small creep
 type: creep
-wave: 0.9
+wave: 0
 scaling: 1.5
 --- stats
 hitbox: 35
@@ -134,7 +135,7 @@ air: 25
 
 ====== Infester
 type: camper
-abilities: walk, blink, attack, bash
+abilities: walk, blink, attack
 aggro_range: 400
 deaggro_range: 800
 reaggro_range: 600
@@ -152,6 +153,7 @@ air: 45
 
 ====== Crab
 type: camper
+abilities: walk, attack, bash
 aggro_range: 400
 deaggro_range: 800
 reaggro_range: 600
@@ -191,7 +193,7 @@ reaggro_range: 600
 camp_spread: 250
 --- stats
 hitbox: 120
-gold: 30
+gold: 60
 hp.max: 650
 hp.delta: 0.05
 physical: 45
@@ -206,7 +208,7 @@ reaggro_range: 450
 camp_spread: 50
 --- stats
 hitbox: 120
-gold: 40
+gold: 90
 hp.max: 750
 hp.delta: 0.005
 physical: 115
@@ -223,7 +225,7 @@ reaggro_range: 450
 camp_spread: 350
 --- stats
 hitbox: 160
-gold: 45
+gold: 150
 hp.max: 800
 hp.delta: 0.005
 mana.max: 300
@@ -243,7 +245,7 @@ reaggro_range: 900
 camp_spread: 500
 --- stats
 hitbox: 170
-gold: 50
+gold: 150
 hp.max: 800
 hp.delta: 0.005
 mana.max: 100
@@ -253,7 +255,7 @@ water: 40
 
 
 ====== Barkshroom
-type: camper
+type: boss
 aggro_range: 800
 deaggro_range: 1000
 reaggro_range: 500
@@ -261,7 +263,7 @@ camp_spread: 600
 --- stats
 allegiance: 1000
 hitbox: 200
-gold: 150
+gold: 450
 hp.max: 5000
 hp.delta: 0.001
 physical: 75
@@ -269,7 +271,7 @@ air: 15
 
 
 ====== Robot
-type: camper
+type: boss
 aggro_range: 800
 deaggro_range: 1000
 reaggro_range: 500
@@ -277,7 +279,7 @@ camp_spread: 600
 --- stats
 allegiance: 1000
 hitbox: 200
-gold: 150
+gold: 450
 hp.max: 1400
 hp.delta: 0.001
 physical: 500
@@ -285,7 +287,7 @@ air: 5
 
 
 ====== Winged Snake
-type: camper
+type: boss
 aggro_range: 500
 deaggro_range: 700
 reaggro_range: 300
@@ -293,7 +295,7 @@ camp_spread: 100
 --- stats
 allegiance: 1000
 hitbox: 220
-gold: 150
+gold: 450
 hp.max: 2000
 hp.delta: 0.05
 physical: 250
@@ -306,10 +308,10 @@ air: 50
 
 
 ===== Fort
-type: fountain
+type: fort
 --- stats
 allegiance: 0
-hitbox: 160
+hitbox: 125
 hp.max: 5000
 hp.delta: 0.01
 earth: 10

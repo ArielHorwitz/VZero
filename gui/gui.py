@@ -21,6 +21,9 @@ class App(widgets.App):
     def __init__(self, **kwargs):
         logger.info(f'Initializing GUI @ {FPS} fps.')
         super().__init__(make_bg=False, make_menu=False, **kwargs)
+        self.home_hotkeys = widgets.InputManager()
+        self.enc_hotkeys = widgets.InputManager()
+        self.app_hotkeys = widgets.InputManager()
         self.icon = str(Path.cwd()/'icon.png')
 
         self.game = get_api()
@@ -45,12 +48,13 @@ class App(widgets.App):
         else:
             widgets.kvClock.schedule_once(lambda *a: self.toggle_window_borderless(False), 0)
 
-        self.hotkeys.register_dict({
-            'Fullscreen': ('f11', lambda *a: self.toggle_window_fullscreen()),
-            'Borderless': ('! f11', lambda *a: self.toggle_window_borderless()),
-            'Tab: Home': ('^+ f1', lambda: self.switch.switch_screen('home')),
-            'Tab: Encounter': ('^+ f2', lambda: self.switch.switch_screen('enc')),
-        })
+        for params in [
+            ('Fullscreen', 'f11', lambda *a: self.toggle_window_fullscreen()),
+            ('Borderless', '! f11', lambda *a: self.toggle_window_borderless()),
+            ('Tab: Home', '^+ f1', lambda *a: self.switch.switch_screen('home')),
+            ('Tab: Encounter', '^+ f2', lambda *a: self.switch.switch_screen('enc')),
+        ]:
+            self.app_hotkeys.register(*params)
 
     def toggle_window_borderless(self, set_as=None):
         if widgets.kvWindow.fullscreen:
@@ -100,6 +104,15 @@ class App(widgets.App):
         if self.encounter is None and encounter_api is not None:
             self.encounter = self.enc_frame.add(Encounter(encounter_api))
             self.switch.switch_screen('enc')
+            self.home_hotkeys.deactivate()
+            logger.info(f'GUI opened encounter')
+        elif self.encounter is not None and encounter_api is None:
+            self.enc_hotkeys.clear_all()
+            self.enc_frame.remove_widget(self.encounter)
+            self.encounter = None
+            self.switch.switch_screen('home')
+            self.home_hotkeys.activate()
+            logger.info(f'GUI closed encounter')
 
         if self.encounter is None:
             self.home.update()

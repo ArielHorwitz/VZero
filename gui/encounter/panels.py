@@ -201,11 +201,11 @@ class Menu(widgets.AnchorLayout, EncounterViewComponent):
         super().__init__(halign='center', valign='middle', **kwargs)
         self.consume_touch = self.add(widgets.ConsumeTouch(False))
         self.frame = widgets.BoxLayout(orientation='vertical')
-        self.label = self.frame.add(widgets.Label(text='Paused')).set_size(hy=1.5)
+        self.label = self.frame.add(widgets.Label(text='Paused', halign='center', valign='middle')).set_size(hy=1.5)
         for t, c in (
-            ('Resume', lambda *a: self.api.user_hotkey('toggle_play', (0, 0))),
-            ('Restart', lambda *a: nutil.restart_script()),
-            ('Quit', lambda *a: quit()),
+            ('Resume', lambda *a: self.api.user_hotkey('toggle_play', None)),
+            ('Leave', lambda *a: self.app.game.leave_encounter()),
+            ('Ragequit', lambda *a: quit()),
         ):
             self.frame.add(widgets.Button(text=t, on_release=c))
         self.frame.set_size(x=200, y=200)
@@ -228,7 +228,7 @@ class Menu(widgets.AnchorLayout, EncounterViewComponent):
                 self.consume_touch.enable = True
         if self.frame not in self.children:
             return
-        self.label.text = f'Paused\n{self.api.menu_text}'
+        self.label.text = self.api.menu_text
 
 
 class DebugPanel(widgets.AnchorLayout, EncounterViewComponent):
