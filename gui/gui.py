@@ -40,7 +40,7 @@ class App(widgets.App):
         self.hook_mainloop(FPS)
 
         widgets.kvWindow.size = self.configured_resolution(full=False)
-        default_window_state = Settings.get_setting('default_window')
+        default_window_state = Settings.get_setting('default_window', 'General')
         if default_window_state == 'fullscreen':
             widgets.kvClock.schedule_once(lambda *a: self.toggle_window_fullscreen(True), 0)
         elif default_window_state == 'borderless':
@@ -49,8 +49,8 @@ class App(widgets.App):
             widgets.kvClock.schedule_once(lambda *a: self.toggle_window_borderless(False), 0)
 
         for params in [
-            ('Fullscreen', 'f11', lambda *a: self.toggle_window_fullscreen()),
-            ('Borderless', '! f11', lambda *a: self.toggle_window_borderless()),
+            ('Fullscreen', Settings.get_setting('toggle_fullscreen', 'Hotkeys'), lambda *a: self.toggle_window_fullscreen()),
+            ('Borderless', Settings.get_setting('toggle_borderless', 'Hotkeys'), lambda *a: self.toggle_window_borderless()),
             ('Tab: Home', '^+ f1', lambda *a: self.switch.switch_screen('home')),
             ('Tab: Encounter', '^+ f2', lambda *a: self.switch.switch_screen('enc')),
         ]:
@@ -64,7 +64,7 @@ class App(widgets.App):
         logger.info(f'Setting borderless: {set_as}')
         if set_as is True:
             widgets.kvWindow.borderless = True
-            widgets.kvWindow.maximize()
+            widgets.kvClock.schedule_once(lambda *a: widgets.kvWindow.maximize(), 0)
         else:
             pos = np.array([widgets.kvWindow.left, widgets.kvWindow.top])
             center = pos + (np.array(widgets.kvWindow.size) / 2)

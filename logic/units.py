@@ -40,7 +40,6 @@ class Unit(BaseUnit):
 
     def use_item(self, iid, target):
         with ratecounter(self.engine.timers['ability_single']):
-
             if not self.engine.auto_tick and not self.api.dev_mode:
                 logger.warning(f'Unit {self.uid} tried using item {iid.name} while paused')
                 return FAIL_RESULT.INACTIVE
@@ -160,6 +159,7 @@ class Creep(Unit):
     WAVE_INTERVAL = 30000  # 5 minutes
 
     def _setup(self):
+        self.first_wave = True
         self.color = (1, 0, 0)
         self.wave_offset = float(self.p['wave']) * self.WAVE_INTERVAL
         self.scaling = float(self.p['scaling']) if 'scaling' in self.p else 1
@@ -177,7 +177,9 @@ class Creep(Unit):
 
     def respawn(self):
         super().respawn()
-        self.scale_power()
+        if self.first_wave is False:
+            self.scale_power()
+        self.first_wave = False
         self.use_ability(ABILITY.WALK, self.target)
 
     def scale_power(self):
@@ -247,7 +249,9 @@ class Boss(Camper):
 
 
 class Treasure(Unit):
-    pass
+    def _setup(self):
+        self._respawn_timer = 1_000_000
+        self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
 
 
 class Shopkeeper(Unit):
@@ -277,6 +281,7 @@ class Fort(Fountain):
     def _setup(self):
         super()._setup()
         self.lose_on_death = True
+
 
 class DPSMeter(Unit):
     def _setup(self):

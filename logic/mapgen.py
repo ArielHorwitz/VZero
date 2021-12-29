@@ -62,6 +62,7 @@ class MapGenerator:
                     p = p[:2]
                 p = np.array(p)/100
                 self.add_biome(tile.lower(), p, weight=weight)
+        self.__biome_pos = np.array([[*b.pos] for b in self.biomes], dtype=np.float64)
 
         self.player_spawn = None
         spawns = map_data['Spawns']
@@ -101,6 +102,11 @@ class MapGenerator:
         logger.debug(f'Created new unit {internal_name} with uid {uid} and params: {params}')
         return unit
 
+    def refresh(self):
+        self.__biome_pos = np.array([[*b.pos] for b in self.biomes], dtype=np.float64)
+        self.generate_map_image()
+        self.export_biomes()
+
     def generate_map_image(self):
         tile_resolution = np.array([100, 100])
         tile_size = self.size / tile_resolution
@@ -126,9 +132,10 @@ class MapGenerator:
                 # Might be an issue here or in data.tileset.Tileset
                 tilemap[(y, x)] = self.biomes[nearest_biomes[x, y]].tile
 
-        for b in self.biomes:
-            x, y = (int(_) for _ in b.pos / tile_resolution)
-            # tilemap[(x, y)] = 'black'
+        if self.api.dev_mode:
+            for b in self.biomes:
+                x, y = (int(_) for _ in b.pos / tile_resolution)
+                tilemap[(x, y)] = 'black'
 
         self.image = TileMap.draw_map(
             size=tile_resolution,
@@ -136,7 +143,6 @@ class MapGenerator:
             tilemap=tilemap,
         )
         self.request_redraw = self.engine.tick
-        self.export_biomes()
 
     def export_biomes(self):
         biomes = defaultdict(lambda: list())
@@ -159,8 +165,7 @@ class MapGenerator:
         return bindex
 
     def nearest_biome_index(self, point):
-        biome_cores = np.array([[*b.pos] for b in self.biomes], dtype=np.float64)
-        dist_vectors = biome_cores - point
+        dist_vectors = self.__biome_pos - point
         biome_dist = np.linalg.norm(dist_vectors, axis=-1)
         biome_dist /= np.array([b.weight for b in self.biomes], dtype=np.float64)
         nearest_biome = np.argmin(biome_dist)
@@ -168,16 +173,16 @@ class MapGenerator:
 
     def add_droplet(self, biome, point):
         self.add_biome(BIOME_TYPES[round(biome)], point / self.size)
-        self.generate_map_image()
+        self.refresh()
 
     def remove_droplet(self, point):
         nearest_biome = self.nearest_biome_index(point)
         self.biomes.pop(nearest_biome)
-        self.generate_map_image()
+        self.refresh()
 
     def toggle_droplet(self, point):
         nearest_biome = self.nearest_biome_index(point)
         b = self.biomes[nearest_biome]
         new_tile = BIOME_TYPES[BIOME_TYPES.index(b.tile)-1]
         self.biomes[nearest_biome] = Biome(b.pos, b.weight, new_tile)
-        self.generate_map_image()
+        self.refresh()

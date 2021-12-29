@@ -162,7 +162,7 @@ class Encounter(widgets.RelativeLayout):
             ('zoom in', f'{Settings.get_setting("zoom_in", "Hotkeys")}', lambda *a: self.set_zoom(d=1.15)),
             ('zoom out', f'{Settings.get_setting("zoom_out", "Hotkeys")}', lambda *a: self.set_zoom(d=-1.15)),
             ('map view', f'{Settings.get_setting("map_view", "Hotkeys")}', lambda *a: self.toggle_map_zoom()),
-            ('redraw map', f'f5', lambda: self.redraw_map()),
+            ('redraw map', f'f5', lambda *a: self.redraw_map()),
         ])
         # Register
         for params in hotkeys:

@@ -345,7 +345,7 @@ class MapEditorEraser(BaseAbility):
     lore = ''
 
     def do_cast(self, api, uid, target):
-        api.mod_api.map.remove_droplet(target)
+        api.units[uid].api.map.remove_droplet(target)
         api.add_visual_effect(VisualEffect.SFX, 10, params={'category': 'ui', 'sfx': 'select'})
         return self.aid
 
@@ -355,17 +355,17 @@ class MapEditorToggle(BaseAbility):
     lore = ''
 
     def do_cast(self, api, uid, target):
-        api.mod_api.map.toggle_droplet(target)
+        api.units[uid].api.map.toggle_droplet(target)
         api.add_visual_effect(VisualEffect.SFX, 10, params={'category': 'ui', 'sfx': 'select'})
         return self.aid
 
 
-class MapEditorPalette(BaseAbility):
+class MapEditorPipette(BaseAbility):
     info = 'Select a biome for map editing.'
     lore = ''
 
     def do_cast(self, api, uid, target):
-        biome = api.mod_api.map.find_biome(target)
+        biome = api.units[uid].api.map.find_biome(target)
         api.set_status(uid, STATUS.MAP_EDITOR, 0, biome)
         api.add_visual_effect(VisualEffect.SFX, 10, params={'category': 'ui', 'sfx': 'select'})
         return self.aid
@@ -377,7 +377,7 @@ class MapEditorDroplet(BaseAbility):
 
     def do_cast(self, api, uid, target):
         tile = api.get_status(uid, STATUS.MAP_EDITOR, STATUS_VALUE.STACKS)
-        api.mod_api.map.add_droplet(tile, target)
+        api.units[uid].api.map.add_droplet(tile, target)
         api.add_visual_effect(VisualEffect.SFX, 10, params={'category': 'ui', 'sfx': 'select'})
         return self.aid
 
@@ -395,6 +395,6 @@ ABILITY_CLASSES = {
     'shopkeeper': Shopkeeper,
     'map_editor_eraser': MapEditorEraser,
     'map_editor_toggle': MapEditorToggle,
-    'map_editor_palette': MapEditorPalette,
+    'map_editor_pipette': MapEditorPipette,
     'map_editor_droplet': MapEditorDroplet,
 }

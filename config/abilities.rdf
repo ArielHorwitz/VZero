@@ -40,7 +40,7 @@ draft_cost: 120
 -- stats
 mana_cost: 0
 cooldown: 150
-range: 10
+range: 30
 damage: 20
 damage_stat: physical
 damage_bonus: 1
@@ -81,12 +81,12 @@ type: attack
 color: cyan
 sfx: attack
 show_stats: damage, cooldown, range
-draft_cost: 75
+draft_cost: 65
 -- stats
 mana_cost: 0
 cooldown: 200
-range: 40
-damage: 40
+range: 15
+damage: 34
 
 
 === Tailwhip
@@ -110,7 +110,7 @@ color: green
 draft_cost: 65
 --- stats
 mana_cost: 30
-cooldown: 800
+cooldown: 1200
 range: 300
 range_stat: air
 range_bonus: 6
@@ -124,7 +124,7 @@ draft_cost: 55
 --- stats
 mana_cost: 30
 cooldown: 2000
-range: 500
+range: 750
 
 
 === Scroll
@@ -170,6 +170,23 @@ range: 600
 duration: 500
 duration_stat: water
 duration_bonus: 8
+stacks: 1
+
+
+=== Grab
+type: buff
+color: purple
+show_stats: mana_cost, cooldown, range, duration
+draft_cost: 15
+--- stats
+status: bounded
+target: other
+mana_cost: 15
+cooldown: 8000
+range: 25
+duration: 200
+duration_stat: water
+duration_bonus: 3
 stacks: 1
 
 
@@ -226,9 +243,7 @@ cooldown: 5000
 duration: 1500
 duration_stat: water
 duration_bonus: 15
-stacks: 10
-stacks_stat: fire
-stacks_bonus: 0.1
+stacks: 30
 
 
 
@@ -340,6 +355,19 @@ degen_stat: fire
 degen_bonus: 0.005
 radius: 350
 
+=== Lich Fog
+hidden
+type: regen aura
+color: brown
+show_stats: degen, radius
+-- stats
+target: enemies
+destat: hp
+degen: 0.03
+degen_stat: fire
+degen_bonus: 0.005
+radius: 500
+
 
 
 
@@ -364,7 +392,7 @@ sfx: barter
 show_stats: range, loot_multi, cooldown
 draft_cost: 20
 -- stats
-range: 50
+range: 300
 cooldown: 10000
 loot_multi: 2
 loot_multi_stat: water
@@ -518,6 +546,7 @@ hidden
 type: shopkeeper
 show_stats: radius
 --- stats
+radius: 500
 
 
 === Fountain HP
@@ -582,9 +611,9 @@ type: map_editor_eraser
 === Map Editor Toggle
 hidden
 type: map_editor_toggle
-=== Map Editor Palette
+=== Map Editor Pipette
 hidden
-type: map_editor_palette
+type: map_editor_pipette
 === Map Editor Droplet
 hidden
 type: map_editor_droplet

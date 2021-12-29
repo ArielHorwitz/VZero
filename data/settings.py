@@ -34,6 +34,8 @@ class Settings:
         },
         'Hotkeys': {
             0: {
+                'toggle_fullscreen': 'f11',
+                'toggle_borderless': '! f11',
                 'start_encounter': 'spacebar',
                 'toggle_play': 'spacebar',
                 'control0': 'escape',
@@ -42,8 +44,6 @@ class Settings:
                 'control3': 'f3',
                 'control4': 'f4',
                 'map_view': 'tab',
-                'open_menu1': 'f5',
-                'open_menu2': 'f6',
                 'right_click': 'q',
                 'abilities': 'qwerasdf',
                 'items': '1234zxcv',

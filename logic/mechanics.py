@@ -127,11 +127,10 @@ class Mechanics:
         elif damages < 0:
             damages = 0
         api.set_stats(targets_mask, STAT.HP, -damages, additive=True)
-        # Play ouch feedback if player uid is in targets
-        if targets_mask[0] and not isinstance(damages, np.ndarray):
-            if damages > 0:
-                api.add_visual_effect(VisualEffect.BACKGROUND, 40)
-                api.add_visual_effect(VisualEffect.SFX, 1, params={'sfx': 'ouch', 'category': 'ui', 'volume': 'feedback'})
+        # Play ouch feedback if player took damage
+        if targets_mask[0] and (damages[0] if isinstance(damages, np.ndarray) else damages) > 0:
+            api.add_visual_effect(VisualEffect.BACKGROUND, 40)
+            api.add_visual_effect(VisualEffect.SFX, 1, params={'sfx': 'ouch', 'category': 'ui', 'volume': 'sfx'})
         logger.debug(f'{targets_mask.nonzero()[0]} took {damages} pure damage.')
 
     @classmethod

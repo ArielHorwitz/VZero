@@ -62,17 +62,14 @@ class EncounterAPI(BaseEncounterAPI):
                 return f'You win!\nScore: {self.score}'
             else:
                 return f'You lose :(\nScore: {self.score}'
-        else:
-            return f'Paused\nScore: {self.score}'
+        return f'Paused'
 
     @property
     def general_label_text(self):
-        s = [
-            f'{self.time_str} - {self.score} score',
-        ]
         if self.dev_mode:
-            s.insert(0, 'DEBUG MODE - ')
-        return ''.join(s)
+            c = ",".join(str(round(_, 1)) for _ in self.engine.get_position(0)/100)
+            return f'DEBUG MODE - {self.time_str} - ({c})'
+        return f'{self.time_str} - {self.score} score'
 
     @property
     def general_label_color(self):
@@ -143,8 +140,8 @@ class EncounterAPI(BaseEncounterAPI):
         if hotkey == 'toggle_play':
             self.toggle_play()
         elif hotkey == 'dev1':
-            if Settings.get_setting('dev_build', 'General'):
-                self.debug(dev_mode=None, test=True)
+            self.debug(dev_mode=None, test=True)
+            self.map.refresh()
         elif hotkey == 'dev2':
             self.show_debug = not self.show_debug
         elif hotkey == 'dev3':
