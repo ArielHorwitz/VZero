@@ -23,7 +23,7 @@ speed: 200
 type: move
 color: grey
 show_stats: range, speed, cooldown
-draft_cost: 60
+draft_cost: 40
 -- stats
 range: 2000
 cooldown: 2200
@@ -87,6 +87,8 @@ mana_cost: 0
 cooldown: 200
 range: 15
 damage: 34
+damage_stat: physical
+damage_bonus: 0.1
 
 
 === Tailwhip
@@ -178,6 +180,7 @@ type: buff
 color: purple
 show_stats: mana_cost, cooldown, range, duration
 draft_cost: 15
+sfx: root
 --- stats
 status: bounded
 target: other
@@ -294,7 +297,7 @@ radius_stat: water
 radius_bonus: 2
 damage: 20
 damage_stat: fire
-damage_bonus: 1.25
+damage_bonus: 1
 
 
 === Vortex

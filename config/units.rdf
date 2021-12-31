@@ -24,25 +24,29 @@ water.delta: 0.0001666
 
 === Small creep
 type: creep
-wave: 0.9
-scaling: 1.25
+wave: 0.05
+scaling: 1.17
+always_active
+always_visible
 --- stats
 hitbox: 75
-gold: 20
-hp.max: 75
-physical: 12
+gold: 30
+hp.max: 70
+physical: 13
 air: 8
 
 === Huge creep
 type: creep
-wave: 1
-scaling: 1.25
+wave: 0.1
+scaling: 1.17
+always_active
+always_visible
 --- stats
 hitbox: 150
-gold: 60
+gold: 90
 hp.max: 200
 physical: 40
-air: 3
+air: 8
 
 
 
@@ -54,7 +58,7 @@ reaggro_range: 400
 camp_spread: 200
 -- stats
 hitbox: 40
-gold: 5
+gold: 8
 hp.max: 40
 hp.delta: 0.0001
 physical: 10
@@ -339,7 +343,7 @@ mana.max: 100
 mana.delta: 0.05
 fire: 200
 air: 2
-vanity: 20
+reflect: 20
 
 
 ====== Barkshroom
@@ -348,15 +352,16 @@ aggro_range: 800
 deaggro_range: 1000
 reaggro_range: 500
 camp_spread: 600
+always_visible
 --- stats
 allegiance: 1000
 hitbox: 200
 gold: 500
 hp.max: 5000
-hp.delta: 0.001
+hp.delta: 0.5
 physical: 175
 air: 15
-armor: 50
+armor: 15
 
 
 ====== Robot
@@ -365,15 +370,16 @@ aggro_range: 800
 deaggro_range: 1000
 reaggro_range: 500
 camp_spread: 600
+always_visible
 --- stats
 allegiance: 1000
 hitbox: 200
 gold: 500
-hp.max: 2400
-hp.delta: 0.001
+hp.max: 2500
+hp.delta: 0.25
 physical: 500
 air: 35
-reflect: 15
+spikes: 35
 
 
 ====== Winged Snake
@@ -382,14 +388,16 @@ aggro_range: 500
 deaggro_range: 700
 reaggro_range: 300
 camp_spread: 100
+always_visible
 --- stats
 allegiance: 1000
 hitbox: 220
 gold: 500
 hp.max: 4000
-hp.delta: 0.05
+hp.delta: 0.4
 physical: 250
 air: 50
+reflect: 15
 
 
 
@@ -399,6 +407,7 @@ air: 50
 
 ===== Fort
 type: fort
+always_visible
 --- stats
 allegiance: 0
 hitbox: 175
@@ -410,6 +419,7 @@ water: 40
 water.delta: 0.002
 ===== Lighthouse
 type: fountain
+always_visible
 --- stats
 allegiance: 0
 hitbox: 120
@@ -424,6 +434,7 @@ water.delta: 0.001
 ====== Basic shop
 type: shopkeeper
 category: basic
+always_visible
 --- stats
 allegiance: -1
 hp.max: 5000
@@ -431,6 +442,7 @@ hp.delta: 0.002
 ====== Herbal shop
 type: shopkeeper
 category: herbal
+always_visible
 --- stats
 allegiance: -1
 hp.max: 5000
@@ -438,6 +450,7 @@ hp.delta: 0.002
 ====== Potion shop
 type: shopkeeper
 category: potion
+always_visible
 --- stats
 allegiance: -1
 hp.max: 5000
@@ -445,6 +458,7 @@ hp.delta: 0.002
 ====== Ornament shop
 type: shopkeeper
 category: ornament
+always_visible
 --- stats
 allegiance: -1
 hp.max: 5000

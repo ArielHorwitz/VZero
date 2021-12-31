@@ -107,7 +107,7 @@ class EncounterAPI:
 
     # Logic handlers
     def update(self):
-        self.engine.update()
+        self.engine.update(np.ones(len(self.engine.units), dtype=np.bool))
 
     def hp_zero(self, uid):
         logger.warning(f'{self.__class__}.hp_zero() not implemented.')
@@ -130,8 +130,6 @@ class EncounterAPI:
                 Assets.play_sfx('ui', 'play', volume=Settings.get_volume('ui'))
             else:
                 Assets.play_sfx('ui', 'pause', volume=Settings.get_volume('ui'))
-        self.gui_flags['menu'] = not self.engine.auto_tick
-        self.gui_flags['menu_dismiss'] = self.engine.auto_tick
 
     def user_click(self, target, button, view_size):
         if button == 'right':
@@ -194,6 +192,10 @@ class EncounterAPI:
     @property
     def general_label_text(self):
         return self.time_str
+
+    @property
+    def view_fade(self):
+        return (0, 0, 0, 0 if self.engine.auto_tick else 0.5)
 
     # Sprites and vfx
     map_size = np.full(2, 5_000)

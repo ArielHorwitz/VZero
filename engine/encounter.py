@@ -29,10 +29,14 @@ class Encounter:
         self.__t0 = self.__last_tick = ping()
         self.stats = UnitStats()
         self.units = []
+        self.__active_uids = np.array([])
         self._visual_effects = []
 
     # TIME MANAGEMENT
-    def update(self):
+    def update(self, active_uids):
+        assert isinstance(active_uids, np.ndarray)
+        assert len(active_uids) == self.unit_count
+        self.__active_uids = active_uids
         with ratecounter(self.timers['logic_total']):
             ticks = self._check_ticks()
             if self.tick == 0:
@@ -78,12 +82,10 @@ class Encounter:
     def _do_agency(self, ticks):
         if ticks == 0:
             return
-        # find which uids are in action based on distance from player
-        ACTION_RADIUS = 3000
+        # find which uids are in action based on phase
         alive = self.stats.get_stats(slice(None), STAT.HP, VALUE.CURRENT) > 0
         in_phase = alive & self._find_units_in_phase(ticks)
-        in_action_radius = self.stats.get_distances(self.stats.get_position(0)) < ACTION_RADIUS
-        in_action_uids = (in_phase & in_action_radius).nonzero()[0]
+        in_action_uids = (in_phase & self.__active_uids).nonzero()[0]
         if len(in_action_uids) == 0: return
         for uid in in_action_uids:
             with ratecounter(self.timers['agency'][uid]):

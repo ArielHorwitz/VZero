@@ -16,7 +16,7 @@ from gui import cc_int, center_position
 from gui.common import Tooltip
 from gui.encounter.sprites import Sprites
 from gui.encounter.vfx import VFX
-from gui.encounter.panels import Menu, ControlOverlay, LogicLabel, HUD, ModalBrowse, DebugPanel
+from gui.encounter.panels import Menu, ControlOverlay, LogicLabel, HUD, ModalBrowse, ViewFade, DebugPanel
 
 from engine.common import *
 
@@ -50,6 +50,7 @@ class Encounter(widgets.RelativeLayout):
         self.overlays = {
             'sprites': self.add(Sprites(enc=self)),
             'vfx': self.add(VFX(enc=self)),
+            'viewfade': self.add(ViewFade(enc=self)),
             'logic_label': self.add(LogicLabel(enc=self)),
             'modal_browse': self.add(ModalBrowse(enc=self)),
             'hud': self.add(HUD(enc=self)),

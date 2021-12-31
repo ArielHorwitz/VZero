@@ -33,7 +33,7 @@ class HomeGUI(widgets.AnchorLayout):
         corner_anchor = main_anchor.add(widgets.AnchorLayout(anchor_x='right', anchor_y='top'))
         corner_buttons = corner_anchor.add(widgets.BoxLayout()).set_size(x=200, y=30)
         corner_buttons.add(widgets.Button(text='Restart', on_release=lambda *a: nutil.restart_script())).set_size(x=100, y=30)
-        corner_buttons.add(widgets.Button(text='Quit', on_release=lambda *a: quit())).set_size(x=100, y=30)
+        corner_buttons.add(widgets.Button(text='Quit', on_release=lambda *a: self.app.stop())).set_size(x=100, y=30)
 
         for params in [
             ('New encounter', f'{Settings.get_setting("start_encounter", "Hotkeys")}', lambda *a: self.app.game.new_encounter()),
@@ -96,6 +96,3 @@ class DraftButton(SpriteLabel):
     def click(self, w, m):
         if self.collide_point(*m.pos):
             self.callback(self.index, m)
-
-
-#

@@ -258,7 +258,7 @@ class InputManager(Widget):
         self.activate()
         if defaults is True:
             self.register('Restart', '+ escape', lambda *a: nutil.restart_script())
-            self.register('Quit', '^+ escape', lambda *a: quit())
+            self.register('Quit', '^+ escape', lambda *a: self.app.stop())
 
     def _refresh_all_keys(self):
         self.__all_keys = set()
@@ -444,15 +444,6 @@ class Image(kvImage, KexWidget):
 
 
 # PREMADE WIDGETS
-class Menu(BoxLayout):
-    def __init__(self, buttons=None, add_quit_buttons=True, **kwargs):
-        super().__init__(**kwargs)
-        self.set_size(y=kex.LINE_DP_STR)
-        if add_quit_buttons:
-            self.add(Button(text='Restart', on_release=lambda *a: nutil.restart_script()))
-            self.add(Button(text='Quit', on_release=lambda *a: quit()))
-
-
 class Sound:
     @classmethod
     def load(cls, filename, *a, **kw):

@@ -44,9 +44,6 @@ class GameAPI(BaseGameAPI):
         self.loadout.extend([None for _ in range(8-len(self.loadout))])
 
     def select_ability(self, aid):
-        if aid is None:
-            return
-        aid = self.draftables[aid]
         self.selected_aid = aid
         ABILITIES[self.selected_aid].play_sfx(volume='ui')
 
@@ -97,18 +94,22 @@ class GameAPI(BaseGameAPI):
     def draft_click(self, index, button):
         aid = self.draftables[index]
         if button == 'left':
-            self.select_ability(index)
+            self.select_ability(aid)
         if button == 'right':
             self.draft(aid)
 
     def loadout_click(self, index, button):
+        aid = self.loadout[index]
         if button == 'left':
-            self.select_ability(self.loadout[index])
+            if aid is None:
+                return
+            self.select_ability(aid)
         if button == 'right':
-            aid = self.loadout[index]
+            if aid is None:
+                return
             self.draft(aid)
         if button == 'middle':
-            List.swap(self.loadout, index, -1)
+            List.move_top(self.loadout, index)
         elif button == 'scrollup':
             List.move_down(self.loadout, index)
         elif button == 'scrolldown':

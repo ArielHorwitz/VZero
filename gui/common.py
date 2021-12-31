@@ -166,7 +166,7 @@ class Tooltip(widgets.BoxLayout):
             if bounding_widget is None:
                 bounding_widget = self.bounding_widget
             if bounding_widget is not None:
-                fix = np.zeros(2)
+                fix = np.zeros(2) - 5
                 if not bounding_widget.collide_point(*pos):
                     blfix = np.array(bounding_widget.pos) - pos
                     blfix[blfix<0] = 0
@@ -182,8 +182,13 @@ class Tooltip(widgets.BoxLayout):
     def deactivate(self):
         if self.__frame in self.children:
             self.remove_widget(self.__frame)
+            self.pos = -1_000_000, -1_000_000
 
     def _check_click(self, w, m):
+        if self.collide_point(*m.pos):
+            consume = self.__frame in self.children
+            self.deactivate()
+            return consume
         if m.button == 'left':
             self.deactivate()
 

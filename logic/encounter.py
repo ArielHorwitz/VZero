@@ -82,6 +82,8 @@ class EncounterAPI(BaseEncounterAPI):
     def control_button_click(self, index):
         if index == 0:
             self.toggle_play()
+            self.raise_gui_flag('browse_dismiss')
+            self.raise_gui_flag('menu_dismiss' if self.engine.auto_tick else 'menu')
         elif index == 1:
             self.selected_unit = 0
             self.raise_gui_flag('browse_toggle')
@@ -152,6 +154,8 @@ class EncounterAPI(BaseEncounterAPI):
             control = int(hotkey[-1])
             if control == 0:
                 self.toggle_play()
+                self.raise_gui_flag('browse_dismiss')
+                self.raise_gui_flag('menu_dismiss' if self.engine.auto_tick else 'menu')
             elif control == 1:
                 self.selected_unit = 0
                 self.raise_gui_flag('browse_toggle')
@@ -174,10 +178,8 @@ class EncounterAPI(BaseEncounterAPI):
         if self.dev_mode:
             max_los = max(max_los, np.linalg.norm(np.array(view_size) / 2))
         in_los = self.engine.unit_distance(0) <= max_los
-        is_neutral = self.engine.get_stats(slice(None), STAT.ALLEGIANCE) < 0
-        is_special = self.engine.get_stats(slice(None), STAT.ALLEGIANCE) >= 1000
         is_ally = self.engine.get_stats(slice(None), STAT.ALLEGIANCE) == self.engine.get_stats(0, STAT.ALLEGIANCE)
-        return in_los | is_neutral | is_special | is_ally
+        return in_los | is_ally | self.always_visible
 
     def sprite_bars(self):
         max_hps = self.engine.get_stats(slice(None), STAT.HP, value_name=VALUE.MAX)
@@ -254,6 +256,7 @@ class EncounterAPI(BaseEncounterAPI):
             return round((1-Mechanics.rp2reduction(v))*100)
 
         uid = self.selected_unit
+        self.__last_hud_statuses = []
         strs = []
         respawn = self.engine.get_status(uid, STATUS.RESPAWN)
         if respawn > 0:
@@ -263,12 +266,14 @@ class EncounterAPI(BaseEncounterAPI):
                 f'* {format_time(duration)}s\n',
                 (0,0,0,0.25),
             ))
+            self.__last_hud_statuses.append(STATUS.RESPAWN)
 
         strs.append(SpriteLabel(
             Assets.get_sprite('ability', 'walk'),
             str(round(self.engine.s2ticks(self.engine.get_velocity(uid)))),
             (0,0,0,0),
         ))
+        self.__last_hud_statuses.append('movespeed')
 
         if self.engine.get_status(uid, STATUS.FOUNTAIN) > 0:
             strs.append(SpriteLabel(
@@ -276,6 +281,7 @@ class EncounterAPI(BaseEncounterAPI):
                 '',
                 (0,0,0,0),
             ))
+            self.__last_hud_statuses.append('fountain')
 
         shop = self.engine.get_status(uid, STATUS.SHOP)
         if shop > 0:
@@ -285,6 +291,7 @@ class EncounterAPI(BaseEncounterAPI):
                 f'{shop}',
                 (0,0,0,0.25),
             ))
+            self.__last_hud_statuses.append(STATUS.SHOP)
 
         for stat, status in Mechanics.STATUSES.items():
             v = get(stat)
@@ -298,6 +305,7 @@ class EncounterAPI(BaseEncounterAPI):
                     f'{ds}\n{round(v)}',
                     (0,0,0,0.25),
                 ))
+                self.__last_hud_statuses.append(stat)
 
         return strs
 
@@ -353,11 +361,13 @@ class EncounterAPI(BaseEncounterAPI):
                 title = f'{stat.name.lower().capitalize()}'
                 return SpriteTitleLabel(
                     STAT_SPRITES[index], title, f'{s}', (0,0,0,0.85))
+            elif hud == 'status':
+                return self.hud_status_tooltip(index)
         # Sorting, selling, etc. only relevant for player
         elif self.selected_unit == 0:
             if hud == 'left':
                 if button == 'middle':
-                    List.move_bottom(self.units[0].abilities, index)
+                    List.move_top(self.units[0].abilities, index)
                 elif button == 'scrollup':
                     List.move_down(self.units[0].abilities, index)
                 elif button == 'scrolldown':
@@ -366,11 +376,52 @@ class EncounterAPI(BaseEncounterAPI):
                 if button == 'right':
                     self.itemsell(index, (0,0))
                 elif button == 'middle':
-                    List.move_bottom(self.units[0].item_slots, index)
+                    List.move_top(self.units[0].item_slots, index)
                 elif button == 'scrollup':
                     List.move_down(self.units[0].item_slots, index)
                 elif button == 'scrolldown':
                     List.move_up(self.units[0].item_slots, index)
+
+    def hud_status_tooltip(self, index):
+        status = self.__last_hud_statuses[index]
+        sprite = str(Assets.FALLBACK_SPRITE)
+        title = 'Unknown status'
+        label = 'Missing tooltip'
+        color = 0, 0, 0, 0.85
+        if status is STATUS.RESPAWN:
+            sprite = Assets.get_sprite('ability', 'respawn')
+            title = 'Respawn timer'
+            label = 'Respawn time in seconds'
+        elif isinstance(status, STAT):
+            sprite = Assets.get_sprite('ability', status.name)
+            title = status.name.lower().capitalize()
+            v = Mechanics.get_status(self.engine, self.selected_unit, status)
+            sp = Mechanics.rp2reduction(v)
+            if status is STAT.SLOW:
+                label = f'Slowed by {int((1-sp)*100)}%'
+            if status is STAT.SPIKES:
+                label = f'Returns {round(v)} pure damage when hit by normal damage'
+            if status is STAT.ARMOR:
+                label = f'Reducing normal damage by {int((1-sp)*100)}%'
+            if status is STAT.LIFESTEAL:
+                label = f'Lifestealing {int(v)}% of outgoing normal damage'
+            if status is STAT.BOUNDED:
+                label = f'Prevented from moving or blinking'
+            if status is STAT.CUTS:
+                label = f'Taking extra {round(v)} normal damage per hit'
+            if status is STAT.VANITY:
+                label = f'Incoming blast damage amplified by {int(v)}%'
+            if status is STAT.REFLECT:
+                label = f'Reflecting {int(v)}% of incoming blast damage as pure damage'
+        elif status == 'fountain':
+            sprite = Assets.get_sprite('unit', 'fort')
+            title = 'Fountain healing'
+            label = 'Healing from a fountain'
+        elif status == 'movespeed':
+            sprite = Assets.get_sprite('ability', 'walk')
+            title = 'Movespeed'
+            label = 'Current speed'
+        return SpriteTitleLabel(sprite, title, label, color)
 
     # Browse
     def browse_main(self):
@@ -416,7 +467,10 @@ class EncounterAPI(BaseEncounterAPI):
 
     def update(self):
         if not self.enc_over:
-            self.engine.update()
+            PLAYER_ACTION_RADIUS = 3000
+            in_action_radius = self.engine.get_distances(self.engine.get_position(0)) < PLAYER_ACTION_RADIUS
+            active_uids = self.always_active | in_action_radius
+            self.engine.update(active_uids)
 
     @property
     def unit_count(self):
@@ -525,9 +579,14 @@ class EncounterAPI(BaseEncounterAPI):
         self.map = MapGenerator(self)
         self.draft_cost = sum(ABILITIES[_].draft_cost for _ in player_abilities if _ is not None)
         self.engine.units[0].abilities = player_abilities
+        self.always_visible = np.zeros(len(self.engine.units), dtype=np.bool)
+        self.always_active = np.zeros(len(self.engine.units), dtype=np.bool)
+        self.__last_hud_statuses = []
         # Setup units
         for unit in self.engine.units:
             unit.action_phase()
+            self.always_visible[unit.uid] = unit.always_visible
+            self.always_active[unit.uid] = unit.always_active
         Assets.play_sfx('ui', 'play', volume=Settings.get_volume('feedback'))
 
     def leave(self):

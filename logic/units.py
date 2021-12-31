@@ -2,12 +2,13 @@ import logging
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
+from collections import defaultdict
 import itertools
 import math
 import numpy as np
 import random
 from nutil.vars import normalize, collide_point
-from nutil.time import ping, pong, ratecounter
+from nutil.time import ratecounter
 from nutil.random import SEED
 from data.assets import Assets
 from data.settings import Settings
@@ -24,6 +25,9 @@ class Unit(BaseUnit):
     _respawn_timer = 12000  # ~ 2 minutes
     def __init__(self, api, uid, name, params):
         super().__init__(uid, name)
+        self.cache = defaultdict(lambda: None)
+        self.always_visible = True if 'always_visible' in params.positional else False
+        self.always_active = True if 'always_active' in params.positional else False
         self.win_on_death = False
         self.lose_on_death = False
         self.api = api

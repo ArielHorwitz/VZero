@@ -83,8 +83,8 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
         portrait_frame.set_size(x=HUD_PORTRAIT, y=HUD_PORTRAIT)
         portrait_frame.make_bg((1,1,1,1))
         portrait_frame._bg.source = Assets.get_sprite('ui', 'portrait-frame')
-        self.portrait = portrait_frame.add(widgets.Image(allow_stretch=True))
         self.name_label = portrait_frame.add(widgets.Label(halign='center', valign='middle'))
+        self.portrait = portrait_frame.add(widgets.Image(allow_stretch=True, keep_ratio=True))
         self.name_label.set_size(y=25)
         self.name_label.make_bg((0,0,0,0.6))
         self.name_label.text_size = self.name_label.size
@@ -94,7 +94,10 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
         ct1.widget = self.portrait
         ct2.widget = center_frame
 
-        self.status_panel = center_frame.add(Stack(wtype=CenteredSpriteBox, x=50, y=50))
+        self.status_panel = center_frame.add(Stack(
+            wtype=CenteredSpriteBox,
+            callback=lambda i, b: self.click('status', i, b),
+            x=50, y=50))
         self.status_panel.make_bg((0,0,0,0))
         self.status_panel.set_size(y=50)
 
@@ -194,6 +197,14 @@ class ModalBrowse(Modal, EncounterViewComponent):
         self.stack.update(sts)
 
 
+class ViewFade(widgets.AnchorLayout, EncounterViewComponent):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def update(self):
+        self.make_bg(self.api.view_fade)
+
+
 class Menu(widgets.AnchorLayout, EncounterViewComponent):
     active_bg = (0,0,0,0.6)
 
@@ -203,9 +214,9 @@ class Menu(widgets.AnchorLayout, EncounterViewComponent):
         self.frame = widgets.BoxLayout(orientation='vertical')
         self.label = self.frame.add(widgets.Label(text='Paused', halign='center', valign='middle')).set_size(hy=1.5)
         for t, c in (
-            ('Resume', lambda *a: self.api.user_hotkey('toggle_play', None)),
+            ('Resume', lambda *a: self.api.user_hotkey('control0', None)),
             ('Leave', lambda *a: self.app.game.leave_encounter()),
-            ('Ragequit', lambda *a: quit()),
+            ('Ragequit', lambda *a: self.app.stop()),
         ):
             self.frame.add(widgets.Button(text=t, on_release=c))
         self.frame.set_size(x=200, y=200)
