@@ -3,13 +3,15 @@ logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
 
+import statistics
 from nutil.vars import modify_color, List
+from nutil.time import humanize_ms
 from data.load import RDF
 from data.assets import Assets
 from data.settings import Settings
 from engine.common import *
 from engine.api import GameAPI as BaseGameAPI
-from gui.api import SpriteLabel, SpriteTitleLabel
+from gui.api import SpriteLabel, SpriteTitleLabel, SpriteBox
 
 from logic.data import ABILITIES
 from logic.encounter import EncounterAPI
@@ -18,6 +20,7 @@ from logic.base import Ability
 
 class GameAPI(BaseGameAPI):
     def __init__(self):
+        self.restart_flag = False
         self.high_score = 0
         self.draftables = []
         for aid in AID_LIST:
@@ -28,9 +31,26 @@ class GameAPI(BaseGameAPI):
         self.selected_aid = self.draftables[0]
         self.load_preset(0)
 
+    def update(self):
+        if self.restart_flag:
+            self.restart_flag = False
+            self.new_encounter()
+
+    def average_draft_cost(self, loadout=None):
+        if loadout is None:
+            loadout = self.loadout
+        s = list(ABILITIES[a].draft_cost for a in loadout if a is not None)
+        return statistics.mean(s) if len(s) > 0 else 0
+
+    def draft_cost_minutes(self, draft_cost=None):
+        if draft_cost is None:
+            draft_cost = self.average_draft_cost()
+        extra_minutes = draft_cost / 5
+        return max(0, extra_minutes - 6)
+
     def calc_score(self, draft_cost, elapsed_minutes):
-        time_penalty = elapsed_minutes * 10
-        return int(1000*1000/(1000+draft_cost+time_penalty))
+        total_penalty = elapsed_minutes + self.draft_cost_minutes(draft_cost)
+        return int(1000 * 50 / (50+total_penalty))
 
     def load_preset(self, index):
         self.loadout = []
@@ -57,7 +77,7 @@ class GameAPI(BaseGameAPI):
         for i, loadout_aid in enumerate(self.loadout):
             if loadout_aid is None:
                 self.loadout[i] = aid
-                Assets.play_sfx('ability', aid.name, volume='ui')
+                ABILITIES[aid].play_sfx(volume='ui')
                 return
         else:
             Assets.play_sfx('ui', 'target', volume='ui')
@@ -71,10 +91,14 @@ class GameAPI(BaseGameAPI):
             f'High score: {self.high_score}',
         ])
 
+    def restart_encounter(self):
+        self.leave_encounter()
+        self.restart_flag = True
+
     def new_encounter(self):
         if self.encounter_api is None:
             logger.info(f'Logic creating encounter with loadout: {self.loadout}')
-            self.encounter_api = EncounterAPI(self, self.loadout)
+            self.encounter_api = EncounterAPI(self, self.loadout, self.average_draft_cost())
 
     def leave_encounter(self):
         if self.encounter_api is not None:
@@ -109,7 +133,7 @@ class GameAPI(BaseGameAPI):
                 return
             self.draft(aid)
         if button == 'middle':
-            List.move_top(self.loadout, index)
+            List.move_bottom(self.loadout, index)
         elif button == 'scrollup':
             List.move_down(self.loadout, index)
         elif button == 'scrolldown':
@@ -117,12 +141,14 @@ class GameAPI(BaseGameAPI):
 
     # GUI properties
     def draft_label(self):
-        s = sum(ABILITIES[a].draft_cost for a in self.loadout if a is not None)
+        dc = self.average_draft_cost()
+        dcm = humanize_ms(self.draft_cost_minutes()*60*1000, show_ms=False, show_hours=False)
         return "\n".join([
-            f'Starting score: {self.calc_score(s, 0)}',
-            '',
-            f'Score @20 min: {self.calc_score(s, 20)}, @30 min: {self.calc_score(s, 30)}, @40 min: {self.calc_score(s, 40)}',
-            f'Score penalty: {s} draft cost + 10 / minute',
+            f'___ Score Caluclation _______',
+            f'Draft cost: {dcm} (average ability: {round(dc, 1)})',
+            f'Starting score: {self.calc_score(dc, 0)}',
+            'Time:  '+' / '.join(f'{n}m' for n in range(20, 50, 5)),
+            'Score: '+' /  '.join(f'{self.calc_score(dc, n)}' for n in range(20, 50, 5)),
         ])
 
     def draft_details(self):
@@ -132,7 +158,7 @@ class GameAPI(BaseGameAPI):
         return SpriteTitleLabel(
             Assets.get_sprite('ability', ability.name),
             s, ability.universal_description,
-            modify_color(color, a=0.5))
+            modify_color(color, v=0.5))
 
     def draft_boxes(self):
         b = []
@@ -140,12 +166,11 @@ class GameAPI(BaseGameAPI):
             ability = ABILITIES[aid]
             name = ability.name
             drafted = ability.aid in self.loadout
-            v = 0 if drafted else 1
-            a = 0.85 if drafted else 0.15
-            color = modify_color(ability.color, v=v, a=a)
-            sl = SpriteLabel(
+            bg_color = modify_color(ability.color, v=0 if drafted else 0.7)
+            fg_color = modify_color(COLOR.BLACK, a=0.7 if drafted else 0.2)
+            sl = SpriteBox(
                 Assets.get_sprite('ability', name),
-                str(ability.draft_cost), color)
+                str(ability.draft_cost), bg_color, fg_color)
             b.append(sl)
         return b
 

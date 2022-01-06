@@ -75,8 +75,8 @@ class Sprite(widgets.kvInstructionGroup):
         self.bar2 = Bar()
         self.icons = Icons()
         self.add(self.sprite)
-        self.add(self.bar2)
         self.add(self.bar1)
+        self.add(self.bar2)
         self.add(self.icons)
 
     @property
@@ -92,7 +92,7 @@ class Sprite(widgets.kvInstructionGroup):
         self.sprite.pos = nx = center_position(x, self.size)
         centered_x = nx[0]+self.size[0]/2
         self.icons.pos = centered_x, nx[1]+self.size[1] + 15
-        self.bar1.pos = centered_x, nx[1]+self.size[1] + 5
+        self.bar1.pos = centered_x, nx[1]+self.size[1] + 7
         self.bar2.pos = centered_x, nx[1]+self.size[1]
 
     @property

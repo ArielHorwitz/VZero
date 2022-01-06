@@ -4,7 +4,7 @@ type: player
 max_hp_delta: 0.002
 --- stats
 allegiance: 0
-gold: 20
+gold: 30
 gold.delta: 0.01
 hp.max: 100
 hp.delta: 0.02
@@ -22,33 +22,40 @@ water: 1
 water.delta: 0.0001666
 
 
+
+
+------------------------------------- Creep waves
+
 === Small creep
 type: creep
-wave: 0.05
-scaling: 1.17
+wave: 0.9
+scaling: 1.15
 always_active
 always_visible
 --- stats
 hitbox: 75
-gold: 30
-hp.max: 70
-physical: 13
+gold: 50
+hp.max: 100
+physical: 20
 air: 8
 
 === Huge creep
 type: creep
-wave: 0.1
-scaling: 1.17
+wave: 0.95
+scaling: 1.15
 always_active
 always_visible
 --- stats
 hitbox: 150
-gold: 90
-hp.max: 200
-physical: 40
+gold: 150
+hp.max: 300
+physical: 60
 air: 8
 
 
+
+
+------------------------------------- Tier 1
 
 === Meef
 type: camper
@@ -63,8 +70,7 @@ hp.max: 40
 hp.delta: 0.0001
 physical: 10
 air: 15
-spikes: 15
-
+spikes: 20
 
 ====== Penguin
 type: camper
@@ -132,7 +138,6 @@ mana.delta: 0.001
 physical: 4
 air: 55
 
-
 ====== Blood Imp
 type: camper
 abilities: walk, attack, fireblast
@@ -151,6 +156,10 @@ fire: 10
 air: 20
 
 
+
+
+------------------------------------- Tier 2
+
 ====== Folphin
 type: camper
 abilities: walk, attack, compliment, fireblast
@@ -167,7 +176,6 @@ mana.max: 100
 mana.delta: 0.001
 fire: 30
 air: 25
-
 
 ====== Infester
 type: camper
@@ -186,7 +194,6 @@ mana.delta: 0.005
 physical: 22
 air: 45
 
-
 ====== Crab
 type: camper
 abilities: walk, attack, bash
@@ -201,8 +208,6 @@ hp.max: 220
 hp.delta: 0.005
 physical: 35
 air: 30
-
-
 
 ====== Shako
 type: camper
@@ -220,42 +225,61 @@ vanity: 50
 physical: 60
 air: 15
 
-
-
 ====== Phaser
 type: camper
+abilities: walk, attack, nuke
 aggro_range: 600
 deaggro_range: 1000
 reaggro_range: 600
 camp_spread: 100
 --- stats
 hitbox: 100
-gold: 40
+gold: 50
 hp.max: 460
 hp.delta: 0.05
-physical: 40
+fire: 15
+physical: 20
 air: 12
 lifesteal: 20
 
 
 
-====== Harpy
+
+------------------------------------- Tier 3
+
+====== Fire Troll
 type: camper
-abilities: walk, attack, blink
+abilities: walk, monster vortex
 aggro_range: 600
 deaggro_range: 1000
 reaggro_range: 600
 camp_spread: 250
 --- stats
-hitbox: 90
+hitbox: 120
 gold: 120
-hp.max: 350
+hp.max: 475
+hp.delta: 0.05
+mana.max: 120
+mana.delta: 0.3
+fire: 50
+air: 45
+
+====== Harpy
+type: camper
+abilities: run, blink, attack
+aggro_range: 600
+deaggro_range: 1000
+reaggro_range: 600
+camp_spread: 250
+--- stats
+hitbox: 110
+gold: 120
+hp.max: 600
 hp.delta: 0.05
 mana.max: 40
 mana.delta: 0.02
-physical: 10
-air: 30
-
+physical: 45
+air: 80
 
 ====== Zombie
 type: camper
@@ -268,9 +292,8 @@ hitbox: 120
 gold: 130
 hp.max: 650
 hp.delta: 0.05
-physical: 45
+physical: 75
 air: 8
-
 
 ====== Spiker
 type: camper
@@ -288,25 +311,27 @@ air: 20
 spikes: 50
 
 
+
+
+------------------------------------- Tier 4
+
 ====== Fire Elemental
 type: camper
-abilities: walk, fireblast, vortex
+abilities: walk, fireblast, monster vortex
 aggro_range: 700
 deaggro_range: 800
 reaggro_range: 450
 camp_spread: 350
 --- stats
 hitbox: 160
-gold: 250
+gold: 500
 hp.max: 600
 hp.delta: 0.005
-mana.max: 300
+mana.max: 250
 mana.delta: 0.15
 fire: 145
 air: 35
 water: 35
-
-
 
 ====== Skull
 type: camper
@@ -317,15 +342,13 @@ reaggro_range: 900
 camp_spread: 500
 --- stats
 hitbox: 170
-gold: 250
-hp.max: 800
+gold: 500
+hp.max: 1000
 hp.delta: 0.005
 mana.max: 100
 mana.delta: 0.05
 physical: 190
 water: 40
-
-
 
 ====== Lich
 type: camper
@@ -336,15 +359,19 @@ reaggro_range: 0
 camp_spread: 50
 --- stats
 hitbox: 120
-gold: 250
-hp.max: 800
+gold: 400
+hp.max: 1200
 hp.delta: 0.005
 mana.max: 100
 mana.delta: 0.05
 fire: 200
 air: 2
-reflect: 20
+reflect: 30
 
+
+
+
+------------------------------------- Bosses
 
 ====== Barkshroom
 type: boss
@@ -363,7 +390,6 @@ physical: 175
 air: 15
 armor: 15
 
-
 ====== Robot
 type: boss
 aggro_range: 800
@@ -380,7 +406,6 @@ hp.delta: 0.25
 physical: 500
 air: 35
 spikes: 35
-
 
 ====== Winged Snake
 type: boss
@@ -479,13 +504,15 @@ gold: 10000
 === Hero Treasure
 type: treasure
 --- stats
-hp.max: 1000
+hp.max: 750
 hp.delta: 0.5
-gold: 500
+gold: 1000
 spikes: 20
+armor: 20
+reflect: 20
 === Lost Treasure
 type: treasure
 --- stats
 hp.max: 750
-hp.delta: 0.5
-gold: 250
+hp.delta: 1
+gold: 500

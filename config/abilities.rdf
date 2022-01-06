@@ -1,29 +1,58 @@
 
+=== Appraise
+type: barter
+sfx: barter
+show_stats: range, loot_multi, cooldown
+draft_cost: 20
+-- stats
+range: 300
+cooldown: 10000
+loot_multi: 2
+loot_multi_stat: water
+loot_multi_bonus: 0.02
+
+
+=== Barter
+type: barter
+show_stats: range, loot_multi, cooldown
+draft_cost: 20
+-- stats
+range: 300
+cooldown: 10000
+loot_multi: 1.5
+loot_multi_stat: water
+loot_multi_bonus: 0.06
+
+
 === Walk
 type: move
-color: grey
 show_stats: speed
 draft_cost: 60
 -- stats
-speed: 100
+speed: 150
 speed_stat: air
-speed_bonus: 5
+speed_bonus: 3
 
+
+=== Run
+type: move
+show_stats: speed
+draft_cost: 75
+-- stats
+speed: 250
 
 === Jog
 type: move
-color: grey
 show_stats: speed
-draft_cost: 80
+draft_cost: 30
 -- stats
 speed: 200
 
 
 === Charge
 type: move
-color: grey
 show_stats: range, speed, cooldown
-draft_cost: 40
+draft_cost: 25
 -- stats
 range: 2000
 cooldown: 2200
@@ -36,7 +65,7 @@ speed: 600
 type: attack
 color: cyan
 show_stats: damage, cooldown, range
-draft_cost: 120
+draft_cost: 100
 -- stats
 mana_cost: 0
 cooldown: 150
@@ -50,30 +79,34 @@ damage_bonus: 1
 type: attack
 color: cyan
 sfx: attack
-show_stats: damage, cooldown, range
-draft_cost: 80
+show_stats: mana_cost, damage, cooldown, range
+draft_cost: 105
 -- stats
-mana_cost: 0
-cooldown: 120
+mana_cost: 5
+mana_cost_stat: physical
+mana_cost_bonus: 0.08
+cooldown: 100
 range: 225
 damage: 15
 damage_stat: physical
-damage_bonus: 0.5
+damage_bonus: 0.75
 
 
 === Snipe
 type: attack
 color: cyan
 sfx: attack
-show_stats: damage, cooldown, range, mana_cost
-draft_cost: 80
+show_stats: mana_cost, damage, cooldown, range
+draft_cost: 110
 -- stats
-mana_cost: 5
-cooldown: 100
-range: 350
+mana_cost: 8
+mana_cost_stat: physical
+mana_cost_bonus: 0.1
+cooldown: 120
+range: 300
 damage: 12
 damage_stat: physical
-damage_bonus: 0.25
+damage_bonus: 0.75
 
 
 === Bash
@@ -81,14 +114,12 @@ type: attack
 color: cyan
 sfx: attack
 show_stats: damage, cooldown, range
-draft_cost: 65
+draft_cost: 75
 -- stats
 mana_cost: 0
 cooldown: 200
 range: 15
-damage: 34
-damage_stat: physical
-damage_bonus: 0.1
+damage: 50
 
 
 === Tailwhip
@@ -96,14 +127,14 @@ type: passive_attack
 color: cyan
 sfx: attack
 show_stats: damage, cooldown, range
-draft_cost: 120
+draft_cost: 100
 -- stats
 mana_cost: 0
 cooldown: 250
 range: 30
 damage: 10
 damage_stat: earth
-damage_bonus: 1.75
+damage_bonus: 1.25
 
 
 === Blink
@@ -132,7 +163,7 @@ range: 750
 === Scroll
 type: teleport home
 color: lime
-draft_cost: 10
+draft_cost: 25
 --- stats
 mana_cost: 10
 cooldown: 10000
@@ -140,7 +171,7 @@ cooldown: 10000
 
 === Dunder Beam
 type: buff
-color: purple
+color: yellow
 show_stats: mana_cost, cooldown, range, stacks, duration
 draft_cost: 20
 -- stats
@@ -160,9 +191,9 @@ duration: 600
 
 === Root
 type: buff
-color: purple
+color: yellow
 show_stats: mana_cost, cooldown, range, duration
-draft_cost: 65
+draft_cost: 30
 --- stats
 status: bounded
 target: other
@@ -177,7 +208,7 @@ stacks: 1
 
 === Grab
 type: buff
-color: purple
+color: yellow
 show_stats: mana_cost, cooldown, range, duration
 draft_cost: 15
 sfx: root
@@ -185,7 +216,7 @@ sfx: root
 status: bounded
 target: other
 mana_cost: 15
-cooldown: 8000
+cooldown: 1500
 range: 25
 duration: 200
 duration_stat: water
@@ -197,7 +228,7 @@ stacks: 1
 
 === Compliment
 type: buff
-color: purple
+color: yellow
 show_stats: mana_cost, cooldown, range, stacks, duration
 draft_cost: 25
 -- stats
@@ -213,29 +244,48 @@ duration: 800
 
 
 
-=== Group Hug
+=== Wink
 type: buff
-color: purple
+color: yellow
 show_stats: mana_cost, cooldown, range, stacks, duration
-draft_cost: 35
+draft_cost: 50
+sfx: compliment
 -- stats
 status: vanity
 target: other
 mana_cost: 20
-cooldown: 600
+cooldown: 100
 range: 300
 range_stat: water
 range_bonus: 2
 stacks: 20
 stacks_stat: air
 stacks_bonus: 0.1
-duration: 100
+duration: 600
+
+
+
+=== Slash
+type: buff
+color: yellow
+show_stats: mana_cost, cooldown, duration, stacks
+draft_cost: 50
+--- stats
+status: cuts
+target: other
+mana_cost: 35
+range: 200
+cooldown: 500
+duration: 250
+stacks: 10
+stacks_stat: air
+stacks_bonus: 0.75
 
 
 
 === Bloodlust
 type: buff
-color: purple
+color: blue
 show_stats: mana_cost, cooldown, duration, stacks
 draft_cost: 70
 --- stats
@@ -248,23 +298,6 @@ duration_stat: water
 duration_bonus: 15
 stacks: 30
 
-
-
-=== Slash
-type: buff
-color: red
-show_stats: mana_cost, cooldown, duration, stacks
-draft_cost: 50
---- stats
-status: cuts
-target: other
-mana_cost: 35
-range: 200
-cooldown: 500
-duration: 250
-stacks: 10
-stacks_stat: air
-stacks_bonus: 0.1
 
 
 === Shield
@@ -283,15 +316,30 @@ stacks_stat: earth
 stacks_bonus: 1
 
 
+=== Kevlar
+type: buff
+color: blue
+show_stats: mana_cost, cooldown, duration, stacks
+draft_cost: 50
+--- stats
+status: reflect
+target: self
+mana_cost: 40
+cooldown: 2500
+duration: 1500
+stacks: 25
+stacks_stat: earth
+stacks_bonus: 0.5
+
+
 === Fireblast
 type: blast
 color: red
-sfx: implosion
 draft_cost: 70
 -- stats
 mana_cost: 30
 cooldown: 500
-range: 600
+range: 400
 radius: 60
 radius_stat: water
 radius_bonus: 2
@@ -299,45 +347,70 @@ damage: 20
 damage_stat: fire
 damage_bonus: 1
 
-
 === Vortex
 type: blast
 color: red
 sfx: implosion
-draft_cost: 90
+draft_cost: 100
+show_stats: mana_cost, cooldown, range, radius, damage
 -- stats
+fix_vector: 1
 mana_cost: 45
-cooldown: 0.25
-range: 120
+mana_cost_stat: fire
+mana_cost_bonus: 0.2
+cooldown: 15
+range: 60
 radius: 50
 damage: 15
 damage_stat: fire
-damage_bonus: 1.5
+damage_bonus: 1.25
+
+
+=== Monster Vortex
+hidden
+type: blast
+color: red
+sfx: implosion
+show_stats: mana_cost, cooldown, range, radius, damage
+-- stats
+mana_cost: 45
+mana_cost_stat: fire
+mana_cost_bonus: 0.2
+cooldown: 15
+range: 60
+radius: 50
+damage: 15
+damage_stat: fire
+damage_bonus: 1.25
 
 
 === Implosion
 type: blast
 color: red
-draft_cost: 100
+draft_cost: 110
 -- stats
 mana_cost: 60
-cooldown: 0.25
+mana_cost_stat: fire
+mana_cost_bonus: 0.25
+cooldown: 15
 range: 400
 radius: 30
 radius_stat: water
 radius_bonus: 2
 damage: 10
 damage_stat: fire
-damage_bonus: 1.75
+damage_bonus: 1
 
 
 === Nuke
 type: blast
 color: red
 draft_cost: 40
+sfx: fireblast
 -- stats
+fix_vector: 1
 mana_cost: 0
-range: 0
+range: 100
 radius: 500
 damage: 50
 damage_stat: fire
@@ -349,13 +422,13 @@ damage_bonus: 1
 type: regen aura
 color: brown
 show_stats: degen, radius
-draft_cost: 140
+draft_cost: 110
 -- stats
 target: enemies
 destat: hp
 degen: 0.03
 degen_stat: fire
-degen_bonus: 0.005
+degen_bonus: 0.01
 radius: 350
 
 === Lich Fog
@@ -373,33 +446,117 @@ radius: 500
 
 
 
-
-=== Barter
-type: barter
-color: grey
-show_stats: range, loot_multi, cooldown
-draft_cost: 20
+=== Deadlifting 1
+type: passive_buff
+draft_cost: 30
+show_stats: scaling
 -- stats
-range: 300
-cooldown: 10000
-loot_multi: 1.5
-loot_multi_stat: water
-loot_multi_bonus: 0.06
-
-
-
-=== Hard Barter
-type: barter
-color: grey
-sfx: barter
-show_stats: range, loot_multi, cooldown
-draft_cost: 20
+stat: physical
+scaling: 1
+=== Deadlifting 2
+type: passive_buff
+draft_cost: 65
+show_stats: scaling
 -- stats
-range: 300
-cooldown: 10000
-loot_multi: 2
-loot_multi_stat: water
-loot_multi_bonus: 0.02
+stat: physical
+scaling: 2
+=== Deadlifting 3
+type: passive_buff
+draft_cost: 100
+show_stats: scaling
+-- stats
+stat: physical
+scaling: 3
+
+=== Dragon Teeth 1
+type: passive_buff
+draft_cost: 30
+show_stats: scaling
+-- stats
+stat: fire
+scaling: 1
+=== Dragon Teeth 2
+type: passive_buff
+draft_cost: 65
+show_stats: scaling
+-- stats
+stat: fire
+scaling: 2
+=== Dragon Teeth 3
+type: passive_buff
+draft_cost: 100
+show_stats: scaling
+-- stats
+stat: fire
+scaling: 3
+
+=== Geocrust 1
+type: passive_buff
+draft_cost: 30
+show_stats: scaling
+-- stats
+stat: earth
+scaling: 1
+=== Geocrust 2
+type: passive_buff
+draft_cost: 65
+show_stats: scaling
+-- stats
+stat: earth
+scaling: 2
+=== Geocrust 3
+type: passive_buff
+draft_cost: 100
+show_stats: scaling
+-- stats
+stat: earth
+scaling: 3
+
+=== Aerodynamics 1
+type: passive_buff
+draft_cost: 30
+show_stats: scaling
+-- stats
+stat: air
+scaling: 1
+=== Aerodynamics 2
+type: passive_buff
+draft_cost: 65
+show_stats: scaling
+-- stats
+stat: air
+scaling: 2
+=== Aerodynamics 3
+type: passive_buff
+draft_cost: 100
+show_stats: scaling
+-- stats
+stat: air
+scaling: 3
+
+=== Aquaduct 1
+type: passive_buff
+draft_cost: 30
+show_stats: scaling
+-- stats
+stat: water
+scaling: 1
+=== Aquaduct 2
+type: passive_buff
+draft_cost: 65
+show_stats: scaling
+-- stats
+stat: water
+scaling: 2
+=== Aquaduct 3
+type: passive_buff
+draft_cost: 100
+show_stats: scaling
+-- stats
+stat: water
+scaling: 3
+
+
 
 
 
@@ -446,7 +603,7 @@ sfx: shield
 --- stats
 status: armor
 target: self
-mana_cost: 10
+mana_cost: 20
 cooldown: 5000
 duration: 1500
 duration_stat: water
@@ -465,19 +622,18 @@ show_stats: mana_cost, cooldown, range, duration
 --- stats
 status: bounded
 target: other
-mana_cost: 25
+mana_cost: 50
 cooldown: 1800
 range: 200
 range_stat: air
 range_bonus: 3
-duration: 500
+duration: 200
 stacks: 1
 
 
 === Iron Boots
 hidden
 type: move
-color: grey
 show_stats: range, speed, cooldown
 -- stats
 range: 800
@@ -514,7 +670,7 @@ cooldown: 400
 range: 100
 duration: 400
 stacks: 20
-stacks_stat: water
+stacks_stat: air
 stacks_bonus: 0.5
 
 === Headpiece
@@ -534,7 +690,22 @@ stacks: 20
 stacks_stat: earth
 stacks_bonus: 2.5
 
-
+=== Ninja Star
+hidden
+type: buff
+color: red
+show_stats: mana_cost, cooldown, range, duration, stacks
+sfx: slash
+--- stats
+status: cuts
+target: other
+mana_cost: 80
+cooldown: 800
+range: 300
+duration: 100
+stacks: 0
+stacks_stat: air
+stacks_bonus: 3
 
 
 
@@ -599,13 +770,6 @@ range: 10000
 cooldown: 0
 mana_cost: 0
 
-
-=== Dev Fireblast
-hidden
-type: blast
-- stats
-mana_cost: 0
-cooldown: 0
 
 
 === Map Editor Eraser

@@ -55,8 +55,8 @@ class Encounter(widgets.RelativeLayout):
             'modal_browse': self.add(ModalBrowse(enc=self)),
             'hud': self.add(HUD(enc=self)),
         }
-        self.tooltip = self.add(Tooltip(bounding_widget=self))
         self.overlays['control_overlay'] = self.add(ControlOverlay(enc=self))
+        self.tooltip = self.add(Tooltip(bounding_widget=self))
         self.overlays['menu'] = self.add(Menu(enc=self))
         self.overlays['debug'] = self.add(DebugPanel(enc=self))
 
@@ -121,10 +121,6 @@ class Encounter(widgets.RelativeLayout):
             self.__cached_target = self.mouse_real_pos
 
     def canvas_click(self, w, m):
-        # TODO expose top corner click to API
-        if self.collide_corners(m.pos):
-            self.api.user_hotkey('toggle_play', self.pix2real(np.array(self.size)/2))
-            return True
         if not self.collide_point(*m.pos):
             return False
         self.api.user_click(self.pix2real(m.pos), m.button, self.pix2real(self.size))
@@ -216,16 +212,6 @@ class Encounter(widgets.RelativeLayout):
         local = self.to_local(*self.app.mouse_pos)
         real = self.pix2real(local)
         return real
-
-    def collide_corners(self, pos):
-        margin = 0.01
-        return any([
-            pos[1] > self.size[1]*(1-margin),
-            pos[1] < self.size[1]*margin,
-        ]) and any([
-            pos[0] > self.size[0]*(1-margin),
-            pos[0] < self.size[0]*margin,
-        ])
 
     @property
     def zoom_level(self):

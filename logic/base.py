@@ -27,7 +27,7 @@ class Ability:
             show_stats=None, sfx=None):
         self.aid = aid
         self.name = name
-        self.color = color
+        self.color = self.miss_color = color
         self.draftable = draftable
         if draft_cost is not None:
             self.draft_cost = round(draft_cost)

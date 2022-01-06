@@ -63,21 +63,22 @@ infester: 2
 --- Crab patch
 crab: 2
 jackal: 1
---- Aquadome
+--- Folphin
 folphin: 1
 blood imp: 2
 --- Phaser
 phaser: 1
-meef: 2
 --- Shako
 shako: 1
 glob: 1
 jackal: 1
 
 === Monsters 3
+--- Fire troll
+fire troll: 1
+folphin: 2
 --- Harpy nest
 harpy: 2
-penguin: 2
 --- Spike pit
 spiker: 1
 glob: 1
@@ -90,11 +91,8 @@ jackal: 1
 lich: 1
 --- Fire hole
 fire elemental: 2
-folphin: 1
 --- Skull nest
-isolate
 skull: 2
-ratzan: 1
 
 === Boss
 --- Snake Lair

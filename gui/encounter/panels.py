@@ -23,10 +23,10 @@ from engine.common import *
 Box = namedtuple('Box', ['box', 'sprite', 'label'])
 
 HUD_SCALING = Settings.get_setting('hud_scale', 'UI')
-HUD_WIDTH = 300 * HUD_SCALING
-MIDDLE_HUD = 200 * HUD_SCALING
-HUD_HEIGHT = 150 * HUD_SCALING
-BAR_HEIGHT = 32
+HUD_WIDTH = 300
+MIDDLE_HUD = 230
+HUD_HEIGHT = 120 * HUD_SCALING
+BAR_HEIGHT = 64 * (HUD_SCALING / 2)
 BAR_WIDTH = HUD_WIDTH * 2 + MIDDLE_HUD
 TOTAL_HUD_HEIGHT = HUD_PORTRAIT = HUD_HEIGHT + BAR_HEIGHT
 TOTAL_HUD_WIDTH = BAR_WIDTH + HUD_PORTRAIT * 2
@@ -176,17 +176,24 @@ class ModalBrowse(Modal, EncounterViewComponent):
         self.main.set_size(x=300)
         self.stack = self.frame.add(Stack(
             wtype=SpriteBox, x=70, y=70,
-            callback=self.api.browse_click))
+            callback=self.click))
         self.set_frame(self.frame)
+
+    def click(self, index, button):
+        stl = self.api.browse_click(index, button)
+        if stl is not None:
+            self.enc.tooltip.activate(self.app.mouse_pos, stl)
 
     def update(self):
         if self.api.check_flag('browse_toggle'):
             if self.activated:
                 self.deactivate()
+                self.enc.tooltip.deactivate()
             else:
                 self.activate()
         if self.api.check_flag('browse_dismiss'):
             self.deactivate()
+            self.enc.tooltip.deactivate()
         if self.api.check_flag('browse'):
             self.activate()
         if not self.activated:
@@ -213,14 +220,46 @@ class Menu(widgets.AnchorLayout, EncounterViewComponent):
         self.consume_touch = self.add(widgets.ConsumeTouch(False))
         self.frame = widgets.BoxLayout(orientation='vertical')
         self.label = self.frame.add(widgets.Label(text='Paused', halign='center', valign='middle')).set_size(hy=1.5)
-        for t, c in (
-            ('Resume', lambda *a: self.api.user_hotkey('control0', None)),
-            ('Leave', lambda *a: self.app.game.leave_encounter()),
-            ('Ragequit', lambda *a: self.app.stop()),
-        ):
-            self.frame.add(widgets.Button(text=t, on_release=c))
+
+        self.frame.add(widgets.Button(text='Resume', on_release=lambda *a: self.api.user_hotkey('control0', None)))
         self.frame.set_size(x=200, y=200)
         self.frame.make_bg((0,0,0,1))
+
+        self.restart_btn = self.frame.add(widgets.Button(text='Restart', on_release=lambda *a: self.click_restart()))
+        self.confirm_restart = False
+        self.leave_btn = self.frame.add(widgets.Button(text='Leave', on_release=lambda *a: self.click_leave()))
+        self.confirm_leave = False
+        self.quit_btn = self.frame.add(widgets.Button(text='Ragequit', on_release=lambda *a: self.click_quit()))
+        self.confirm_quit = False
+
+    def unconfirm(self):
+        self.confirm_restart = False
+        self.restart_btn.text = 'Restart'
+        self.confirm_leave = False
+        self.leave_btn.text = 'Leave'
+        self.confirm_quit = False
+        self.quit_btn.text = 'Ragequit'
+
+    def click_restart(self):
+        if self.confirm_restart:
+            self.app.game.restart_encounter()
+        else:
+            self.confirm_restart = True
+            self.restart_btn.text = 'We can do better!'
+
+    def click_leave(self):
+        if self.confirm_leave:
+            self.app.game.leave_encounter()
+        else:
+            self.confirm_leave = True
+            self.leave_btn.text = 'Yeah, that was meh..'
+
+    def click_quit(self):
+        if self.confirm_quit:
+            self.app.stop()
+        else:
+            self.confirm_quit = True
+            self.quit_btn.text = 'Yeah, I see why...'
 
     def consume_touch(self, w, m):
         return True
@@ -228,6 +267,7 @@ class Menu(widgets.AnchorLayout, EncounterViewComponent):
     def update(self):
         if self.api.check_flag('menu_dismiss'):
             if self.frame in self.children:
+                self.unconfirm()
                 self.remove_widget(self.frame)
                 self.make_bg((0,0,0,0))
                 self.consume_touch.enable = False

@@ -193,6 +193,25 @@ class Buff(BaseAbility):
             raise ValueError(f'{self} unknown target type: {self.p.target}')
 
 
+class PassiveBuff(BaseAbility):
+    defaults = {
+        'mana_cost': 0,
+        'cooldown': 0,
+        'stat': None,
+        'scaling': 0,
+        'time_factor': 0,
+    }
+
+    def passive(self, api, uid, dt):
+        amount = self.__scaling * dt
+        api.set_stats(uid, self.__stat, amount, additive=True)
+
+    def setup(self):
+        self.__scaling = self.p.scaling / 6000
+        self.__stat = str2stat(self.p.stat)
+        self.info = f'Gain {self.p.scaling:.1f} {self.p.stat} per minute.'
+
+
 class Teleport(BaseAbility):
     info = 'Instantly teleport to a target position.'
     lore = 'The ancient art of blinking goes back eons.'
@@ -205,7 +224,7 @@ class Teleport(BaseAbility):
 
     def do_cast(self, api, uid, target):
         pos = api.get_position(uid)
-        range = self.p.get_range(api, uid)
+        range = self.p.get_range(api, uid) + api.get_stats(uid, STAT.HITBOX)
         target = self.fix_vector(api, uid, target, range)
         # teleport effect
         Mechanics.apply_teleport(api, uid, target)
@@ -242,10 +261,28 @@ class Blast(BaseAbility):
         'radius': 60,
         'damage': 10,
     }
-    auto_check = {'mana', 'cooldown', 'range_point'}
+    # auto_check = {'mana', 'cooldown', 'range_point'}
     debug = True
 
+    def setup(self):
+        self.__fix_vector = 'fix_vector' in self.p.params
+
     def do_cast(self, api, uid, target):
+        range = self.p.get_range(api, uid) + api.get_stats(uid, STAT.HITBOX)
+        if self.__fix_vector:
+            target = self.fix_vector(api, uid, target, range)
+        if api.get_distances(target, uid) > range:
+            if uid == 0:
+                cast_pos = api.get_position(uid)
+                miss_range = range + api.get_stats(uid, STAT.HITBOX)
+                miss_vector = normalize(target - cast_pos, miss_range)
+                api.add_visual_effect(VisualEffect.LINE, 10, {
+                    'p1': cast_pos,
+                    'p2': cast_pos + miss_vector,
+                    'color': self.miss_color,
+                })
+            return FAIL_RESULT.OUT_OF_RANGE
+
         damage = self.p.get_damage(api, uid)
         radius = self.p.get_radius(api, uid)
         targets_mask = self.find_aoe_targets(api, target, radius)
@@ -388,6 +425,7 @@ ABILITY_CLASSES = {
     'attack': Attack,
     'passive_attack': PassiveAttack,
     'buff': Buff,
+    'passive_buff': PassiveBuff,
     'teleport': Teleport,
     'teleport home': TeleportHome,
     'blast': Blast,

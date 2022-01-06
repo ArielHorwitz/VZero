@@ -42,6 +42,15 @@ class Unit(BaseUnit):
         self.abilities.extend([None for i in range(8-len(self.abilities))])
         self.item_slots = [None for i in range(8)]
 
+    @property
+    def total_networth(self):
+        nw = self.engine.get_stats(self.uid, STAT.GOLD)
+        for iid in set(self.item_slots):
+            if iid is None:
+                continue
+            nw += ITEMS[iid].cost
+        return nw
+
     def use_item(self, iid, target):
         with ratecounter(self.engine.timers['ability_single']):
             if not self.engine.auto_tick and not self.api.dev_mode:
@@ -112,6 +121,13 @@ class Unit(BaseUnit):
     def is_alive(self):
         return self.engine.get_stats(self.uid, STAT.HP) > 0
 
+    @property
+    def empty_item_slots(self):
+        s = set(self.item_slots)
+        if None in s:
+            s.remove(None)
+        return 8-len(s)
+
     def _setup(self):
         pass
 
@@ -139,8 +155,12 @@ class Player(Unit):
 
     def _setup(self):
         self._respawn_timer = 500
+        self._respawn_timer_scaling = 100
         self._max_hp_delta = float(self.p['max_hp_delta']) * self._max_hp_delta_interval if 'max_hp_delta' in self.p else 0
         self._next_max_hp_delta = self._max_hp_delta_interval
+        # self.engine.set_status(self.uid, STATUS.RESPAWN, 100, 1)
+        # self.engine.set_stats(self.uid, STAT.HP, 0)
+        Assets.play_sfx('ability', 'player-respawn', volume=Settings.get_volume('feedback'))
 
     def passive_phase(self, *a, **k):
         if self.engine.tick >= self._next_max_hp_delta:
@@ -151,12 +171,13 @@ class Player(Unit):
 
     def hp_zero(self):
         logger.info(f'Player {self.name} {self.uid} died.')
+        self._respawn_timer += self._respawn_timer_scaling
         super().hp_zero()
 
     def respawn(self):
         logger.info(f'Player {self.name} {self.uid} respawned.')
         super().respawn(reset_gold=False)
-        self._respawn_timer += 500
+        Assets.play_sfx('ability', 'player-respawn', volume=Settings.get_volume('feedback'))
 
 
 class Creep(Unit):
@@ -169,7 +190,7 @@ class Creep(Unit):
         self.scaling = float(self.p['scaling']) if 'scaling' in self.p else 1
         # Ensure the whole wave does not spawn too close, as collision is finnicky at the time of writing
         self._respawn_location += RNG.random(2) * self.engine.get_stats(self.uid, STAT.HITBOX) * 5
-        self.engine.set_position(self.uid, self._respawn_location)
+        self.engine.set_position(self.uid, (-1_000_000, -1_000_000))
         # Start the first wave on the correct interval
         self.engine.set_stats(self.uid, STAT.HP, 0)
         self.engine.set_status(self.uid, STATUS.RESPAWN,
@@ -185,6 +206,7 @@ class Creep(Unit):
             self.scale_power()
         self.first_wave = False
         self.use_ability(ABILITY.WALK, self.target)
+        Assets.play_sfx('ability', 'wave-respawn', volume=Settings.get_volume('sfx'), replay=False)
 
     def scale_power(self):
         currents = [STAT.PHYSICAL, STAT.FIRE, STAT.EARTH, STAT.WATER, STAT.GOLD]

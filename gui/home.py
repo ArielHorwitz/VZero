@@ -31,9 +31,11 @@ class HomeGUI(widgets.AnchorLayout):
         self.draft = main_frame.add(Draft())
 
         corner_anchor = main_anchor.add(widgets.AnchorLayout(anchor_x='right', anchor_y='top'))
-        corner_buttons = corner_anchor.add(widgets.BoxLayout()).set_size(x=200, y=30)
-        corner_buttons.add(widgets.Button(text='Restart', on_release=lambda *a: nutil.restart_script())).set_size(x=100, y=30)
+        corner_buttons = corner_anchor.add(widgets.BoxLayout())
+        if Settings.get_setting('dev_build'):
+            corner_buttons.add(widgets.Button(text='Restart', on_release=lambda *a: nutil.restart_script())).set_size(x=100, y=30)
         corner_buttons.add(widgets.Button(text='Quit', on_release=lambda *a: self.app.stop())).set_size(x=100, y=30)
+        corner_buttons.set_size(x=100*len(corner_buttons.children), y=30)
 
         for params in [
             ('New encounter', f'{Settings.get_setting("start_encounter", "Hotkeys")}', lambda *a: self.app.game.new_encounter()),
@@ -41,6 +43,7 @@ class HomeGUI(widgets.AnchorLayout):
             self.app.home_hotkeys.register(*params)
 
     def update(self):
+        self.app.game.update()
         self.title_label.text = f'{TITLE}\n\n{self.app.game.title_text}'
         self.draft.update()
 
@@ -74,9 +77,9 @@ class Draft(widgets.BoxLayout):
         self.label = bottom_frame.add(widgets.Label(valign='top'))
         self.loadout = bottom_frame.add(Stack(
             wtype=SpriteLabel,
-            x=150, y=50,
+            x=175, y=50,
             callback=self.app.game.loadout_click))
-        self.loadout.set_size(x=600)
+        self.loadout.set_size(x=700)
 
     def update(self):
         self.draft.update(self.app.game.draft_boxes())

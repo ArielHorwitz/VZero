@@ -52,12 +52,12 @@ class GameAPI:
 
     def draft_boxes(self):
         return [
-            SpriteLabel(None, f'Draft #{i}', (0.5, 0.5, 0.5, 1)) for i in range(20)
+            SpriteBox(None, f'Draft #{i}', (0.5, 0.5, 0.5, 1), None) for i in range(20)
         ]
 
     def loadout_boxes(self):
         return [
-            SpriteLabel(None, f'Loadout #{i}', (0.25, 0.5, 0.5, 1)) for i in range(8)
+            SpriteBox(None, f'Loadout #{i}', (0.25, 0.5, 0.5, 1), None) for i in range(8)
         ]
 
 
@@ -234,7 +234,7 @@ class EncounterAPI:
         return SpriteTitleLabel(None, 'Title', f'{self.__class__}.hud_click() not implemented. hud: {hud} index: {index} button: {button}', (0.2, 0, 0, 0.5))
 
     def hud_statuses(self):
-        return [SpriteLabel(None, 'status', (0, 0, 0, 0.5)) for _ in range(3)]
+        return [SpriteBox(None, 'status', (0, 0, 0, 0.5), None) for _ in range(3)]
 
     def hud_portrait(self):
         return self.units[self.selected_unit].sprite
@@ -249,27 +249,28 @@ class EncounterAPI:
         ]
 
     def hud_left(self):
-        return [SpriteLabel(None, f'{self.__class__}.hud_left() not implemented.', None) for _ in range(6)]
+        return [SpriteBox(None, f'{self.__class__}.hud_left() not implemented.', None, None) for _ in range(6)]
 
     def hud_middle(self):
         return [SpriteLabel(None, f'{self.__class__}.hud_right() not implemented.', None) for _ in range(6)]
 
     def hud_right(self):
-        return [SpriteLabel(None, f'{self.__class__}.hud_right() not implemented.', None) for _ in range(6)]
+        return [SpriteBox(None, f'{self.__class__}.hud_right() not implemented.', None, None) for _ in range(6)]
 
     # Browse
     def browse_main(self):
         return SpriteTitleLabel(None, 'Title', f'{self.__class__}.browse_main() not implemented.', (0.2, 0, 0, 0.5))
 
     def browse_elements(self):
-        return [SpriteLabel(
+        return [SpriteBox(
             None, f'#{_} {self.__class__}.browse_elements() not implemented.',
-            (0.1*_, 0, 1-0.1*_, 0.5)) for _ in range(7)
+            (0.1*_, 0, 1-0.1*_, 0.5), (0,0,0,0)) for _ in range(7)
         ]
 
     def browse_click(self, index, button):
         logger.warning(f'{self.__class__}.browse_click() not implemented.')
         Assets.play_sfx('ui', 'target', volume=Settings.get_volume('ui'))
+        return SpriteTitleLabel(str(Assets.FALLBACK_SPRITE), 'Browse', f'{self.__class__}.browse_click() not implemented.', (0,0,0,1))
 
     def debug_panel_labels(self):
         return [f'{self.__class__}.debug_panel_label() not implemented.']

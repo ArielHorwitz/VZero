@@ -7,6 +7,16 @@ from nutil.kex import widgets
 from data.assets import Assets
 
 
+class CenteredSpriteBox(widgets.AnchorLayout):
+    def __init__(self, size_hint=(.75, .75), **kwargs):
+        super().__init__(**kwargs)
+        self.sb = self.add(SpriteBox())
+        self.sb.size_hint = size_hint
+
+    def update(self, *a, **k):
+        self.sb.update(*a, **k)
+
+
 class SpriteBox(widgets.Widget):
     def __init__(self, sprite=None, text='', **kwargs):
         super().__init__(**kwargs)
@@ -14,9 +24,10 @@ class SpriteBox(widgets.Widget):
             sprite = str(Assets.FALLBACK_SPRITE)
         self.sprite_source = sprite
         self.sprite = self.add(widgets.Image(source=sprite, allow_stretch=True))
+        self.make_bg((0,0,0,0))
         with self.canvas:
-            self._bg_color = widgets.kvColor()
-            self._bg = widgets.kvRectangle()
+            self._fg_color = widgets.kvColor(0,0,0,0)
+            self._fg = widgets.kvRectangle()
         self.label = self.add(widgets.Label(text=text, halign='center', valign='bottom'))
         self.bind(pos=self.reposition, size=self.reposition)
 
@@ -26,25 +37,17 @@ class SpriteBox(widgets.Widget):
         self.label.text_size = self.label.size
         self.sprite.pos = self.pos
         self.label.pos = self.pos
-        self._bg.pos = self.pos
-        self._bg.size = self.size
+        self._fg.pos = self.pos
+        self._fg.size = self.size
 
     def update(self, sl):
         if sl.sprite != self.sprite_source and sl.sprite is not None:
             self.sprite.source = self.sprite_source = sl.sprite
-        self.label.text = sl.text
-        if sl.color is not None:
-            self._bg_color.rgba = sl.color
-
-
-class CenteredSpriteBox(widgets.AnchorLayout):
-    def __init__(self, size_hint=(.75, .75), **kwargs):
-        super().__init__(**kwargs)
-        self.sb = self.add(SpriteBox())
-        self.sb.size_hint = size_hint
-
-    def update(self, *a, **k):
-        self.sb.update(*a, **k)
+        self.label.text = sl.label
+        if sl.bg_color is not None:
+            self._bg_color.rgba = sl.bg_color
+        if sl.fg_color is not None:
+            self._fg_color.rgba = sl.fg_color
 
 
 class SpriteLabel(widgets.BoxLayout):
@@ -185,12 +188,10 @@ class Tooltip(widgets.BoxLayout):
             self.pos = -1_000_000, -1_000_000
 
     def _check_click(self, w, m):
-        if self.collide_point(*m.pos):
+        if m.button == 'left':
             consume = self.__frame in self.children
             self.deactivate()
             return consume
-        if m.button == 'left':
-            self.deactivate()
 
 
 class Modal(widgets.AnchorLayout):

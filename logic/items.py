@@ -17,16 +17,17 @@ ICAT = ITEM_CATEGORIES = IntEnum('ITEM_CATEGORIES', [
     'POTION',
     'ORNAMENT',
 ])
-
 CATEGORY_COLORS = {
     ICAT.BASIC: (0.5, 0.5, 0),
     ICAT.HERBAL: (0.1, 0.7, 0.05),
     ICAT.POTION: (0.7, 0, 0.4),
     ICAT.ORNAMENT: (0, 0.5, 0.5),
 }
+SELL_MULTIPLIER = 0.8
+QUICK_RESELL_WINDOW = 1000
 
 ALL_ITEM_NAMES = list(RDF(RDF.CONFIG_DIR / 'items.rdf').keys())
-di= Settings.get_setting('dev_items', 'General')
+di = Settings.get_setting('dev_items', 'General')
 if di == 0:
     logger.info(f'Skipping dev items')
     ALL_ITEM_NAMES = list(filter(lambda x: not x.lower().startswith('dev '), ALL_ITEM_NAMES))
@@ -41,7 +42,7 @@ class Item:
         self.category = getattr(ICAT, raw_data.default['category'].upper())
         self.color = CATEGORY_COLORS[self.category]
         self.cost = raw_data.default['cost']
-        self.sell_multi = 0.5
+        self.sell_multi = SELL_MULTIPLIER
         self.aid = None
         self.ability = None
         if 'ability' in raw_data.default:
@@ -84,7 +85,10 @@ class Item:
     def check_buy(self, engine, uid):
         unit = engine.units[uid]
         icat = round(engine.get_status(uid, STATUS.SHOP))
-        if icat != self.category.value or None not in unit.item_slots:
+        if icat != self.category.value:
+            return FAIL_RESULT.OUT_OF_RANGE
+
+        if None not in unit.item_slots:
             return FAIL_RESULT.MISSING_TARGET
 
         if self.iid in unit.item_slots:
@@ -131,6 +135,7 @@ class Item:
                 engine.set_stats(uid, stat_name, value, value_name=value_name, additive=True)
         result = self.iid
         logger.debug(f'{unit.name} bought item: {self.name}')
+        engine.units[uid].cache[f'{self}-buy'] = engine.tick
         return result
 
     def sell_item(self, engine, uid):
@@ -144,7 +149,9 @@ class Item:
             return FAIL_RESULT.MISSING_TARGET
 
         unit.item_slots[index] = None
-        engine.set_stats(uid, STAT.GOLD, self.cost*self.sell_multi, additive=True)
+        buy_tick = engine.units[uid].cache[f'{self}-buy']
+        sell_multi = 1 if engine.tick - buy_tick < QUICK_RESELL_WINDOW else self.sell_multi
+        engine.set_stats(uid, STAT.GOLD, self.cost*sell_multi, additive=True)
         for stat_name, stat in self.stats.items():
             for value_name, value in stat.items():
                 engine.set_stats(uid, stat_name, -value, value_name=value_name, additive=True)
@@ -156,6 +163,16 @@ class Item:
 
     def __repr__(self):
         return f'<Item {self.iid} {self.name}>'
+
+    @staticmethod
+    def item_category_gui(icat):
+        icat = round(icat)
+        if 0 < icat <= len(ITEM_CATEGORIES):
+            icat = list(ITEM_CATEGORIES)[icat-1]
+            shop_name = icat.name.lower().capitalize()
+            shop_color = CATEGORY_COLORS[icat]
+            return shop_name, shop_color
+        return None, None
 
 
 def _load_raw_stats(raw_stats):
@@ -182,5 +199,8 @@ def _load_items():
         logger.info(f'Loaded item: {item}')
         items.append(item)
     return items
+
+
+
 
 ITEMS = _load_items()
