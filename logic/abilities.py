@@ -23,6 +23,7 @@ class Move(BaseAbility):
         'speed': 100,
     }
     lore = 'We can all thank Tony the fish for this one.'
+    auto_check = {'mana', 'cooldown', 'unbounded'}
 
     def do_cast(self, api, uid, target):
         speed = self.p.get_speed(api, uid) / 100
@@ -37,7 +38,7 @@ class Attack(BaseAbility):
     lore = 'A time tested strategy. Use force.'
     defaults = {
         'mana_cost': 0,
-        'cooldown': 150,
+        'cooldown': 100,
         'range': 10,
         'damage': 0,
     }
@@ -122,8 +123,8 @@ class Barter(BaseAbility):
         if not isinstance(loot_result, FAIL_RESULT):
             looted_gold = loot_result
             # check cooldown and mana for bonus gold
-            if self.check_many(api, uid, checks=self.auto_check) is True:
-                self.cost_many(api, uid, costs=self.auto_cost)
+            if self.check_many(api, uid, target) is True:
+                self.cost_many(api, uid)
                 looted_gold *= self.p.get_loot_multi(api, uid)
 
             # gold income effect
@@ -220,7 +221,7 @@ class Teleport(BaseAbility):
         'cooldown': 0,
         'range': 0,
     }
-    debug = True
+    auto_check = {'mana', 'cooldown', 'unbounded'}
 
     def do_cast(self, api, uid, target):
         pos = api.get_position(uid)
@@ -240,6 +241,7 @@ class TeleportHome(BaseAbility):
         'mana_cost': 0,
         'cooldown': 0,
     }
+    auto_check = {'mana', 'cooldown', 'unbounded'}
 
     def do_cast(self, api, uid, target):
         pos = api.get_position(uid)

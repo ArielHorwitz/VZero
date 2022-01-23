@@ -26,17 +26,12 @@ def _load_abilities():
         if 'type' not in raw_data.default:
             raise CorruptedDataError(f'Ability {aid.name} missing a type.')
         ability_cls = ABILITY_CLASSES[raw_data.default['type']]
-        color = str2color(raw_data.default['color']) if 'color' in raw_data.default else (0.5,0.5,0.5)
-        draftable = False if 'hidden' in raw_data.default.positional else True
-        draft_cost = raw_data.default['draft_cost'] if 'draft_cost' in raw_data.default else None
-        show_stats = raw_data.default['show_stats'] if 'show_stats' in raw_data.default else None
-        sfx = raw_data.default['sfx'] if 'sfx' in raw_data.default else None
-        stats = raw_data['stats'] if 'stats' in raw_data else {}
-        ability = ability_cls(aid, name, color, stats,
-            draftable=draftable, draft_cost=draft_cost, show_stats=show_stats, sfx=sfx)
+        ability = ability_cls(aid, name, raw_data)
         assert len(abilities) == aid
         abilities.append(ability)
-        logger.info(f'Loaded ability: {ability} (draftable: {draftable}) - with params: {stats}')
+        logger.info(f'Loaded ability: {ability}')
+    for ability in abilities:
+        ability._setup()
     return abilities
 
 ABILITIES = _load_abilities()

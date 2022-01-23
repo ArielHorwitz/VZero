@@ -64,6 +64,7 @@ speed: 600
 === Attack
 type: attack
 color: cyan
+cooldown: base attack
 show_stats: damage, cooldown, range
 draft_cost: 100
 -- stats
@@ -79,6 +80,7 @@ damage_bonus: 1
 type: attack
 color: cyan
 sfx: attack
+cooldown: base attack
 show_stats: mana_cost, damage, cooldown, range
 draft_cost: 105
 -- stats
@@ -96,6 +98,7 @@ damage_bonus: 0.75
 type: attack
 color: cyan
 sfx: attack
+cooldown: base attack
 show_stats: mana_cost, damage, cooldown, range
 draft_cost: 110
 -- stats
@@ -113,6 +116,7 @@ damage_bonus: 0.75
 type: attack
 color: cyan
 sfx: attack
+cooldown: base attack
 show_stats: damage, cooldown, range
 draft_cost: 75
 -- stats
@@ -371,6 +375,7 @@ hidden
 type: blast
 color: red
 sfx: implosion
+sprite: vortex
 show_stats: mana_cost, cooldown, range, radius, damage
 -- stats
 mana_cost: 45
@@ -770,6 +775,10 @@ range: 10000
 cooldown: 0
 mana_cost: 0
 
+
+=== Base Attack
+hidden
+type: attack
 
 
 === Map Editor Eraser

@@ -63,6 +63,7 @@ class FAIL_RESULT(enum.Enum):
     MISSING_COST = enum.auto()
     OUT_OF_BOUNDS = enum.auto()
     OUT_OF_RANGE = enum.auto()
+    OUT_OF_ORDER = enum.auto()
     ON_COOLDOWN = enum.auto()
 
 

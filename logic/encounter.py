@@ -675,5 +675,6 @@ FAIL_SFX = {
     FAIL_RESULT.MISSING_COST: 'cost',
     FAIL_RESULT.OUT_OF_BOUNDS: 'range',
     FAIL_RESULT.OUT_OF_RANGE: 'range',
+    FAIL_RESULT.OUT_OF_ORDER: 'target',
     FAIL_RESULT.ON_COOLDOWN: 'cooldown',
 }
