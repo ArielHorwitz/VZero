@@ -136,7 +136,7 @@ hp.delta: 0.001
 mana.max: 40
 mana.delta: 0.001
 physical: 4
-air: 55
+air: 35
 
 ====== Blood Imp
 type: camper

@@ -22,6 +22,7 @@ class Settings:
         'UI': {
             0: {
                 'hud_scale': 1,
+                'decorations': 0.75,
             },
         },
         'Audio': {

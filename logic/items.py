@@ -84,15 +84,16 @@ class Item:
 
     def check_buy(self, engine, uid):
         unit = engine.units[uid]
+
+        if self.iid in unit.item_slots:
+            return FAIL_RESULT.ON_COOLDOWN
+
         icat = round(engine.get_status(uid, STATUS.SHOP))
         if icat != self.category.value:
             return FAIL_RESULT.OUT_OF_RANGE
 
         if None not in unit.item_slots:
             return FAIL_RESULT.MISSING_TARGET
-
-        if self.iid in unit.item_slots:
-            return FAIL_RESULT.ON_COOLDOWN
 
         if not engine.get_stats(uid, STAT.GOLD) >= self.cost:
             return FAIL_RESULT.MISSING_COST

@@ -3,14 +3,18 @@ logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
 import numpy as np
+from nutil.vars import modify_color
 from nutil.kex import widgets
 from data.assets import Assets
 
 
 class CenteredSpriteBox(widgets.AnchorLayout):
-    def __init__(self, size_hint=(.75, .75), **kwargs):
+    def __init__(self,
+            size_hint=(.9, .9),
+            bg_sprite=None, fg_sprite=None, valign=None,
+            **kwargs):
         super().__init__(**kwargs)
-        self.sb = self.add(SpriteBox())
+        self.sb = self.add(SpriteBox(bg_sprite=bg_sprite, fg_sprite=fg_sprite, valign=valign))
         self.sb.size_hint = size_hint
 
     def update(self, *a, **k):
@@ -18,25 +22,37 @@ class CenteredSpriteBox(widgets.AnchorLayout):
 
 
 class SpriteBox(widgets.Widget):
-    def __init__(self, sprite=None, text='', **kwargs):
+    def __init__(self,
+            sprite=None, text='',
+            bg_sprite=None, fg_sprite=None,
+            margin=None, valign=None,
+            **kwargs):
+        valign = 'center' if valign is None else valign
         super().__init__(**kwargs)
         if sprite is None:
             sprite = str(Assets.FALLBACK_SPRITE)
         self.sprite_source = sprite
-        self.sprite = self.add(widgets.Image(source=sprite, allow_stretch=True))
-        self.make_bg((0,0,0,0))
+        self.sprite_frame = self.add(widgets.AnchorLayout())
+        self.sprite = self.sprite_frame.add(widgets.Image(source=sprite, allow_stretch=True))
+        self.make_bg((1,1,1,1))
+        self._bg.source = bg_sprite
         with self.canvas:
-            self._fg_color = widgets.kvColor(0,0,0,0)
-            self._fg = widgets.kvRectangle()
-        self.label = self.add(widgets.Label(text=text, halign='center', valign='bottom'))
+            self._fg_color = widgets.kvColor((1,1,1,1))
+            self._fg = widgets.kvRectangle(source=fg_sprite)
+        self.margin = (0.85, 0.85) if margin is None else margin
+        self.label = self.add(widgets.Label(
+            text=text, outline_color=(0,0,0,1), outline_width=2,
+            halign='center', valign=valign))
         self.bind(pos=self.reposition, size=self.reposition)
 
     def reposition(self, *a):
-        self.sprite.set_size(*self.size)
+        self.sprite_frame.size = self.size
+        self.sprite_frame.pos = self.pos
+        self.sprite.set_size(x=self.size[0]*self.margin[0], y=self.size[1]*self.margin[1])
+        self.sprite.pos = (self.pos[_]+self.size[_]*(1-self.margin[_])/2 for _ in range(2))
         self.label.set_size(*self.size)
         self.label.text_size = self.label.size
-        self.sprite.pos = self.pos
-        self.label.pos = self.pos
+        self.label.pos = self.pos[0], self.pos[1]+2
         self._fg.pos = self.pos
         self._fg.size = self.size
 
@@ -50,19 +66,25 @@ class SpriteBox(widgets.Widget):
             self._fg_color.rgba = sl.fg_color
 
 
-class SpriteLabel(widgets.BoxLayout):
-    def __init__(self, sprite=None, text='', **kwargs):
+class SpriteLabel(widgets.AnchorLayout):
+    def __init__(self, sprite=None, text='',
+            bg_mask_color=None, bg_mask=None,
+            margin=None, **kwargs):
         super().__init__(**kwargs)
+        self.margin = (0.98, 0.9) if margin is None else margin
+        self.main = self.add(widgets.BoxLayout())
         if sprite is None:
             sprite = str(Assets.FALLBACK_SPRITE)
         self.sprite_source = sprite
-        self.sprite = self.add(widgets.Image(source=sprite, allow_stretch=True))
-        self.label = self.add(widgets.Label(text=text, halign='center', valign='center'))
-        self.make_bg((0, 0, 0, 0))
+        self.sprite = self.main.add(widgets.Image(source=sprite, allow_stretch=True))
+        self.label = self.main.add(widgets.Label(text=text, halign='center', valign='center'))
+        self.main.make_bg((0,0,0,0) if bg_mask_color is None else bg_mask_color)
+        self.main._bg.source = Assets.get_sprite('ui', 'mask-4x1') if bg_mask is None else bg_mask
         self.bind(pos=self.reposition, size=self.reposition)
 
     def reposition(self, *a):
         self.sprite.set_size(x=min(self.size[1], self.size[0]/3))
+        self.main.set_size(self.size[0]*self.margin[0], self.size[1]*self.margin[1])
 
     def update(self, sl):
         if sl.sprite != self.sprite_source and sl.sprite is not None:
@@ -70,32 +92,49 @@ class SpriteLabel(widgets.BoxLayout):
         self.label.text = sl.text
         self.label.text_size = self.label.size
         if sl.color is not None:
-            self._bg_color.rgba = sl.color
+            self.main._bg_color.rgba = sl.color
 
 
-class SpriteTitleLabel(widgets.BoxLayout):
+class SpriteTitleLabel(widgets.AnchorLayout):
     def __init__(self,
         sprite=None, title='', text='',
-        orientation='vertical', **kwargs
+        top_bg=None, outline_width=None, text_color=(1,1,1,1),
+        **kwargs
     ):
-        super().__init__(orientation=orientation, **kwargs)
-        self.make_bg((0, 0, 0, 0))
+        super().__init__(**kwargs)
+        self.make_bg((0,0,0,0))
+        self.padding = 0.9, 0.9
+        self.main_frame = self.add(widgets.BoxLayout(orientation='vertical'))
+        self._bg.source = Assets.get_sprite('ui', 'mask-1x2')
         if sprite is None:
             sprite = str(Assets.FALLBACK_SPRITE)
 
-        top = self.add(widgets.BoxLayout())
+        top = self.main_frame.add(widgets.BoxLayout())
         top.set_size(y=50)
-        top.make_bg((0, 0, 0, 0.2))
+        top.make_bg((0,0,0,0.2) if top_bg is None else top_bg)
+        top._bg.source = Assets.get_sprite('ui', 'mask-4x1')
         self.sprite_source = sprite
         self.sprite = top.add(widgets.Image(source=sprite, allow_stretch=True))
         self.sprite.set_size(x=50)
-        self.title = top.add(widgets.Label(text=title, halign='center', valign='center'))
-        self.label = self.add(widgets.Label(text=text, halign='left', valign='top'))
+        self.title = top.add(widgets.Label(
+            text=title, halign='center', valign='center', color=text_color,
+            outline_color=(0,0,0,1), outline_width=outline_width, markup=True,
+        ))
+        self.label = self.main_frame.add(widgets.Label(
+            text=text, halign='left', valign='top', color=text_color,
+            outline_color=(0,0,0,1), outline_width=outline_width, markup=True,
+        ))
+        self.bind(size=self.reposition, pos=self.reposition)
+
+    def reposition(self, *a):
+        self.main_frame.set_size(
+            x=self.size[0]*self.padding[0],
+            y=self.size[1]*self.padding[1])
 
     def update(self, stl):
         if stl.sprite != self.sprite_source and stl.sprite is not None:
             self.sprite.source = self.sprite_source = stl.sprite
-        self.title.text = stl.title
+        self.title.text = f'[b]{stl.title}[/b]'
         self.title.text_size = self.title.size
         self.label.text = stl.label
         self.label.text_size = self.label.size
@@ -105,17 +144,16 @@ class SpriteTitleLabel(widgets.BoxLayout):
 
 class Stack(widgets.StackLayout):
     def __init__(self,
-        wtype=None,
-        callback=None, on_hover=None,
-        x=None, y=None,
-        **kwargs):
+            wtype=None,
+            callback=None, on_hover=None,
+            x=None, y=None,
+            **kwargs):
         super().__init__(**kwargs)
         self.__wtype = SpriteLabel if wtype is None else wtype
         self.__x = 250 if x is None else x
         self.__y = 50 if y is None else y
         self.boxes = []
         self.callback = callback
-        self.__on_hover = on_hover
         self.make_bg((0, 0, 0, 1))
         if self.callback is not None:
             self.bind(on_touch_down=lambda w, m: self.on_touch_down(m))
@@ -158,9 +196,12 @@ class Tooltip(widgets.BoxLayout):
     def __init__(self, bounding_widget=None, **kwargs):
         super().__init__(**kwargs)
         self.bounding_widget = bounding_widget
-        self.__frame = SpriteTitleLabel()
-        self.__frame.set_size(300, 250)
-        self.set_size(300, 250)
+        self.__frame = widgets.AnchorLayout()
+        self.stl = self.__frame.add(SpriteTitleLabel(text_color=(0,0,0,1), top_bg=(0,0,0,0)))
+        self.stl.set_size(hx=0.9, hy=0.8)
+        self.__frame.set_size(300, 300)
+        self.__frame.make_bg(modify_color((1,1,1), v=0.85))
+        self.__frame._bg.source = Assets.get_sprite('ui', 'tooltip')
         self.bind(on_touch_down=self._check_click)
 
     def activate(self, pos, stl, bounding_widget=None):
@@ -169,18 +210,18 @@ class Tooltip(widgets.BoxLayout):
             if bounding_widget is None:
                 bounding_widget = self.bounding_widget
             if bounding_widget is not None:
-                fix = np.zeros(2) - 5
+                fix = np.zeros(2) - 10
                 if not bounding_widget.collide_point(*pos):
                     blfix = np.array(bounding_widget.pos) - pos
                     blfix[blfix<0] = 0
                     fix += blfix
-                if not bounding_widget.collide_point(*(np.array(pos)+self.size)):
-                    trfix = (np.array(bounding_widget.pos) + bounding_widget.size) - (np.array(pos) + self.size)
+                if not bounding_widget.collide_point(*(np.array(pos)+self.__frame.size)):
+                    trfix = (np.array(bounding_widget.pos) + bounding_widget.size) - (np.array(pos) + self.__frame.size)
                     trfix[trfix>0] = 0
                     fix += trfix
                 pos = tuple(float(_) for _ in (fix + pos))
             self.pos = pos
-        self.__frame.update(stl)
+        self.stl.update(stl)
 
     def deactivate(self):
         if self.__frame in self.children:

@@ -28,8 +28,7 @@ class Sprites(widgets.RelativeLayout, EncounterViewComponent):
         self.canvas.clear()
         for unit in self.api.units:
             s = Sprite(source=unit.sprite)
-            s.bar1.fg = (1, 0, 0, 1)
-            s.bar2.fg = (0, 0, .9, 1)
+            s.bar1.fg, s.bar2.fg = self.api.sprite_bar_color(unit.uid)
             s.bar2.bg = (0, 0, 0, 0)
             self.sprites.append(s)
 

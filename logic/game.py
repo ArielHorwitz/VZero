@@ -144,11 +144,11 @@ class GameAPI(BaseGameAPI):
         dc = self.average_draft_cost()
         dcm = humanize_ms(self.draft_cost_minutes()*60*1000, show_ms=False, show_hours=False)
         return "\n".join([
-            f'___ Score Caluclation _______',
+            f'___ Score Calculation _______',
             f'Draft cost: {dcm} (average ability: {round(dc, 1)})',
             f'Starting score: {self.calc_score(dc, 0)}',
-            'Time:  '+' / '.join(f'{n}m' for n in range(20, 50, 5)),
-            'Score: '+' /  '.join(f'{self.calc_score(dc, n)}' for n in range(20, 50, 5)),
+            'Time:  '+' / '.join(f'{n}m' for n in range(5, 35, 5)),
+            'Score: '+' /  '.join(f'{self.calc_score(dc, n)}' for n in range(5, 35, 5)),
         ])
 
     def draft_details(self):
@@ -180,11 +180,11 @@ class GameAPI(BaseGameAPI):
             if aid is None:
                 b.append(
                     SpriteLabel(Assets.get_sprite('ui', 'blank'),
-                    '', (.1,.1,.1,1)))
+                    '', (0,0,0,0)))
             else:
                 ability = ABILITIES[aid]
                 s = f'{ability.name}\n({ability.draft_cost})'
                 b.append(
                     SpriteLabel(Assets.get_sprite('ability', ability.name),
-                    s, (*ability.color, 0.4)))
+                    s, modify_color(ability.color, v=0.4)))
         return b

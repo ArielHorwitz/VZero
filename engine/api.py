@@ -7,7 +7,7 @@ from collections import defaultdict
 import math
 import numpy as np
 from nutil.time import humanize_ms
-from gui.api import SpriteLabel, SpriteTitleLabel, ProgressBar
+from gui.api import SpriteBox, SpriteTitleLabel, ProgressBar
 from data.load import RDF
 from data.settings import Settings
 from data.assets import Assets
@@ -187,11 +187,10 @@ class EncounterAPI:
         'hotkey': ('^ a', lambda: logger.warning(f'{self.__class__}.hotkeys not implemented.')),
     }
 
-    general_label_color = (1,1,1,1)
+    top_panel_color = (1,1,1,1)
 
-    @property
-    def general_label_text(self):
-        return self.time_str
+    def top_panel_labels(self):
+        return ['', '', self.time_str, '']
 
     @property
     def view_fade(self):
@@ -201,6 +200,8 @@ class EncounterAPI:
     map_size = np.full(2, 5_000)
     map_image_source = Assets.FALLBACK_SPRITE
     request_redraw = 0
+    def sprite_bar_color(self):
+        return (1, 0, 0, 1), (0, 0, .9, 1)
 
     def sprite_visible_mask(self, view_size):
         max_los = self.player_los
@@ -233,6 +234,10 @@ class EncounterAPI:
         logger.warning(f'{self.__class__}.hud_click() not implemented. hud: {hud} index: {index} button: {button}')
         return SpriteTitleLabel(None, 'Title', f'{self.__class__}.hud_click() not implemented. hud: {hud} index: {index} button: {button}', (0.2, 0, 0, 0.5))
 
+    def hud_portrait_click(self):
+        logger.warning(f'{self.__class__}.hud_portrait_click() not implemented.')
+        return SpriteTitleLabel(None, 'Title', f'{self.__class__}.hud_portrait_click() not implemented.', (0.2, 0, 0, 0.5))
+
     def hud_statuses(self):
         return [SpriteBox(None, 'status', (0, 0, 0, 0.5), None) for _ in range(3)]
 
@@ -251,8 +256,11 @@ class EncounterAPI:
     def hud_left(self):
         return [SpriteBox(None, f'{self.__class__}.hud_left() not implemented.', None, None) for _ in range(6)]
 
+    def hud_middle_label(self):
+        return f'{self.__class__}.hud_middle_label() not implemented.'
+
     def hud_middle(self):
-        return [SpriteLabel(None, f'{self.__class__}.hud_right() not implemented.', None) for _ in range(6)]
+        return [SpriteBox(None, f'{self.__class__}.hud_middle() not implemented.', None, None) for _ in range(6)]
 
     def hud_right(self):
         return [SpriteBox(None, f'{self.__class__}.hud_right() not implemented.', None, None) for _ in range(6)]

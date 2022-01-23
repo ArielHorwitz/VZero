@@ -513,6 +513,7 @@ class Screen(kvScreen, KexWidget):
 
 class Progress(Widget):
     def __init__(self,
+            source=None,
             bg_color=(0, 0, 0, 1),
             fg_color=(1, 0, 1, 1),
             text='',
@@ -523,7 +524,7 @@ class Progress(Widget):
             self._bg_color = kvColor()
             self._bg_rect = kvRectangle(pos=self.pos, size=self.size)
             self._fg_color = kvColor()
-            self._fg_rect = kvRectangle(pos=self.pos, size=(0, 0))
+            self._fg_rect = kvRectangle(source=source, pos=self.pos, size=(0, 0))
         self._label = self.add(Label(halign='center', valign='middle'))
 
         self.bg_color = bg_color

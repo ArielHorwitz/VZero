@@ -19,7 +19,7 @@ class HomeGUI(widgets.AnchorLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.make_bg((1,1,1,1))
-        self._bg.source = Assets.get_sprite('ui', 'portrait-frame')
+        self._bg.source = Assets.get_sprite('ui', 'home')
 
         main_anchor = self.add(widgets.AnchorLayout()).set_size(1024, 768)
 
@@ -65,21 +65,25 @@ class Draft(widgets.BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(orientation='vertical', **kwargs)
 
+        self.make_bg((.1,.1,.1,1))
         top_frame = self.add(widgets.BoxLayout())
         self.details = top_frame.add(SpriteTitleLabel()).set_size(x=300)
         self.draft = top_frame.add(Stack(
-            wtype=lambda *a: CenteredSpriteBox(*a, size_hint=(.9, .9)),
+            wtype=lambda *a, **k: CenteredSpriteBox(*a, size_hint=(.9, .9), valign='bottom', **k),
             callback=self.app.game.draft_click,
             x=50, y=50))
         self.draft.make_bg((.1,.1,.1,1))
 
         bottom_frame = self.add(widgets.BoxLayout()).set_size(y=100)
         self.label = bottom_frame.add(widgets.Label(valign='top'))
+        self.label.make_bg((.1,.15,.1,1))
+        self.label._bg.source = Assets.get_sprite('ui', 'mask-4x1')
         self.loadout = bottom_frame.add(Stack(
             wtype=SpriteLabel,
             x=175, y=50,
             callback=self.app.game.loadout_click))
         self.loadout.set_size(x=700)
+        self.loadout.make_bg((.1,.1,.1,1))
 
     def update(self):
         self.draft.update(self.app.game.draft_boxes())
@@ -87,15 +91,3 @@ class Draft(widgets.BoxLayout):
         self.details.update(self.app.game.draft_details())
         self.label.text = self.app.game.draft_label()
         self.label.text_size = self.label.size
-
-
-class DraftButton(SpriteLabel):
-    def __init__(self, index, callback, **kwargs):
-        super().__init__(**kwargs)
-        self.index = index
-        self.callback = callback
-        self.bind(on_touch_down=self.click)
-
-    def click(self, w, m):
-        if self.collide_point(*m.pos):
-            self.callback(self.index, m)

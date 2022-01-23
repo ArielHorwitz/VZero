@@ -149,6 +149,17 @@ class Unit(BaseUnit):
         if reset_gold:
             self.engine.set_stats(self.uid, STAT.GOLD, self._respawn_gold)
 
+    @property
+    def networth_str(self):
+        gold = self.engine.get_stats(self.uid, STAT.GOLD)
+        nw = self.total_networth
+        if nw > 10**3:
+            nw = round(nw/1000, 1)
+            k = 'k'
+        else:
+            nw = math.floor(nw)
+            k = ''
+        return f'Networth: Σ{nw}{k}'
 
 class Player(Unit):
     _max_hp_delta_interval = 1000
@@ -299,7 +310,7 @@ class Shopkeeper(Unit):
 
 class Fountain(Unit):
     def _setup(self):
-        self.abilities = [ABILITY.FOUNTAIN_HP, ABILITY.FOUNTAIN_MANA]
+        self.abilities = [ABILITY.FOUNTAIN_HP, ABILITY.FOUNTAIN_MANA, *(None for _ in range(6))]
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
 
 
@@ -315,7 +326,7 @@ class DPSMeter(Unit):
         self.engine.set_stats(self.uid, STAT.HP, 10**12)
         self.engine.set_stats(self.uid, STAT.HP, 0, value_name=VALUE.DELTA)
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
-        self.abilities = []
+        self.abilities = [None for _ in range(8)]
         self.__started = False
         self.__sample_size = 10
         self.__sample_index = 0

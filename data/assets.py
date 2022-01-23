@@ -9,7 +9,7 @@ from nutil.kex import widgets
 
 ASSETS_DIR = ROOT_DIR / 'assets'
 
-FALLBACK_SPRITE = ASSETS_DIR / 'error.png'
+FALLBACK_SPRITE = ASSETS_DIR / 'fallback.png'
 GRAPHICS_DIR = ASSETS_DIR / 'graphics'
 GRAPHICS_UI_DIR = GRAPHICS_DIR / 'ui'
 GRAPHICS_ABILITIES_DIR = GRAPHICS_DIR / 'abilities'

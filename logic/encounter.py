@@ -16,13 +16,13 @@ from data import resource_name
 from data.load import RDF
 from data.settings import Settings
 from data.assets import Assets
-from gui.api import SpriteLabel, SpriteTitleLabel, ProgressBar, SpriteBox
+from gui.api import SpriteTitleLabel, ProgressBar, SpriteBox, SpriteLabel
 
 from engine.common import *
 from engine.api import EncounterAPI as BaseEncounterAPI
 from engine.encounter import Encounter as EncounterEngine
 
-from logic.data import ABILITIES
+from logic.data import ABILITIES, METAGAME_BALANCE_SHORT
 from logic.mechanics import Mechanics
 from logic.mapgen import MapGenerator
 from logic.items import ITEM, ITEMS, ITEM_CATEGORIES, Item
@@ -30,12 +30,12 @@ from logic.items import ITEM, ITEMS, ITEM_CATEGORIES, Item
 
 RNG = np.random.default_rng()
 STAT_SPRITES = tuple(Assets.get_sprite('ability', s) for s in ('physical', 'fire', 'earth', 'air', 'water', 'gold'))
-SHOP_FG_ALPHA_KEY = defaultdict(lambda: 0.4, {
-    True: 0.1,
-    FAIL_RESULT.MISSING_COST: 0.4,
-    FAIL_RESULT.OUT_OF_RANGE: 0.5,
-    FAIL_RESULT.MISSING_TARGET: 0.7,
-    FAIL_RESULT.ON_COOLDOWN: 0.8,
+SHOP_STATE_KEY = defaultdict(lambda: 0.7, {
+    True: 1,
+    FAIL_RESULT.MISSING_COST: 0.45,
+    FAIL_RESULT.MISSING_TARGET: 0.2,
+    FAIL_RESULT.OUT_OF_RANGE: 1,
+    FAIL_RESULT.ON_COOLDOWN: 0,
 })
 
 
@@ -72,15 +72,21 @@ class EncounterAPI(BaseEncounterAPI):
                 return f'You lose :(\nScore: {self.score}'
         return f'Paused'
 
-    @property
-    def general_label_text(self):
+    def top_panel_labels(self):
+        dstr = ''
         if self.dev_mode:
-            c = ",".join(str(round(_, 1)) for _ in self.engine.get_position(0)/100)
-            return f'DEBUG MODE - {self.time_str} - ({c})'
-        return f'{self.time_str} - {self.score} score'
+            dstr = " / ".join(str(round(_, 1)) for _ in self.engine.get_position(0)/100)
+            dstr = f'DEBUG MODE - {dstr}'
+        paused_str = '' if self.engine.auto_tick else 'Paused'
+        return [
+            f'Score: {self.score}',
+            dstr,
+            f'{paused_str}\n{self.time_str}',
+            f'Balance patch: {METAGAME_BALANCE_SHORT}',
+        ]
 
     @property
-    def general_label_color(self):
+    def top_panel_color(self):
         return (1,1,1,1) if not self.dev_mode else (0.5,0,1,1)
 
     @property
@@ -181,6 +187,15 @@ class EncounterAPI(BaseEncounterAPI):
         return self.map.request_redraw
 
     # Sprites
+    def sprite_bar_color(self, uid):
+        allegiance = self.engine.get_stats(uid, STAT.ALLEGIANCE)
+        if allegiance == 0:
+            return (0, 0.7, 0, 1), (0, 0.25, 1, 1)
+        elif allegiance < 0:
+            return (0.8, 0.5, 0.2, 1), (0, 0.25, 1, 1)
+        else:
+            return (1, 0, 0, 1), (0, 0.25, 1, 1)
+
     def sprite_visible_mask(self, view_size):
         max_los = self.player_los
         if self.dev_mode:
@@ -226,12 +241,12 @@ class EncounterAPI(BaseEncounterAPI):
         sls = []
         for aid in self.units[uid].abilities:
             if aid is None:
-                sls.append(SpriteBox(str(Assets.get_sprite('ui', 'blank')), '', (0,0,0,0), (0,0,0,0)))
+                sls.append(SpriteBox(str(Assets.get_sprite('ui', 'blank')), '', (0,0,0,0), (1,1,1,1)))
                 continue
             ability = self.abilities[aid]
             sprite = Assets.get_sprite('ability', ability.sprite)
             s, color = ability.gui_state(self.engine, uid)
-            sls.append(SpriteBox(sprite, s, modify_color(color, a=1), (0,0,0,0 if s=='' else 0.35)))
+            sls.append(SpriteBox(sprite, s, modify_color(color, a=1), (1,1,1,1)))
         return sls
 
     def hud_right(self):
@@ -239,13 +254,20 @@ class EncounterAPI(BaseEncounterAPI):
         sls = []
         for iid in self.units[uid].item_slots:
             if iid is None:
-                sls.append(SpriteBox(Assets.get_sprite('ui', 'blank'), '', (0,0,0,0), (0,0,0,0)))
+                sls.append(SpriteBox(Assets.get_sprite('ui', 'blank'), '', (0,0,0,0), (1,1,1,1)))
                 continue
             item = ITEMS[iid]
             sprite = Assets.get_sprite('ability', item.name)
             s, color = item.gui_state(self.engine, uid)
-            sls.append(SpriteBox(sprite, s, modify_color(color, a=0.4), (0,0,0,0 if s=='' else 0.35)))
+            sls.append(SpriteBox(sprite, s, modify_color(color, a=1), (1,1,1,1)))
         return sls
+
+    def hud_middle_label(self):
+        uid = self.selected_unit
+        if self.dev_mode:
+            return self.units[uid].debug_str
+        else:
+            return self.units[uid].networth_str
 
     def hud_middle(self):
         uid = self.selected_unit
@@ -255,22 +277,11 @@ class EncounterAPI(BaseEncounterAPI):
         ])
         gold = current[-1]
         current = [f'{math.floor(c)}' for c in current]
-        nw = self.units[uid].total_networth
-        if nw > gold:
-            if nw > 10**3:
-                nw = round(nw/1000, 1)
-                k = 'k'
-            else:
-                nw = math.floor(nw)
-                k = ''
-            current[-1] += f'\nΣ{nw}{k}'
         return tuple(SpriteLabel(
             STAT_SPRITES[i], current[i],
-            (0,0,0,0)) for i in range(6))
+            None) for i in range(6))
 
     def hud_statuses(self):
-        bg_alpha = 0.75
-        fg_color = (0, 0, 0, 0.3)
         def get(s):
             return Mechanics.get_status(self.engine, uid, s)
         def format_time(t):
@@ -286,22 +297,22 @@ class EncounterAPI(BaseEncounterAPI):
             duration = self.engine.get_status(uid, STATUS.RESPAWN, STATUS_VALUE.DURATION)
             strs.append(SpriteBox(
                 Assets.get_sprite('ability', 'respawn'),
-                f'* {format_time(duration)}s\n',
-                (0,0,0,0.25), None,
+                f'\n{format_time(duration)}s',
+                (0,0,0,0), (0,0,0,0),
             ))
             self.__last_hud_statuses.append(STATUS.RESPAWN)
 
         strs.append(SpriteBox(
             Assets.get_sprite('ability', 'walk'),
-            str(round(self.engine.s2ticks(self.engine.get_velocity(uid)))),
-            (0,0,0,0), fg_color,
+            f'\n{round(self.engine.s2ticks(self.engine.get_velocity(uid)))}',
+            (0,0,0,0), (0,0,0,0),
         ))
         self.__last_hud_statuses.append('movespeed')
 
         if self.engine.get_status(uid, STATUS.FOUNTAIN) > 0:
             strs.append(SpriteBox(
-                Assets.get_sprite('unit', 'fort'),
-                '', (0,0,0,0), fg_color,
+                Assets.get_sprite('unit', 'fort'), '',
+                (0,0,0,0), (0,0,0,0),
             ))
             self.__last_hud_statuses.append('fountain')
 
@@ -309,8 +320,8 @@ class EncounterAPI(BaseEncounterAPI):
         if shop_status > 0:
             shop_name, shop_color = Item.item_category_gui(shop_status)
             strs.append(SpriteBox(
-                Assets.get_sprite('unit', f'{shop_name}-shop'),
-                f'{shop_name}', modify_color(shop_color, a=bg_alpha), fg_color,
+                Assets.get_sprite('unit', f'{shop_name}-shop'), f'{shop_name}',
+                (0,0,0,0), (0,0,0,0),
             ))
             self.__last_hud_statuses.append(STATUS.SHOP)
 
@@ -321,9 +332,8 @@ class EncounterAPI(BaseEncounterAPI):
                 duration = self.engine.get_status(uid, status, STATUS_VALUE.DURATION)
                 ds = f'* {format_time(duration)}s' if duration > 0 else ''
                 strs.append(SpriteBox(
-                    Assets.get_sprite('ability', name),
-                    # f'{round(v)}/{format_rp(v)}% {name}{ds}',
-                    f'{ds}\n{round(v)}', (0,0,0,bg_alpha), fg_color,
+                    Assets.get_sprite('ability', name), f'{ds}\n{round(v)}',
+                    (0,0,0,0), (0,0,0,0),
                 ))
                 self.__last_hud_statuses.append(stat)
 
@@ -339,9 +349,10 @@ class EncounterAPI(BaseEncounterAPI):
         max_mana = self.engine.get_stats(uid, STAT.MANA, value_name=VALUE.MAX)
         delta_mana = self.engine.get_stats(uid, STAT.MANA, value_name=VALUE.DELTA)
         delta_mana = f'{nsign_str(round(self.engine.s2ticks(delta_mana), 1))} /s'
+        bar_colors = self.sprite_bar_color(uid)
         return [
-            ProgressBar(hp/max_hp, f'HP: {hp:.1f}/{max_hp:.1f} {delta_hp}', (1, 0, 0, 1)),
-            ProgressBar(mana/max_mana, f'Mana: {mana:.1f}/{max_mana:.1f} {delta_mana}', (0, 0, 1, 1)),
+            ProgressBar(hp/max_hp, f'HP: {hp:.1f}/{max_hp:.1f} {delta_hp}', bar_colors[0]),
+            ProgressBar(mana/max_mana, f'Mana: {mana:.1f}/{max_mana:.1f} {delta_mana}', bar_colors[1]),
         ]
 
     def hud_click(self, hud, index, button):
@@ -351,20 +362,20 @@ class EncounterAPI(BaseEncounterAPI):
                 if aid is None:
                     return None
                 ability = self.abilities[aid]
-                color = modify_color(ability.color, v=0.3, a=0.85)
+                # color = modify_color(ability.color, v=0.3, a=0.85)
                 stl = SpriteTitleLabel(
                     Assets.get_sprite('ability', ability.name), ability.name,
-                    ability.description(self.engine, self.selected_unit), color)
+                    ability.description(self.engine, self.selected_unit), None)
                 return stl
             elif hud == 'right':
                 iid = self.engine.units[self.selected_unit].item_slots[index]
                 if iid is None:
                     return
                 item = ITEMS[iid]
-                color = modify_color(item.color, v=0.3, a=0.85)
+                # color = modify_color(item.color, v=0.3, a=0.85)
                 text = item.shop_text(self.engine, 0)
                 stl = SpriteTitleLabel(
-                    Assets.get_sprite('ability', item.name), item.shop_name, text, color)
+                    Assets.get_sprite('ability', item.name), item.shop_name, text, None)
                 return stl
             elif hud == 'middle':
                 stat = [
@@ -380,7 +391,7 @@ class EncounterAPI(BaseEncounterAPI):
                 s = f'{current:.2f}{ds}'
                 title = f'{stat.name.lower().capitalize()}'
                 return SpriteTitleLabel(
-                    STAT_SPRITES[index], title, f'{s}', (0,0,0,0.85))
+                    STAT_SPRITES[index], title, f'{s}', None)
             elif hud == 'status':
                 return self.hud_status_tooltip(index)
         # Sorting, selling, etc. only relevant for player
@@ -402,12 +413,17 @@ class EncounterAPI(BaseEncounterAPI):
                 elif button == 'scrolldown':
                     List.move_up(self.units[0].item_slots, index)
 
+    def hud_portrait_click(self):
+        return SpriteTitleLabel(
+            str(Assets.FALLBACK_SPRITE), 'RP Table',
+            '\n'.join([f'{_}: {Mechanics.rp2reduction(_)*100:.1f}%' for _ in (5,10,20,50,100,150,200,300,400)]),
+            None)
+
     def hud_status_tooltip(self, index):
         status = self.__last_hud_statuses[index]
         sprite = str(Assets.FALLBACK_SPRITE)
         title = 'Unknown status'
         label = 'Missing tooltip'
-        color = 0, 0, 0, 0.85
         if status is STATUS.RESPAWN:
             sprite = Assets.get_sprite('ability', 'respawn')
             title = 'Respawn timer'
@@ -446,13 +462,14 @@ class EncounterAPI(BaseEncounterAPI):
             sprite = Assets.get_sprite('ability', 'walk')
             title = 'Movespeed'
             label = 'Current speed'
-        return SpriteTitleLabel(sprite, title, label, color)
+        return SpriteTitleLabel(sprite, title, label, None)
 
     # Browse
     def browse_main(self):
         shop_status = self.engine.get_status(0, STATUS.SHOP)
         if shop_status != 0:
             shop_name, shop_color = Item.item_category_gui(shop_status)
+            shop_name = f'{shop_name} Shop'
             gold_count = int(self.engine.get_stats(0, STAT.GOLD))
             if self.units[0].empty_item_slots == 0:
                 shop_color = (0,0,0,1)
@@ -460,7 +477,7 @@ class EncounterAPI(BaseEncounterAPI):
             else:
                 warning = ''
             main_text = '\n'.join([
-                f'Welcome to the {shop_name} shop',
+                f'Welcome to the {shop_name}',
                 f'',
                 f'{warning}',
                 f'You have: {gold_count} gold',
@@ -477,7 +494,7 @@ class EncounterAPI(BaseEncounterAPI):
             ])
         else:
             shop_name = 'Out of shop range'
-            shop_color = (0,0,0,1)
+            shop_color = (0.25,0.25,0.25,1)
             main_text = '\n'.join([
                 f'Shops:',
                 *(f'- {n.name.lower().capitalize()}' for n in ITEM_CATEGORIES),
@@ -490,17 +507,16 @@ class EncounterAPI(BaseEncounterAPI):
 
     def browse_elements(self):
         sts = []
-        # near_shop = self.engine.get_status(0, STATUS.SHOP) > 0
         for item in ITEMS:
             s = str(round(item.cost))
             r = item.check_buy(self.engine, 0)
-            buyable = not isinstance(r, FAIL_RESULT)
             near_shop = r is not FAIL_RESULT.OUT_OF_RANGE
-            bg_color = modify_color((1,1,1) if near_shop else item.color, v=0.8, a=1)
-            fg_color = modify_color((0,0,0), a=SHOP_FG_ALPHA_KEY[r])
+            already_owned = r is FAIL_RESULT.ON_COOLDOWN
+            shop_color = (1,1,1) if (near_shop or already_owned) else item.color
+            bg_color = modify_color(shop_color, v=SHOP_STATE_KEY[r])
             sts.append(SpriteBox(
                 Assets.get_sprite('ability', item.name),
-                s, bg_color, fg_color))
+                s, bg_color, None))
         return sts
 
     def browse_click(self, index, button):
@@ -516,7 +532,8 @@ class EncounterAPI(BaseEncounterAPI):
             return SpriteTitleLabel(
                 Assets.get_sprite('ability', item.name),
                 item.shop_name, item.shop_text(self.engine, 0),
-                modify_color(item.color, a=0.9))
+                None, # modify_color(item.color, a=0.9)
+            )
 
     # Misc
     abilities = ABILITIES

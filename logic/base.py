@@ -181,11 +181,11 @@ class Ability:
         color = (0, 0, 0, 0)
         if cd > 0:
             strings.append(f'C: {api.ticks2s(cd):.1f}')
-            color = (1, 0.3, 0, 1)
+            color = (1, 0, 0, 1)
             miss += 1
         if excess_mana < 0:
             strings.append(f'M: {-excess_mana:.1f}')
-            color = (0, 0, 0.8, 1)
+            color = (0, 0, 1, 1)
             miss += 1
         remaining_checks = self.auto_check - {'mana', 'cooldown'}
         f = self.check_many(api, uid, target, remaining_checks)

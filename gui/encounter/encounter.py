@@ -16,7 +16,7 @@ from gui import cc_int, center_position
 from gui.common import Tooltip
 from gui.encounter.sprites import Sprites
 from gui.encounter.vfx import VFX
-from gui.encounter.panels import Menu, ControlOverlay, LogicLabel, HUD, ModalBrowse, ViewFade, DebugPanel
+from gui.encounter.panels import Decoration, Menu, LogicLabel, HUD, ModalBrowse, ViewFade, DebugPanel
 
 from engine.common import *
 
@@ -51,14 +51,18 @@ class Encounter(widgets.RelativeLayout):
             'sprites': self.add(Sprites(enc=self)),
             'vfx': self.add(VFX(enc=self)),
             'viewfade': self.add(ViewFade(enc=self)),
+        }
+        self.decorations = self.add(Decoration(enc=self))
+        self.overlays |= {
             'logic_label': self.add(LogicLabel(enc=self)),
             'modal_browse': self.add(ModalBrowse(enc=self)),
             'hud': self.add(HUD(enc=self)),
         }
-        self.overlays['control_overlay'] = self.add(ControlOverlay(enc=self))
         self.tooltip = self.add(Tooltip(bounding_widget=self))
-        self.overlays['menu'] = self.add(Menu(enc=self))
-        self.overlays['debug'] = self.add(DebugPanel(enc=self))
+        self.overlays |= {
+            'menu': self.add(Menu(enc=self)),
+            'debug': self.add(DebugPanel(enc=self)),
+        }
 
         self.make_hotkeys()
 
@@ -100,10 +104,8 @@ class Encounter(widgets.RelativeLayout):
         if self.__cached_target is not None:
             self.api.user_click(self.__cached_target, button='right', view_size=self.pix2real(self.size))
             self.__cached_target = None
-        self.__player_pos = player_pos = self.api.view_center
+        self.__view_center = self.api.view_center
         self.__anchor_offset = np.array(self.size) / 2
-
-
 
         self.tilemap.pos = cc_int(self.real2pix(np.zeros(2)))
         self.tilemap.size = cc_int(np.array(self.api.map_size) / self.__units_per_pixel)
@@ -184,15 +186,15 @@ class Encounter(widgets.RelativeLayout):
 
     # Utility
     def real2pix(self, pos):
-        pos_relative_to_player = np.array(pos) - self.__player_pos
-        pix_relative_to_player = pos_relative_to_player / self.__units_per_pixel
-        final_pos = pix_relative_to_player + self.__anchor_offset
+        pos_relative_to_center = np.array(pos) - self.__view_center
+        pix_relative_to_center = pos_relative_to_center / self.__units_per_pixel
+        final_pos = pix_relative_to_center + self.__anchor_offset
         return final_pos
 
     def pix2real(self, pix):
-        pix_relative_to_player = np.array(pix) - (np.array(self.size) / 2)
-        real_relative_to_player = pix_relative_to_player * self.__units_per_pixel
-        real_position = self.__player_pos + real_relative_to_player
+        pix_relative_to_center = np.array(pix) - (np.array(self.size) / 2)
+        real_relative_to_center = pix_relative_to_center * self.__units_per_pixel
+        real_position = self.__view_center + real_relative_to_center
         return real_position
 
     @property
