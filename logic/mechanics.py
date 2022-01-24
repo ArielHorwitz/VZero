@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 import math
 from collections import defaultdict
 import numpy as np
-from nutil.vars import normalize
+from nutil.vars import normalize, modify_color
 from engine.common import *
 
 
@@ -127,10 +127,19 @@ class Mechanics:
         elif damages < 0:
             damages = 0
         api.set_stats(targets_mask, STAT.HP, -damages, additive=True)
-        # Play ouch feedback if player took damage
-        if targets_mask[0] and (damages[0] if isinstance(damages, np.ndarray) else damages) > 0:
-            api.add_visual_effect(VisualEffect.BACKGROUND, 40)
-            api.add_visual_effect(VisualEffect.SFX, 1, params={'sfx': 'ouch', 'category': 'ui', 'volume': 'sfx'})
+        # Play ouch feedback if player/fort took damage
+        all_damages = np.array(targets_mask, dtype=np.float32, copy=True)
+        all_damages[targets_mask] *= damages
+        for vuid, sfx, color in api.logic.ouch_feedback:
+            if all_damages[vuid] > 0:
+                api.add_visual_effect(VisualEffect.SFX, 1, params={
+                    'sfx': sfx,
+                    'category': 'ui',
+                    'volume': 'sfx',
+                })
+                api.add_visual_effect(VisualEffect.BACKGROUND, 40, params={
+                    'color': modify_color(color, a=0.15)
+                })
         logger.debug(f'{targets_mask.nonzero()[0]} took {damages} pure damage.')
 
     @classmethod

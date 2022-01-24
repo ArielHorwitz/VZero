@@ -62,6 +62,11 @@ class EncounterAPI(BaseEncounterAPI):
         logger.debug(f'Unit {unit.name} lost status {status.name}')
         self.engine.units[uid].status_zero(status)
 
+    ouch_feedback = [
+        (0, 'ouch', COLOR.RED),
+        (1, 'ouch2', COLOR.BLUE),
+    ]
+
     # GUI handlers
     @property
     def menu_text(self):
