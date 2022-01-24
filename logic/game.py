@@ -132,12 +132,10 @@ class GameAPI(BaseGameAPI):
             if aid is None:
                 return
             self.draft(aid)
+
+    def loadout_drag_drop(self, origin, target, button):
         if button == 'middle':
-            List.move_bottom(self.loadout, index)
-        elif button == 'scrollup':
-            List.move_down(self.loadout, index)
-        elif button == 'scrolldown':
-            List.move_up(self.loadout, index)
+            List.swap(self.loadout, origin, target)
 
     # GUI properties
     def draft_label(self):

@@ -144,9 +144,9 @@ class SpriteTitleLabel(widgets.AnchorLayout):
 
 class Stack(widgets.StackLayout):
     def __init__(self,
-            wtype=None,
-            callback=None, on_hover=None,
-            x=None, y=None,
+            wtype=None, x=None, y=None,
+            callback=None,
+            drag_drop_callback=None,
             **kwargs):
         super().__init__(**kwargs)
         self.__wtype = SpriteLabel if wtype is None else wtype
@@ -154,9 +154,13 @@ class Stack(widgets.StackLayout):
         self.__y = 50 if y is None else y
         self.boxes = []
         self.callback = callback
+        self.drag_drop_callback = drag_drop_callback
+        self.dragging = None
         self.make_bg((0, 0, 0, 1))
-        if self.callback is not None:
+        if self.callback or self.drag_drop_callback:
             self.bind(on_touch_down=lambda w, m: self.on_touch_down(m))
+        if self.drag_drop_callback:
+            self.bind(on_touch_up=lambda w, m: self.on_touch_up(m))
 
     def set_boxsize(self, size=None):
         if size is not None:
@@ -175,14 +179,24 @@ class Stack(widgets.StackLayout):
         self.set_boxsize()
 
     def on_touch_down(self, m):
-        if self.callback is None:
-            return False
         if not self.collide_point(*m.pos):
             return False
         for i, b in enumerate(self.boxes):
             if b.collide_point(*m.pos):
                 self.callback(i, m.button)
+                if self.drag_drop_callback:
+                    self.dragging = i
                 break
+        return True
+
+    def on_touch_up(self, m):
+        if self.dragging is None:
+            return False
+        for i, b in enumerate(self.boxes):
+            if b.collide_point(*m.pos):
+                self.drag_drop_callback(self.dragging, i, m.button)
+                break
+        self.dragging = None
         return True
 
     def update(self, boxes):

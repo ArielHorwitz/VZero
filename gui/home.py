@@ -79,9 +79,10 @@ class Draft(widgets.BoxLayout):
         self.label.make_bg((.1,.15,.1,1))
         self.label._bg.source = Assets.get_sprite('ui', 'mask-4x1')
         self.loadout = bottom_frame.add(Stack(
-            wtype=SpriteLabel,
-            x=175, y=50,
-            callback=self.app.game.loadout_click))
+            wtype=SpriteLabel, x=175, y=50,
+            callback=self.app.game.loadout_click,
+            drag_drop_callback=self.app.game.loadout_drag_drop,
+            ))
         self.loadout.set_size(x=700)
         self.loadout.make_bg((.1,.1,.1,1))
 

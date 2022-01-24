@@ -141,6 +141,7 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
                 fg_sprite=Assets.get_sprite('ui', 'sprite-box'),
                 **k),
             callback=lambda i, b: self.click('left', i, b),
+            drag_drop_callback=lambda *a: self.api.hud_drag_drop('left', *a),
             x=HUD_WIDTH*padding[0]/4, y=HUD_HEIGHT*padding[1]/2))
         self.left_hud._bg_color.rgba = (0,0,0,0)
         self.left_hud.set_size(hx=padding[0], hy=padding[1])
@@ -168,6 +169,7 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
                 fg_sprite=Assets.get_sprite('ui', 'sprite-box'),
                 **k),
             callback=lambda i, b: self.click('right', i, b),
+            drag_drop_callback=lambda *a: self.api.hud_drag_drop('right', *a),
             x=HUD_WIDTH*padding[0]/4, y=HUD_HEIGHT*padding[1]/2))
         self.right_hud._bg_color.rgba = (0,0,0,0)
         self.right_hud.set_size(hx=padding[0], hy=padding[1])

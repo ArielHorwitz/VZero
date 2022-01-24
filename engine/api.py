@@ -40,6 +40,9 @@ class GameAPI:
     def loadout_click(self, index, button):
         logger.warning(f'{self.__class__}.loadout_click() not implemented for {index} {button}.')
 
+    def loadout_drag_drop(self, origin, target, button):
+        logger.warning(f'{self.__class__}.loadout_drag_drop() not implemented for {button} ({origin} -> {target}).')
+
     # GUI properties
     def button_click(self, index):
         logger.warning(f'{self.__class__}.button_click() not implemented for {index}.')
@@ -230,6 +233,9 @@ class EncounterAPI:
     menu_text = 'Paused'
 
     # HUD
+    def hud_drag_drop(self, hud, origin, target, button):
+        logger.warning(f'{self.__class__}.hud_drag_drop() not implemented. hud: {hud} button: {button} ({origin} -> {target})')
+
     def hud_click(self, hud, index, button):
         logger.warning(f'{self.__class__}.hud_click() not implemented. hud: {hud} index: {index} button: {button}')
         return SpriteTitleLabel(None, 'Title', f'{self.__class__}.hud_click() not implemented. hud: {hud} index: {index} button: {button}', (0.2, 0, 0, 0.5))

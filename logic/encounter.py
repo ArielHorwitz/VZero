@@ -360,6 +360,13 @@ class EncounterAPI(BaseEncounterAPI):
             ProgressBar(mana/max_mana, f'Mana: {mana:.1f}/{max_mana:.1f} {delta_mana}', bar_colors[1]),
         ]
 
+    def hud_drag_drop(self, hud, origin, target, button):
+        if self.selected_unit == 0 and button == 'middle':
+            if hud == 'left':
+                List.swap(self.units[0].abilities, origin, target)
+            if hud == 'right':
+                List.swap(self.units[0].item_slots, origin, target)
+
     def hud_click(self, hud, index, button):
         if button == 'left':
             if hud == 'left':
@@ -399,24 +406,9 @@ class EncounterAPI(BaseEncounterAPI):
                     STAT_SPRITES[index], title, f'{s}', None)
             elif hud == 'status':
                 return self.hud_status_tooltip(index)
-        # Sorting, selling, etc. only relevant for player
-        elif self.selected_unit == 0:
-            if hud == 'left':
-                if button == 'middle':
-                    List.move_bottom(self.units[0].abilities, index)
-                elif button == 'scrollup':
-                    List.move_down(self.units[0].abilities, index)
-                elif button == 'scrolldown':
-                    List.move_up(self.units[0].abilities, index)
-            if hud == 'right':
-                if button == 'right':
-                    self.itemsell(index, (0,0))
-                elif button == 'middle':
-                    List.move_bottom(self.units[0].item_slots, index)
-                elif button == 'scrollup':
-                    List.move_down(self.units[0].item_slots, index)
-                elif button == 'scrolldown':
-                    List.move_up(self.units[0].item_slots, index)
+        elif button == 'right':
+            if self.selected_unit == 0 and hud == 'right':
+                self.itemsell(index, (0,0))
 
     def hud_portrait_click(self):
         return SpriteTitleLabel(
