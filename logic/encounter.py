@@ -413,7 +413,7 @@ class EncounterAPI(BaseEncounterAPI):
     def hud_portrait_click(self):
         return SpriteTitleLabel(
             str(Assets.FALLBACK_SPRITE), 'RP Table',
-            '\n'.join([f'{_}: {Mechanics.rp2reduction(_)*100:.1f}%' for _ in (5,10,20,50,100,150,200,300,400)]),
+            '\n'.join([f'{_}: {(1-Mechanics.rp2reduction(_))*100:.1f}% [b]/[/b] {Mechanics.rp2reduction(_)*100:.1f}%' for _ in (5,10,15,20,25,30,40,50,60,70,85,100,150,200,400)]),
             None)
 
     def hud_status_tooltip(self, index):

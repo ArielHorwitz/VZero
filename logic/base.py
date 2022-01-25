@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 import collections
 import math
 import numpy as np
-from nutil.vars import normalize, is_floatable
+from nutil.vars import normalize, is_floatable, nsign_str
 from data.assets import Assets
 from engine.common import *
 from logic.mechanics import Mechanics
@@ -239,48 +239,48 @@ class Params:
             self.params.append(base_name)
 
     def repr(self, param_name, api, uid):
-        formula = ''
-        param = self._params[param_name]
-        if isinstance(param, ExpandedParam):
-            stat_value = api.get_stats(uid, param.stat)
-            stat_name = f'{stat_value:.1f} {param.stat.name.lower().capitalize()}'
-            formula = self._formula_repr(param_name, stat_name)
-            formula = f' ({formula})'
         pval = self._param_value(param_name, api, uid)
         if is_floatable(pval):
             if param_name in self.show_as_time:
-                pval = f'{api.ticks2s(pval):.1f} s'
+                pval = f'{round(api.ticks2s(pval), 2)} s'
             elif param_name in self.show_as_delta:
-                pval = f'{api.s2ticks(pval):.2f}/s'
+                pval = f'{round(api.s2ticks(pval), 2)}/s'
             else:
-                pval = f'{pval:.1f}'
-        return f'{self.pname_repr(param_name)}: {pval}{formula}'
+                pval = f'{round(pval, 2)}'
+        return self.repr_param(param_name, pval)
 
     def repr_universal(self, params=None):
         if params is None:
             params = self.params
         return '\n'.join(self.repr_param(p) for p in params)
 
-    def repr_param(self, param_name):
-        return f'{self.pname_repr(param_name)}: {self._formula_repr(param_name)}'
+    def repr_param(self, param_name, value=None):
+        param = self._params[param_name]
+        if isinstance(param, ExpandedParam):
+            expanded_formula = self._formula_repr(param_name)
+            value = '' if value is None else f' [b][i]{value}[/i][/b] -'
+            value_str = f'{value} scales with [b]{param.stat.name.lower()}[/b]'
+            formula = f'{value_str}\n{expanded_formula}'
+        else:
+            formula = f' [b][i]{param if value is None else value}[/i][/b]'
+        return f'[b]{self.pname_repr(param_name)}:[/b]{formula}'
 
-    def _formula_repr(self, param_name, stat_name=None):
+    def _formula_repr(self, param_name):
         param = self._params[param_name]
         if not isinstance(param, ExpandedParam):
-            s = str(param)
+            return str(param)
         else:
-            s = f'{param.base}'
-            for mod in param.mods:
-                stat_name = param.stat.name.lower().capitalize() if stat_name is None else stat_name
-                s = mod.cls.repr(s, stat_name, mod.factor)
-        return s
+            if param.mods:
+                s = []
+                for mod in param.mods:
+                    stat_name = f'{param.stat.name[0].upper()}'
+                    s.append(mod.cls.repr(param.base, stat_name, mod.factor))
+                return ''.join(s)
+            else:
+                return str(param.base)
 
     def __expand_base(self, base_name):
         base = self.__raw_params[base_name]
-        stat_name = f'{base_name}_stat'
-        if stat_name not in self.__raw_params:
-            return base
-        stat_name = self.__raw_params[stat_name]
         mods = []
         for mod_name, mod_cls in PARAM_MODS.items():
             mod_param = f'{base_name}_{mod_name}'
@@ -288,8 +288,10 @@ class Params:
                 continue
             factor = self.__raw_params[mod_param]
             mods.append(ExpandedMod(mod_cls, factor))
-        assert len(mods) > 0
-        return ExpandedParam(base, str2stat(stat_name), mods)
+        if len(mods) > 0:
+            return ExpandedParam(base, str2stat(base), mods)
+        else:
+            return base
 
     def _param_value(self, value_name, api=None, uid=None):
         param = self._params[value_name]
@@ -298,11 +300,11 @@ class Params:
         if api is None or uid is None:
             return param.base
         stat_value = api.get_stats(uid, param.stat)
-        value = param.base
+        final_value = 0
+        curve = 50
         for mod in param.mods:
-            value = mod.cls.calc(value, stat_value, mod.factor)
-            # logger.debug(f'Found {value_name} value: {param.base:.1f} -> {value:.1f} (using {stat_value:.1f} {param.stat.name}, {mod.cls.name} factor {mod.factor:.1f})')
-        return value
+            final_value, curve = mod.cls.calc(final_value, curve, stat_value, mod.factor)
+        return final_value
 
     def __getattr__(self, x):
         if x.startswith('get_'):
@@ -315,18 +317,78 @@ class Params:
         return p.capitalize().replace('_', ' ')
 
 
-class ModAdd:
-    name = 'Add'
-
+class ModBase:
+    name = 'Base'
     @classmethod
-    def calc(cls, base, stat, factor):
-        return base + (stat * factor)
+    def calc(cls, final_value, curve, stat, factor):
+        return final_value + factor, curve
 
     @classmethod
     def repr(cls, base, stat, factor):
-        return f'{base} + {factor} × {stat}'
+        return f' {factor}'
+
+
+class ModRed:
+    name = 'Reduction'
+
+    @classmethod
+    def calc(cls, final_value, curve, stat, factor):
+        return final_value + factor*Mechanics.scaling(stat, curve), curve
+
+    @classmethod
+    def repr(cls, base, stat, factor):
+        return f' + {factor}§/{stat}'
+
+
+class ModScale:
+    name = 'Scaling'
+
+    @classmethod
+    def calc(cls, final_value, curve, stat, factor):
+        return final_value + factor*(1-Mechanics.scaling(stat, curve)), curve
+
+    @classmethod
+    def repr(cls, base, stat, factor):
+        return f' + {factor}§×{stat}'
+
+
+class ModCurve:
+    name = 'Scaling curve'
+
+    @classmethod
+    def calc(cls, final_value, curve, stat, factor):
+        return final_value, factor
+
+    @classmethod
+    def repr(cls, base, stat, factor):
+        return f' (•§{factor})'
+
+
+class ModAdd(ModBase):
+    name = 'Add'
+
+    @classmethod
+    def repr(cls, base, stat, factor):
+        return f' {nsign_str(factor)}'
+
+
+class ModBonus:
+    name = 'Bonus'
+
+    @classmethod
+    def calc(cls, final_value, curve, stat, factor,):
+        return final_value + (stat * factor), curve
+
+    @classmethod
+    def repr(cls, base, stat, factor):
+        return f' {nsign_str(factor)}×{stat}'
 
 
 PARAM_MODS = {
-    'bonus': ModAdd,
+    'base': ModBase,
+    'curve': ModCurve,
+    'reduc': ModRed,
+    'scale': ModScale,
+    'add': ModAdd,
+    'bonus': ModBonus,
 }

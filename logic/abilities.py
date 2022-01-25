@@ -74,7 +74,7 @@ class PassiveAttack(BaseAbility):
     }
 
     def passive(self, api, uid, dt):
-        f = self.check_many(api, uid)
+        f = self.check_many(api, uid, api.get_position(uid))
         if isinstance(f, FAIL_RESULT):
             return f
         target = api.get_position(uid)

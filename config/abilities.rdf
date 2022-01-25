@@ -1,26 +1,24 @@
-=== Appraise
-type: barter
-sfx: barter
-show_stats: range, loot_multi, cooldown
-draft_cost: 20
--- stats
-range: 300
-cooldown: 10000
-loot_multi: 2
-loot_multi_stat: water
-loot_multi_bonus: 0.02
-
-
 === Barter
 type: barter
+sfx: barter
+show_stats: range, loot_multi
+draft_cost: 20
+-- stats
+range: 300
+loot_multi: 1
+
+
+=== Appraise
+type: barter
 show_stats: range, loot_multi, cooldown
 draft_cost: 20
 -- stats
 range: 300
 cooldown: 10000
-loot_multi: 1.5
-loot_multi_stat: water
-loot_multi_bonus: 0.06
+loot_multi: water
+loot_multi_base: 0.75
+loot_multi_scale: 5
+loot_multi_curve: 50
 
 
 === Walk
@@ -28,8 +26,8 @@ type: move
 show_stats: speed
 draft_cost: 60
 -- stats
-speed: 150
-speed_stat: air
+speed: air
+speed_base: 150
 speed_bonus: 3
 
 
@@ -50,12 +48,15 @@ speed: 200
 
 === Charge
 type: move
-show_stats: range, speed, cooldown
+show_stats: speed, cooldown, range
 draft_cost: 25
 -- stats
 range: 2000
 cooldown: 2200
-speed: 600
+speed: earth
+speed_base: 400
+speed_scale: 800
+speed_curve: 50
 
 
 
@@ -68,10 +69,12 @@ show_stats: damage, cooldown, range
 draft_cost: 100
 -- stats
 mana_cost: 0
-cooldown: 150
+cooldown: water
+cooldown_reduc: 150
+cooldown_curve: 50
 range: 30
-damage: 20
-damage_stat: physical
+damage: physical
+damage_base: 20
 damage_bonus: 1
 
 
@@ -80,17 +83,16 @@ type: attack
 color: cyan
 sfx: attack
 cooldown: base attack
-show_stats: mana_cost, damage, cooldown, range
+show_stats: damage, cooldown, range
 draft_cost: 105
 -- stats
-mana_cost: 5
-mana_cost_stat: physical
-mana_cost_bonus: 0.08
-cooldown: 100
+cooldown: water
+cooldown_reduc: 120
+cooldown_curve: 125
 range: 225
-damage: 15
-damage_stat: physical
-damage_bonus: 0.75
+damage: physical
+damage_base: 20
+damage_bonus: 1
 
 
 === Snipe
@@ -98,17 +100,15 @@ type: attack
 color: cyan
 sfx: attack
 cooldown: base attack
-show_stats: mana_cost, damage, cooldown, range
+show_stats: damage, cooldown, range
 draft_cost: 110
 -- stats
-mana_cost: 8
-mana_cost_stat: physical
-mana_cost_bonus: 0.1
 cooldown: 120
 range: 300
-damage: 12
-damage_stat: physical
-damage_bonus: 0.75
+damage: physical
+damage: physical
+damage_base: 20
+damage_bonus: 1
 
 
 === Bash
@@ -135,8 +135,8 @@ draft_cost: 100
 mana_cost: 0
 cooldown: 250
 range: 30
-damage: 10
-damage_stat: earth
+damage: earth
+damage_base: 10
 damage_bonus: 1.25
 
 
@@ -147,8 +147,8 @@ draft_cost: 65
 --- stats
 mana_cost: 30
 cooldown: 1200
-range: 300
-range_stat: air
+range: air
+range_base: 300
 range_bonus: 6
 
 
@@ -182,11 +182,11 @@ status: slow
 target: other
 mana_cost: 20
 cooldown: 600
-range: 400
-range_stat: water
+range: water
+range_base: 400
 range_bonus: 2
-stacks: 10
-stacks_stat: air
+stacks: air
+stacks_base: 10
 stacks_bonus: 1
 duration: 600
 
@@ -203,8 +203,8 @@ target: other
 mana_cost: 35
 cooldown: 2000
 range: 600
-duration: 500
-duration_stat: water
+duration: water
+duration_base: 500
 duration_bonus: 8
 stacks: 1
 
@@ -221,8 +221,8 @@ target: other
 mana_cost: 15
 cooldown: 1500
 range: 25
-duration: 200
-duration_stat: water
+duration: water
+duration_base: 200
 duration_bonus: 3
 stacks: 1
 
@@ -240,8 +240,8 @@ target: other
 mana_cost: 20
 cooldown: 2600
 range: 500
-stacks: 20
-stacks_stat: air
+stacks: air
+stacks_base: 20
 stacks_bonus: 0.1
 duration: 800
 
@@ -258,11 +258,11 @@ status: vanity
 target: other
 mana_cost: 20
 cooldown: 100
-range: 300
-range_stat: water
+range: water
+range_base: 300
 range_bonus: 2
-stacks: 20
-stacks_stat: air
+stacks: air
+stacks_base: 20
 stacks_bonus: 0.1
 duration: 600
 
@@ -280,8 +280,8 @@ mana_cost: 35
 range: 200
 cooldown: 500
 duration: 250
-stacks: 10
-stacks_stat: air
+stacks: air
+stacks_base: 10
 stacks_bonus: 0.75
 
 
@@ -296,8 +296,8 @@ status: lifesteal
 target: self
 mana_cost: 40
 cooldown: 5000
-duration: 1500
-duration_stat: water
+duration: water
+duration_base: 1500
 duration_bonus: 15
 stacks: 30
 
@@ -314,8 +314,8 @@ target: self
 mana_cost: 40
 cooldown: 2500
 duration: 1500
-stacks: 10
-stacks_stat: earth
+stacks: earth
+stacks_base: 10
 stacks_bonus: 1
 
 
@@ -330,8 +330,8 @@ target: self
 mana_cost: 40
 cooldown: 2500
 duration: 1500
-stacks: 25
-stacks_stat: earth
+stacks: earth
+stacks_base: 25
 stacks_bonus: 0.5
 
 
@@ -343,11 +343,11 @@ draft_cost: 70
 mana_cost: 30
 cooldown: 500
 range: 400
-radius: 60
-radius_stat: water
+radius: water
+radius_base: 60
 radius_bonus: 2
-damage: 20
-damage_stat: fire
+damage: fire
+damage_base: 20
 damage_bonus: 1
 
 === Vortex
@@ -358,14 +358,14 @@ draft_cost: 100
 show_stats: mana_cost, cooldown, range, radius, damage
 -- stats
 fix_vector: 1
-mana_cost: 45
-mana_cost_stat: fire
+mana_cost: fire
+mana_cost_base: 45
 mana_cost_bonus: 0.2
 cooldown: 15
 range: 60
 radius: 50
-damage: 15
-damage_stat: fire
+damage: fire
+damage_base: 15
 damage_bonus: 1.25
 
 
@@ -377,14 +377,14 @@ sfx: implosion
 sprite: vortex
 show_stats: mana_cost, cooldown, range, radius, damage
 -- stats
-mana_cost: 45
-mana_cost_stat: fire
+mana_cost: fire
+mana_cost_base: 45
 mana_cost_bonus: 0.2
 cooldown: 15
 range: 60
 radius: 50
-damage: 15
-damage_stat: fire
+damage: fire
+damage_base: 15
 damage_bonus: 1.25
 
 
@@ -393,16 +393,16 @@ type: blast
 color: red
 draft_cost: 110
 -- stats
-mana_cost: 60
-mana_cost_stat: fire
+mana_cost: fire
+mana_cost_base: 60
 mana_cost_bonus: 0.25
 cooldown: 15
 range: 400
-radius: 30
-radius_stat: water
+radius: water
+radius_base: 30
 radius_bonus: 2
-damage: 10
-damage_stat: fire
+damage: fire
+damage_base: 10
 damage_bonus: 1
 
 
@@ -416,8 +416,8 @@ fix_vector: 1
 mana_cost: 0
 range: 100
 radius: 500
-damage: 50
-damage_stat: fire
+damage: fire
+damage_base: 50
 damage_bonus: 1
 
 
@@ -430,8 +430,7 @@ draft_cost: 110
 -- stats
 target: enemies
 destat: hp
-degen: 0.03
-degen_stat: fire
+degen: fire
 degen_bonus: 0.01
 radius: 350
 
@@ -443,8 +442,7 @@ show_stats: degen, radius
 -- stats
 target: enemies
 destat: hp
-degen: 0.03
-degen_stat: fire
+degen: fire
 degen_bonus: 0.005
 radius: 500
 
@@ -609,11 +607,11 @@ status: armor
 target: self
 mana_cost: 20
 cooldown: 5000
-duration: 1500
-duration_stat: water
+duration: water
+duration_base: 1500
 duration_bonus: 15
-stacks: 35
-stacks_stat: earth
+stacks: earth
+stacks_base: 35
 stacks_bonus: 0.25
 
 
@@ -628,8 +626,8 @@ status: bounded
 target: other
 mana_cost: 50
 cooldown: 1800
-range: 200
-range_stat: air
+range: air
+range_base: 200
 range_bonus: 3
 duration: 200
 stacks: 1
@@ -673,8 +671,8 @@ mana_cost: 10
 cooldown: 400
 range: 100
 duration: 400
-stacks: 20
-stacks_stat: air
+stacks: air
+stacks_base: 20
 stacks_bonus: 0.5
 
 === Headpiece
@@ -687,11 +685,11 @@ status: armor
 target: self
 mana_cost: 25
 cooldown: 5000
-duration: 1500
-duration_stat: water
+duration: water
+duration_base: 1500
 duration_bonus: 15
-stacks: 20
-stacks_stat: earth
+stacks: earth
+stacks_base: 20
 stacks_bonus: 2.5
 
 === Ninja Star
@@ -707,8 +705,8 @@ mana_cost: 80
 cooldown: 800
 range: 300
 duration: 100
-stacks: 0
-stacks_stat: air
+stacks: air
+stacks_base: 0
 stacks_bonus: 3
 
 
@@ -737,8 +735,7 @@ target: allies
 include_self: 0
 status: fountain
 restat: hp
-regen: 0
-regen_stat: earth
+regen: earth
 regen_bonus: 0.01
 radius: 500
 
@@ -753,8 +750,7 @@ target: allies
 include_self: 0
 status: fountain
 restat: mana
-regen: 0
-regen_stat: water
+regen: water
 regen_bonus: 0.01
 radius: 500
 

@@ -162,6 +162,10 @@ class Mechanics:
     def rp2reduction(rp):
         return ((rp + 50) ** -1) * 50
 
+    @staticmethod
+    def scaling(sp, curve):
+        return curve / (curve + sp)
+
     @classmethod
     def get_status(cls, api, uid, stat):
         base = api.get_stats(uid, stat)
