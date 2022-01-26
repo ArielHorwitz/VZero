@@ -28,7 +28,8 @@ water.delta: 0.0001666
 
 === Small creep
 type: creep
-wave: 0.9
+wave: 300
+wave_offset: 250
 scaling: 1.15
 always_active
 always_visible
@@ -41,7 +42,8 @@ air: 8
 
 === Huge creep
 type: creep
-wave: 0.95
+wave: 300
+wave_offset: 275
 scaling: 1.15
 always_active
 always_visible

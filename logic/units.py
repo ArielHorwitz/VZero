@@ -161,6 +161,7 @@ class Unit(BaseUnit):
             k = ''
         return f'Networth: Σ{nw}{k}'
 
+
 class Player(Unit):
     _max_hp_delta_interval = 1000
 
@@ -192,20 +193,18 @@ class Player(Unit):
 
 
 class Creep(Unit):
-    WAVE_INTERVAL = 30000  # 5 minutes
-
     def _setup(self):
-        self.first_wave = True
         self.color = (1, 0, 0)
-        self.wave_offset = float(self.p['wave']) * self.WAVE_INTERVAL
+        self.wave_interval = int(float(self.p['wave']) * 100)
+        self.wave_offset = int(float(self.p['wave_offset']) * 100)
         self.scaling = float(self.p['scaling']) if 'scaling' in self.p else 1
-        # Ensure the whole wave does not spawn too close, as collision is finnicky at the time of writing
-        self._respawn_location += RNG.random(2) * self.engine.get_stats(self.uid, STAT.HITBOX) * 5
+        # Space out the wave, as collision is finnicky at the time of writing
+        self._respawn_location += RNG.random(2) * self.engine.get_stats(self.uid, STAT.HITBOX) * 0.5
+        # Prepare the first wave
+        self.first_wave = True
         self.engine.set_position(self.uid, (-1_000_000, -1_000_000))
-        # Start the first wave on the correct interval
         self.engine.set_stats(self.uid, STAT.HP, 0)
-        self.engine.set_status(self.uid, STATUS.RESPAWN,
-            self._respawn_timer - self.WAVE_INTERVAL + 1, 1)
+        self.engine.set_status(self.uid, STATUS.RESPAWN, self._respawn_timer + 1, 1)
 
     @property
     def target(self):
@@ -229,7 +228,9 @@ class Creep(Unit):
 
     @property
     def _respawn_timer(self):
-        return self.wave_offset + self.WAVE_INTERVAL - self.engine.tick % self.WAVE_INTERVAL
+        ticks_since_last_wave = (self.engine.tick - self.wave_offset) % self.wave_interval
+        ticks_to_next_wave = self.wave_interval - ticks_since_last_wave
+        return ticks_to_next_wave
 
     def action_phase(self):
         self.use_ability(ABILITY.ATTACK, self.engine.get_position(self.uid))
