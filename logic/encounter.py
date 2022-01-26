@@ -29,7 +29,10 @@ from logic.items import ITEM, ITEMS, ITEM_CATEGORIES, Item
 
 
 RNG = np.random.default_rng()
-STAT_SPRITES = tuple(Assets.get_sprite('ability', s) for s in ('physical', 'fire', 'earth', 'air', 'water', 'gold'))
+STAT_SPRITES = tuple([Assets.get_sprite('ability', s) for s in (
+    'physical', 'fire', 'earth',
+    'air', 'water', 'gold',
+    'respawn', 'walk')]+[Assets.get_sprite('ui', 'crosshair3')])
 SHOP_STATE_KEY = defaultdict(lambda: 0.7, {
     True: 1,
     FAIL_RESULT.MISSING_COST: 0.45,
@@ -78,16 +81,18 @@ class EncounterAPI(BaseEncounterAPI):
         return f'Paused'
 
     def top_panel_labels(self):
-        dstr = ''
+        dstr = self.units[0].networth_str
         if self.dev_mode:
             dstr = " / ".join(str(round(_, 1)) for _ in self.engine.get_position(0)/100)
             dstr = f'DEBUG MODE - {dstr}'
         paused_str = '' if self.engine.auto_tick else 'Paused'
+        view_size = '×'.join(str(round(_)) for _ in np.array(self.gui_size) * self.upp)
+        vstr = f'{view_size} ({round(100 / self.upp)}% zoom)'
         return [
-            f'Score: {self.score}',
+            f'Balance: {METAGAME_BALANCE_SHORT} | Score: {self.score}',
             dstr,
             f'{paused_str}\n{self.time_str}',
-            f'Balance patch: {METAGAME_BALANCE_SHORT}',
+            vstr,
         ]
 
     @property
@@ -158,8 +163,22 @@ class EncounterAPI(BaseEncounterAPI):
             Assets.play_sfx('ability', 'shop', volume=Settings.get_volume('feedback'))
 
     def user_hotkey(self, hotkey, target):
+        zoom_scale = 1.15
         if hotkey == 'toggle_play':
             self.toggle_play()
+        elif hotkey == 'toggle_map':
+            self.map_mode = not self.map_mode
+            self.view_offset = None
+        elif hotkey == 'zoom_in':
+            self.zoom_in()
+        elif hotkey == 'zoom_out':
+            self.zoom_out()
+        elif hotkey.startswith('pan_'):
+            self.pan(d=hotkey[4:])
+        elif hotkey == 'reset_view':
+            self.map_mode = False
+            self.view_offset = None
+            self.set_zoom()
         elif hotkey == 'dev1':
             self.debug(dev_mode=None, test=True)
             self.map.refresh()
@@ -201,10 +220,10 @@ class EncounterAPI(BaseEncounterAPI):
         else:
             return (1, 0, 0, 1), (0, 0.25, 1, 1)
 
-    def sprite_visible_mask(self, view_size):
+    def sprite_visible_mask(self):
         max_los = self.player_los
         if self.dev_mode:
-            max_los = max(max_los, np.linalg.norm(np.array(view_size) / 2))
+            max_los = max(max_los, np.linalg.norm(self.view_size) / 2)
         in_los = self.engine.unit_distance(0) <= max_los
         is_ally = self.engine.get_stats(slice(None), STAT.ALLEGIANCE) == self.engine.get_stats(0, STAT.ALLEGIANCE)
         return in_los | is_ally | self.always_visible
@@ -272,7 +291,7 @@ class EncounterAPI(BaseEncounterAPI):
         if self.dev_mode:
             return self.units[uid].debug_str
         else:
-            return self.units[uid].networth_str
+            return self.units[uid].say
 
     def hud_middle(self):
         uid = self.selected_unit
@@ -282,9 +301,14 @@ class EncounterAPI(BaseEncounterAPI):
         ])
         gold = current[-1]
         current = [f'{math.floor(c)}' for c in current]
+        current.extend([
+            f'{round(self.units[uid]._respawn_timer/100)}s',
+            f'{round(self.engine.s2ticks(self.engine.get_velocity(uid)))}',
+            f'{round(self.engine.get_stats(uid, STAT.HITBOX))}',
+        ])
         return tuple(SpriteLabel(
             STAT_SPRITES[i], current[i],
-            None) for i in range(6))
+            None) for i in range(9))
 
     def hud_statuses(self):
         def get(s):
@@ -306,13 +330,6 @@ class EncounterAPI(BaseEncounterAPI):
                 (0,0,0,0), (0,0,0,0),
             ))
             self.__last_hud_statuses.append(STATUS.RESPAWN)
-
-        strs.append(SpriteBox(
-            Assets.get_sprite('ability', 'walk'),
-            f'\n{round(self.engine.s2ticks(self.engine.get_velocity(uid)))}',
-            (0,0,0,0), (0,0,0,0),
-        ))
-        self.__last_hud_statuses.append('movespeed')
 
         if self.engine.get_status(uid, STATUS.FOUNTAIN) > 0:
             strs.append(SpriteBox(
@@ -390,20 +407,31 @@ class EncounterAPI(BaseEncounterAPI):
                     Assets.get_sprite('ability', item.name), item.shop_name, text, None)
                 return stl
             elif hud == 'middle':
-                stat = [
-                    STAT.PHYSICAL, STAT.FIRE, STAT.EARTH,
-                    STAT.AIR, STAT.WATER, STAT.GOLD,
-                ][index]
-                current = self.engine.get_stats(self.selected_unit, stat)
-                delta = self.engine.get_stats(self.selected_unit, stat, value_name=VALUE.DELTA)
-                dval = round(self.engine.s2ticks(delta)*60, 2)
-                ds = ''
-                if dval != 0:
-                    ds = f'\n{nsign_str(dval)} /m'
-                s = f'{current:.2f}{ds}'
-                title = f'{stat.name.lower().capitalize()}'
-                return SpriteTitleLabel(
-                    STAT_SPRITES[index], title, f'{s}', None)
+                if index < 6:
+                    stat = [
+                        STAT.PHYSICAL, STAT.FIRE, STAT.EARTH,
+                        STAT.AIR, STAT.WATER, STAT.GOLD,
+                    ][index]
+                    current = self.engine.get_stats(self.selected_unit, stat)
+                    delta = self.engine.get_stats(self.selected_unit, stat, value_name=VALUE.DELTA)
+                    dval = round(self.engine.s2ticks(delta)*60, 2)
+                    ds = ''
+                    if dval != 0:
+                        ds = f'\n{nsign_str(dval)} /m'
+                    s = f'{current:.2f}{ds}'
+                    title = f'{stat.name.lower().capitalize()}'
+                elif index == 6:
+                    title = f'Respawn timer'
+                    s = 'New respawn time in seconds'
+                elif index == 7:
+                    title = f'Movement Speed'
+                    s = 'Current movement speed'
+                elif index == 8:
+                    title = 'Hitbox radius'
+                    s = 'Radius of hitbox'
+                else:
+                    return None
+                return SpriteTitleLabel(STAT_SPRITES[index], title, f'{s}', None)
             elif hud == 'status':
                 return self.hud_status_tooltip(index)
         elif button == 'right':
@@ -430,6 +458,8 @@ class EncounterAPI(BaseEncounterAPI):
             sprite = Assets.get_sprite('unit', f'{shop_name}-shop')
             title = f'{shop_name} shop'
             label = f'Near {shop_name.lower()} shop'
+            self.raise_gui_flag('browse')
+            return None
         elif isinstance(status, STAT):
             sprite = Assets.get_sprite('ability', status.name)
             title = status.name.lower().capitalize()
@@ -455,10 +485,6 @@ class EncounterAPI(BaseEncounterAPI):
             sprite = Assets.get_sprite('unit', 'fort')
             title = 'Fountain healing'
             label = 'Healing from a fountain'
-        elif status == 'movespeed':
-            sprite = Assets.get_sprite('ability', 'walk')
-            title = 'Movespeed'
-            label = 'Current speed'
         return SpriteTitleLabel(sprite, title, label, None)
 
     # Browse
@@ -535,7 +561,8 @@ class EncounterAPI(BaseEncounterAPI):
     # Misc
     abilities = ABILITIES
 
-    def update(self):
+    def update(self, *a, **k):
+        super().update(*a, **k)
         if not self.enc_over:
             PLAYER_ACTION_RADIUS = 3000
             in_action_radius = self.engine.get_distances(self.engine.get_position(0)) < PLAYER_ACTION_RADIUS
@@ -651,6 +678,8 @@ class EncounterAPI(BaseEncounterAPI):
         self.always_visible = np.zeros(len(self.engine.units), dtype=np.bool)
         self.always_active = np.zeros(len(self.engine.units), dtype=np.bool)
         self.__last_hud_statuses = []
+        self.map_mode = False
+        self.set_zoom()
         # Setup units
         for unit in self.engine.units:
             unit.action_phase()

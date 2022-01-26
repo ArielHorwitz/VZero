@@ -33,7 +33,7 @@ class Sprites(widgets.RelativeLayout, EncounterViewComponent):
             self.sprites.append(s)
 
     def update(self):
-        visibles = self.api.sprite_visible_mask(view_size=self.enc.view_size)
+        visibles = self.api.sprite_visible_mask()
         newly_visible = np.logical_and(visibles == True, np.invert(self.last_visible))
         newly_invisible = np.logical_and(visibles == False, self.last_visible)
         self.last_visible = visibles

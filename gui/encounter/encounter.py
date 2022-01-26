@@ -23,7 +23,7 @@ from engine.common import *
 
 class Encounter(widgets.RelativeLayout):
     OUT_OF_DRAW_ZONE = (-1_000_000, -1_000_000)
-    DEFAULT_UPP = 1 / Settings.get_setting('default_zoom')
+    DEFAULT_UPP = 2
 
     def __init__(self, api, **kwargs):
         super().__init__(**kwargs)
@@ -73,7 +73,6 @@ class Encounter(widgets.RelativeLayout):
     def draw(self):
         self.canvas.clear()
 
-        tilemap_size = list(self.api.map_size / self.__units_per_pixel)
         with self.canvas.before:
             # Tilemap
             self.tilemap = widgets.kvRectangle()
@@ -90,9 +89,11 @@ class Encounter(widgets.RelativeLayout):
         self.timers['draw/idle'].pong()
 
         with ratecounter(self.timers['frame_total']):
-            self.api.update()
-            self._update()
+            overlay_height = self.overlays['hud'].overlay_height + self.overlays['logic_label'].overlay_height
+            usable_view_size = np.array(self.size) - [0, overlay_height]
+            self.api.update(usable_view_size)
             with ratecounter(self.timers['graphics_total']):
+                self._update()
                 for timer, frame in self.overlays.items():
                     with ratecounter(self.timers[f'graph_{timer}']):
                         frame.pos = 0, 0
@@ -102,13 +103,14 @@ class Encounter(widgets.RelativeLayout):
 
     def _update(self):
         if self.__cached_target is not None:
-            self.api.user_click(self.__cached_target, button='right', view_size=self.pix2real(self.size))
+            self.api.user_click(self.__cached_target, button='right')
             self.__cached_target = None
         self.__view_center = self.api.view_center
-        self.__anchor_offset = np.array(self.size) / 2
+        self.__pix_center_offset = np.array([0, (self.overlays['hud'].overlay_height - self.overlays['logic_label'].overlay_height)/2])
+        self.__pix_center = (np.array(self.size) / 2) + self.__pix_center_offset
 
         self.tilemap.pos = cc_int(self.real2pix(np.zeros(2)))
-        self.tilemap.size = cc_int(np.array(self.api.map_size) / self.__units_per_pixel)
+        self.tilemap.size = cc_int(np.array(self.api.map_size) / self.upp)
 
         self.target_crosshair.pos = center_position(self.real2pix(
             self.api.target_crosshair), self.target_crosshair.size)
@@ -125,13 +127,14 @@ class Encounter(widgets.RelativeLayout):
     def canvas_click(self, w, m):
         if not self.collide_point(*m.pos):
             return False
-        self.api.user_click(self.pix2real(m.pos), m.button, self.pix2real(self.size))
+        self.api.user_click(self.pix2real(m.pos), m.button)
 
     def make_hotkeys(self):
         hotkeys = []
         # Logic API
         api_actions = (
-            'toggle_play',
+            'toggle_play', 'toggle_map', 'zoom_in', 'zoom_out', 'reset_view',
+            'pan_up', 'pan_down', 'pan_left', 'pan_right',
             'control0', 'control1', 'control2', 'control3', 'control4',
             'dev1', 'dev2', 'dev3', 'dev4',
         )
@@ -157,49 +160,22 @@ class Encounter(widgets.RelativeLayout):
             ))
         # View control
         hotkeys.extend([
-            ('zoom default', f'{Settings.get_setting("zoom_default", "Hotkeys")}', lambda *a: self.set_zoom()),
-            ('zoom in', f'{Settings.get_setting("zoom_in", "Hotkeys")}', lambda *a: self.set_zoom(d=1.15)),
-            ('zoom out', f'{Settings.get_setting("zoom_out", "Hotkeys")}', lambda *a: self.set_zoom(d=-1.15)),
-            ('map view', f'{Settings.get_setting("map_view", "Hotkeys")}', lambda *a: self.toggle_map_zoom()),
             ('redraw map', f'f5', lambda *a: self.redraw_map()),
         ])
         # Register
         for params in hotkeys:
             self.app.enc_hotkeys.register(*params)
 
-    # Control
-    def toggle_map_zoom(self):
-        if self.__units_per_pixel == self.DEFAULT_UPP:
-            self.set_zoom(Settings.get_setting('map_zoom', 'General'))
-        else:
-            logger.debug(f'Setting to default upp')
-            self.set_zoom()
-
-    def set_zoom(self, d=None, v=None):
-        if v is not None:
-            self.__units_per_pixel = v
-            return
-        if d is None:
-            self.__units_per_pixel = self.DEFAULT_UPP
-        else:
-            self.__units_per_pixel *= abs(d)**(-1*nsign(d))
-
     # Utility
     def real2pix(self, pos):
         pos_relative_to_center = np.array(pos) - self.__view_center
-        pix_relative_to_center = pos_relative_to_center / self.__units_per_pixel
-        final_pos = pix_relative_to_center + self.__anchor_offset
-        return final_pos
+        pix_relative_to_center = pos_relative_to_center / self.upp
+        return self.__pix_center + pix_relative_to_center
 
     def pix2real(self, pix):
-        pix_relative_to_center = np.array(pix) - (np.array(self.size) / 2)
-        real_relative_to_center = pix_relative_to_center * self.__units_per_pixel
-        real_position = self.__view_center + real_relative_to_center
-        return real_position
-
-    @property
-    def map_mode(self):
-        return self.upp > 4
+        pix_relative_to_center = np.array(pix) - self.__pix_center
+        real_relative_to_center = pix_relative_to_center * self.upp
+        return self.__view_center + real_relative_to_center
 
     @property
     def view_size(self):
@@ -207,7 +183,7 @@ class Encounter(widgets.RelativeLayout):
 
     @property
     def upp(self):
-        return self.__units_per_pixel
+        return self.api.upp
 
     @property
     def mouse_real_pos(self):
@@ -216,5 +192,5 @@ class Encounter(widgets.RelativeLayout):
         return real
 
     @property
-    def zoom_level(self):
-        return 1 / self.__units_per_pixel
+    def zoom_str(self):
+        return f'{round(100 / self.upp)}%'

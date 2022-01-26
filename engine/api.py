@@ -6,6 +6,7 @@ logger = logging.getLogger(__name__)
 from collections import defaultdict
 import math
 import numpy as np
+from nutil.vars import minmax, nsign
 from nutil.time import humanize_ms
 from gui.api import SpriteBox, SpriteTitleLabel, ProgressBar
 from data.load import RDF
@@ -78,6 +79,12 @@ class EncounterAPI:
         'browse_toggle': False,
         'browse_dismiss': False,
     })
+    gui_size = np.array([1024,768])
+    upp = default_upp = 2
+    view_offset = None
+    show_hud = True
+    map_mode = False
+    map_size = np.array([10_000, 10_000])
 
     def raise_gui_flag(self, flag):
         self.gui_flags[flag] = True
@@ -91,6 +98,55 @@ class EncounterAPI:
         self.engine = EncounterEngine(self)
         logger.warning(f'{self.__class__}.__init__() not implemented (will not spawn anything).')
 
+    # Display settings
+    @property
+    def view_center(self):
+        if self.map_mode:
+            return self.map_size / 2
+        return self.engine.get_position(0) if self.view_offset is None else self.view_offset
+
+    @property
+    def upp(self):
+        if self.map_mode:
+            return self.fit_upp(self.map_size * 1.1)
+        return self.default_upp
+
+    def zoom_in(self):
+        if not self.map_mode:
+            self.set_zoom(d=1.15)
+
+    def zoom_out(self):
+        if not self.map_mode:
+            self.set_zoom(d=-1.15)
+
+    def set_zoom(self, d=None, v=None):
+        if v is not None:
+            self.default_upp = v
+            return
+        if d is None:
+            self.default_upp = 1 / (Settings.get_setting('default_zoom')/100)
+        else:
+            self.default_upp *= abs(d)**(-1*nsign(d))
+        self.default_upp = minmax(
+            self.fit_upp(self.engine.get_stats(0, STAT.HITBOX)),
+            self.fit_upp(self.map_size * 0.5),
+            self.default_upp
+        )
+        logger.info(f'Set upp: {self.default_upp}')
+
+    def fit_upp(self, real_size):
+        return max(np.array(real_size) / self.gui_size)
+
+    def pan(self, d, a=None):
+        if a is None:
+            a = min(self.view_size) * 0.15
+        if self.view_offset is None:
+            self.view_offset = self.view_center
+        hoff = (d=='right') - (d=='left')
+        voff = (d=='up') - (d=='down')
+        offset = np.array([a*hoff, a*voff])
+        self.view_offset += offset
+
     # Engine attributes
     @property
     def units(self):
@@ -101,16 +157,13 @@ class EncounterAPI:
         return humanize_ms(self.engine.ticktime * self.engine.tick, show_hours=False)
 
     @property
-    def view_center(self):
-        return self.engine.get_position(0)
-
-    @property
     def target_crosshair(self):
         return self.engine.get_position(0, value_name=VALUE.TARGET)
 
     # Logic handlers
-    def update(self):
-        self.engine.update(np.ones(len(self.engine.units), dtype=np.bool))
+    def update(self, gui_size):
+        self.gui_size = np.array(gui_size)
+        self.view_size = self.gui_size * self.upp
 
     def hp_zero(self, uid):
         logger.warning(f'{self.__class__}.hp_zero() not implemented.')
@@ -134,19 +187,23 @@ class EncounterAPI:
             else:
                 Assets.play_sfx('ui', 'pause', volume=Settings.get_volume('ui'))
 
-    def user_click(self, target, button, view_size):
+    def user_click(self, target, button):
         if button == 'right':
             aindex = ABILITY_HOTKEYS.index(RIGHT_CLICK_ABILITY)
             self.quickcast(aindex, target)
         elif button == 'left':
-            self.user_select(target, view_size)
+            self.user_select(target)
+        elif button == 'scrollup':
+            self.zoom_out()
+        elif button == 'scrolldown':
+            self.zoom_in()
         else:
             logger.warning(f'{self.__class__}.user_click() with button: {button} not implemented.')
 
-    def user_select(self, target, view_size):
+    def user_select(self, target):
         uid, dist = self.engine.nearest_uid(target, alive_only=False)
         hb = self.engine.get_stats(uid, STAT.HITBOX)
-        if dist < max(50, hb) and self.sprite_visible_mask(view_size)[uid]:
+        if dist < max(50, hb) and self.sprite_visible_mask()[uid]:
             self.select_unit(uid)
             Assets.play_sfx('ui', 'select',
                 volume=Settings.get_volume('feedback'))
@@ -206,10 +263,10 @@ class EncounterAPI:
     def sprite_bar_color(self):
         return (1, 0, 0, 1), (0, 0, .9, 1)
 
-    def sprite_visible_mask(self, view_size):
+    def sprite_visible_mask(self):
         max_los = self.player_los
         if self.dev_mode:
-            max_los = max(max_los, np.linalg.norm(np.array(view_size) / 2))
+            max_los = max(max_los, np.linalg.norm(self.view_size) / 2)
         return self.engine.unit_distance(0) <= max_los
 
     def sprite_positions(self):

@@ -33,25 +33,21 @@ TOTAL_HUD_WIDTH = BAR_WIDTH + HUD_PORTRAIT
 
 
 class LogicLabel(widgets.AnchorLayout, EncounterViewComponent):
+    overlay_height = 50
     def __init__(self, **kwargs):
         super().__init__(anchor_x='center', anchor_y='top', **kwargs)
         self.main_frame = main_frame = self.add(widgets.BoxLayout())
         main_frame.make_bg((1,1,1,1))
         main_frame._bg.source = Assets.get_sprite('ui', 'panel-top')
-        main_frame.set_size(y=50)
+        main_frame.set_size(y=self.overlay_height)
 
         self.left_label = main_frame.add(widgets.Label(halign='center', valign='top', outline_width=2))
-        self.left_label.set_size(x=160)
 
         self.general_label1 = main_frame.add(widgets.Label(halign='center', valign='top', outline_width=2))
-        self.general_label1.set_size(hx=1)
         self.general_label2 = main_frame.add(widgets.Label(halign='center', valign='top', outline_width=2))
-        self.general_label2.set_size(hx=1)
         self.general_label3 = main_frame.add(widgets.Label(halign='center', valign='top', outline_width=2))
-        self.general_label3.set_size(hx=1)
 
         a = main_frame.add(widgets.AnchorLayout(anchor_y='top'))
-        a.set_size(x=160)
         self.debug_label = a.add(widgets.Label(halign='center', valign='top', outline_width=2))
         self.debug_label.set_size(x=160, y=25)
         self.debug_label.make_bg((0,0,0,0))
@@ -93,13 +89,14 @@ class Decoration(widgets.AnchorLayout, EncounterViewComponent):
 
 
 class HUD(widgets.AnchorLayout, EncounterViewComponent):
+    overlay_height = TOTAL_HUD_HEIGHT
     def __init__(self, **kwargs):
         super().__init__(anchor_x='center', anchor_y='bottom', **kwargs)
         ct1 = self.add(widgets.ConsumeTouch(consume_keys=False))
         ct2 = self.add(widgets.ConsumeTouch(consume_keys=False))
 
-        main_frame = self.add(widgets.BoxLayout())
-        main_frame.set_size(x=TOTAL_HUD_WIDTH, y=TOTAL_HUD_HEIGHT)
+        self.main_frame = main_frame = self.add(widgets.BoxLayout())
+        main_frame.set_size(x=TOTAL_HUD_WIDTH, y=self.overlay_height)
 
         self.portrait_frame = portrait_frame = main_frame.add(widgets.BoxLayout(orientation='vertical'))
         portrait_frame.set_size(x=HUD_PORTRAIT, y=HUD_PORTRAIT)
@@ -150,14 +147,15 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
         middle_panel.set_size(x=MIDDLE_HUD).make_bg((1,1,1,1))
         middle_panel._bg.source = Assets.get_sprite('ui', 'hud-middle')
         middle_hud_anchor = middle_panel.add(widgets.AnchorLayout())
-        middle_hud_size = MIDDLE_HUD*padding[0], HUD_HEIGHT*padding[1]/2
+        middle_hud_size = MIDDLE_HUD*padding[0], HUD_HEIGHT*padding[1]*0.75
         self.middle_hud = middle_hud_anchor.add(Stack(
             wtype=SpriteLabel, callback=lambda i, b: self.click('middle', i, b),
-            x=middle_hud_size[0]/3, y=middle_hud_size[1]/2))
+            x=middle_hud_size[0]/3, y=middle_hud_size[1]/3))
         self.middle_hud._bg_color.rgba = (0,0,0,0)
         self.middle_hud.set_size(x=middle_hud_size[0], y=middle_hud_size[1])
         self.middle_label = middle_panel.add(widgets.Label(halign='center', valign='middle'))
         self.middle_label.make_bg((0,0,0,0.3))
+        self.middle_label.set_size(y=HUD_HEIGHT-middle_hud_size[1])
         self.middle_label._bg.source = Assets.get_sprite('ui', 'mask-4x1')
 
         right_panel = main_panel.add(widgets.AnchorLayout())
@@ -193,6 +191,13 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
         self.name_label.text_size = self.name_label.size
 
     def update(self):
+        if not self.api.show_hud:
+            if self.main_frame in self.children:
+                self.remove_widget(self.main_frame)
+            return
+        else:
+            if self.main_frame not in self.children:
+                self.add(self.main_frame)
         self.portrait.source = self.api.hud_portrait()
         self.name_label.text = self.api.hud_name()
         self.status_panel.update(self.api.hud_statuses())
@@ -354,8 +359,8 @@ class DebugPanel(widgets.AnchorLayout, EncounterViewComponent):
         perf_strs = [
             make_title('GUI Performance', length=30),
             f'FPS: {self.app.fps.rate:.1f} ({self.app.fps.mean_elapsed_ms:.1f} ms)',
-            f'View size: {list(round(_) for _ in self.enc.view_size)}',
-            f'Map zoom: x{self.enc.zoom_level:.2f} ({self.enc.upp:.2f} u/p)',
+            f'View size: {list(round(_) for _ in self.enc.size)}',
+            f'Map zoom: {self.enc.zoom_str} ({self.enc.upp:.2f} u/p)',
             f'Units: {len(self.api.units)} (drawing: {self.enc.overlays["sprites"].drawn_count})',
             f'vfx count: {len(self.api.get_visual_effects())}',
         ]

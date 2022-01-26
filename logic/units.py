@@ -23,6 +23,8 @@ RNG = np.random.default_rng()
 
 class Unit(BaseUnit):
     _respawn_timer = 12000  # ~ 2 minutes
+    say = ''
+
     def __init__(self, api, uid, name, params):
         super().__init__(uid, name)
         self.cache = defaultdict(lambda: None)
@@ -163,6 +165,7 @@ class Unit(BaseUnit):
 
 
 class Player(Unit):
+    say = 'Let\'s defeat the boss!'
     _max_hp_delta_interval = 1000
 
     def _setup(self):
@@ -183,16 +186,17 @@ class Player(Unit):
 
     def hp_zero(self):
         logger.info(f'Player {self.name} {self.uid} died.')
-        self._respawn_timer += self._respawn_timer_scaling
         super().hp_zero()
 
     def respawn(self):
         logger.info(f'Player {self.name} {self.uid} respawned.')
         super().respawn(reset_gold=False)
+        self._respawn_timer += self._respawn_timer_scaling
         Assets.play_sfx('ability', 'player-respawn', volume=Settings.get_volume('feedback'))
 
 
 class Creep(Unit):
+    say = 'I\'m coming for that fort!'
     def _setup(self):
         self.color = (1, 0, 0)
         self.wave_interval = int(float(self.p['wave']) * 100)
@@ -242,6 +246,7 @@ class Creep(Unit):
 
 
 class Camper(Unit):
+    say = '"Personal space... I need my personal space..."'
     def _setup(self):
         self.color = (1, 0, 0)
         self.camp = self.engine.get_position(self.uid)
@@ -281,18 +286,21 @@ class Camper(Unit):
 
 
 class Boss(Camper):
+    say = 'Foolishly brave are we?'
     def _setup(self):
         self.win_on_death = True
         super()._setup()
 
 
 class Treasure(Unit):
+    say = 'Breach me if you can'
     def _setup(self):
         self._respawn_timer = 1_000_000
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
 
 
 class Shopkeeper(Unit):
+    say = 'Looking for wares?'
     def _setup(self):
         self.abilities = [ABILITY.SHOPKEEPER, *(None for _ in range(7))]
         category = 'BASIC' if 'category' not in self.p else self.p['category'].upper()
@@ -310,12 +318,14 @@ class Shopkeeper(Unit):
 
 
 class Fountain(Unit):
+    say = 'Bestowing life is a great pleasure'
     def _setup(self):
         self.abilities = [ABILITY.FOUNTAIN_HP, ABILITY.FOUNTAIN_MANA, *(None for _ in range(6))]
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
 
 
 class Fort(Fountain):
+    say = 'If I fall, it is all for naught'
     def _setup(self):
         super()._setup()
         self.lose_on_death = True
@@ -350,7 +360,7 @@ class DPSMeter(Unit):
         total_time = self.__sample[:, 0].sum()
         total_damage = self.__sample[:, 1].sum()
         dps = total_damage / total_time
-        self.name = f'DPS: {dps*self.__tps:.2f}'
+        self.say = f'DPS: {dps*self.__tps:.2f}'
 
 
 UNIT_CLASSES = {
