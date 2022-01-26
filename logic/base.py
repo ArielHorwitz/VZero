@@ -30,7 +30,8 @@ class Ability:
         self.draftable = False if 'hidden' in raw_data.default.positional else True
         self.draft_cost = round(raw_data.default['draft_cost'] if 'draft_cost' in raw_data.default else self.draft_cost)
         self.sfx = raw_data.default['sfx'] if 'sfx' in raw_data.default else self.name
-        self.sprite = raw_data.default['sprite'] if 'sprite' in raw_data.default else self.name
+        self.sfx_grand = raw_data.default['sfx_grand'] if 'sfx_grand' in raw_data.default else self.name
+        self.sprite = Assets.get_sprite('ability', raw_data.default['sprite'] if 'sprite' in raw_data.default else self.name)
         self.__shared_cooldown_name = raw_data.default['cooldown'] if 'cooldown' in raw_data.default else self.name
         raw_stats = raw_data['stats'] if 'stats' in raw_data else {}
         for p in raw_stats:
@@ -64,8 +65,10 @@ class Ability:
             self.play_sfx()
         return r
 
-    def play_sfx(self, volume='sfx', **kwargs):
-        Assets.play_sfx('ability', self.sfx, volume=volume, replay=True, **kwargs)
+    def play_sfx(self, volume='sfx', grand=False, **kwargs):
+        Assets.play_sfx(
+            'ability', self.sfx_grand if grand else self.sfx,
+            volume=volume, replay=True, **kwargs)
 
     def do_cast(self, api, uid, target):
         logger.debug(f'{self.name} do_cast not implemented. No effect.')
@@ -196,7 +199,8 @@ class Ability:
     @property
     def universal_description(self):
         return '\n'.join([
-            f'{self.info}\n',
+            f'{self.info}',
+            self.shared_cooldown_repr,
             self.p.repr_universal(self.show_stats),
             f'\n\n\n{"_"*30}\n\n"{self.lore}"',
             f'\nClass: « {self.__class__.__name__} »',
@@ -206,14 +210,19 @@ class Ability:
         if params is None:
             params = self.show_stats
         return '\n'.join([
-            f'{self.info}\n',
+            f'{self.info}',
+            self.shared_cooldown_repr,
             *(f'{self.p.repr(p, api, uid)}' for p in params),
-            # f'\n> {self.lore}',
-            # f'\nClass: « {self.__class__.__name__} »',
         ])
 
     def __repr__(self):
         return f'{self.aid} {self.name}'
+
+    @property
+    def shared_cooldown_repr(self):
+        if self.aid != self.shared_cooldown_aid:
+            return f'Shares cooldown with: {self.__shared_cooldown_name}'
+        return ''
 
 
 ExpandedParam = collections.namedtuple('ExpandedParam', ['base', 'stat', 'mods'])

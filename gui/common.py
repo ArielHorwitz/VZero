@@ -49,7 +49,7 @@ class SpriteBox(widgets.Widget):
         self.sprite_frame.size = self.size
         self.sprite_frame.pos = self.pos
         self.sprite.set_size(x=self.size[0]*self.margin[0], y=self.size[1]*self.margin[1])
-        self.sprite.pos = (self.pos[_]+self.size[_]*(1-self.margin[_])/2 for _ in range(2))
+        self.sprite.pos = tuple(self.pos[_]+self.size[_]*(1-self.margin[_])/2 for _ in range(2))
         self.label.set_size(*self.size)
         self.label.text_size = self.label.size
         self.label.pos = self.pos[0], self.pos[1]+2
@@ -221,10 +221,11 @@ class Tooltip(widgets.BoxLayout):
     def activate(self, pos, stl, bounding_widget=None):
         if self.__frame not in self.children:
             self.add(self.__frame)
+            pos = np.array(pos) - self.__frame.size
             if bounding_widget is None:
                 bounding_widget = self.bounding_widget
             if bounding_widget is not None:
-                fix = np.zeros(2) - 10
+                fix = np.zeros(2)
                 if not bounding_widget.collide_point(*pos):
                     blfix = np.array(bounding_widget.pos) - pos
                     blfix[blfix<0] = 0

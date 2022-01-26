@@ -71,7 +71,7 @@ class GameAPI(BaseGameAPI):
         if aid in self.loadout:
             i = self.loadout.index(aid)
             self.loadout[i] = None
-            Assets.play_sfx('ui', 'select', volume='ui')
+            Assets.play_sfx('ui', 'select')
             return
 
         for i, loadout_aid in enumerate(self.loadout):
@@ -80,7 +80,7 @@ class GameAPI(BaseGameAPI):
                 ABILITIES[aid].play_sfx(volume='ui')
                 return
         else:
-            Assets.play_sfx('ui', 'target', volume='ui')
+            Assets.play_sfx('ui', 'target')
 
     # GUI handlers
     button_names = ['Clear']+[f'Preset {i+1}' for i in range(4)]
@@ -113,7 +113,7 @@ class GameAPI(BaseGameAPI):
             self.loadout = [None for _ in range(8)]
         else:
             self.load_preset(index-1)
-        Assets.play_sfx('ui', 'select', volume=Settings.get_volume('ui'))
+        Assets.play_sfx('ui', 'select')
 
     def draft_click(self, index, button):
         aid = self.draftables[index]
@@ -134,8 +134,9 @@ class GameAPI(BaseGameAPI):
             self.draft(aid)
 
     def loadout_drag_drop(self, origin, target, button):
-        if button == 'middle':
+        if button == 'middle' and origin != target:
             List.swap(self.loadout, origin, target)
+            Assets.play_sfx('ui', 'select')
 
     # GUI properties
     def draft_label(self):
@@ -154,7 +155,7 @@ class GameAPI(BaseGameAPI):
         s = f'{ability.name}\nDraft cost: {ability.draft_cost}'
         color = ability.color
         return SpriteTitleLabel(
-            Assets.get_sprite('ability', ability.name),
+            ability.sprite,
             s, ability.universal_description,
             modify_color(color, v=0.5))
 
@@ -167,7 +168,7 @@ class GameAPI(BaseGameAPI):
             bg_color = modify_color(ability.color, v=0 if drafted else 0.7)
             fg_color = modify_color(COLOR.BLACK, a=0.7 if drafted else 0.2)
             sl = SpriteBox(
-                Assets.get_sprite('ability', name),
+                ability.sprite,
                 str(ability.draft_cost), bg_color, fg_color)
             b.append(sl)
         return b
@@ -183,6 +184,6 @@ class GameAPI(BaseGameAPI):
                 ability = ABILITIES[aid]
                 s = f'{ability.name}\n({ability.draft_cost})'
                 b.append(
-                    SpriteLabel(Assets.get_sprite('ability', ability.name),
+                    SpriteLabel(ability.sprite,
                     s, modify_color(ability.color, v=0.4)))
         return b

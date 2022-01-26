@@ -23,6 +23,7 @@ class App(widgets.App):
         super().__init__(make_bg=False, make_menu=False, **kwargs)
         self.home_hotkeys = widgets.InputManager()
         self.enc_hotkeys = widgets.InputManager()
+        self.enc_hotkeys.block_repeat = not Settings.get_setting('enable_hold_key', 'Hotkeys')
         self.app_hotkeys = widgets.InputManager()
         self.icon = str(Path.cwd()/'icon.png')
 

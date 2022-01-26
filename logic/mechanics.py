@@ -20,6 +20,7 @@ class Mechanics:
         'reflect',
         'spikes',
         'lifesteal',
+        'sensitivity',
     ]}
 
     @classmethod
@@ -65,13 +66,18 @@ class Mechanics:
         api.set_position(uid, target, value_name=VALUE.TARGET)
 
     @classmethod
-    def apply_debuff(cls, api, targets, status, duration, stacks):
+    def apply_debuff(cls, api, targets, status, duration, stacks, caster=None):
         if isinstance(targets, int) or isinstance(targets, np.int64):
             logger.debug(f'Applied status {status.name} {duration} × {stacks} to targets: {api.units[targets].name}')
         elif targets.sum() == 0:
             return
         else:
             logger.debug(f'Applied status {status.name} {duration} × {stacks} to {targets.sum()} targets')
+        if status is not STATUS.SHOP:
+            sensitivity = cls.get_status(api, targets, STAT.SENSITIVITY)
+            if caster is not None:
+                sensitivity += cls.get_status(api, caster, STAT.SENSITIVITY)
+            stacks *= 1 + (sensitivity / 100)
         api.set_status(targets, status, duration, stacks)
         if status in [STATUS.SLOW, STATUS.BOUNDED]:
             cls.apply_move(api, targets)

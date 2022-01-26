@@ -5,6 +5,7 @@ logger = logging.getLogger(__name__)
 from collections import defaultdict
 from enum import IntEnum
 from data.load import RDF
+from data.assets import Assets
 from data.settings import Settings
 from nutil.vars import AutoIntEnum, nsign_str
 from engine.common import *
@@ -14,13 +15,13 @@ from logic.data import ABILITIES
 ICAT = ITEM_CATEGORIES = IntEnum('ITEM_CATEGORIES', [
     'BASIC',
     'HERBAL',
-    'POTION',
+    # 'POTION',
     'ORNAMENT',
 ])
 CATEGORY_COLORS = {
     ICAT.BASIC: (0.5, 0.5, 0),
     ICAT.HERBAL: (0.1, 0.7, 0.05),
-    ICAT.POTION: (0.7, 0, 0.4),
+    # ICAT.POTION: (0.7, 0, 0.4),
     ICAT.ORNAMENT: (0, 0.5, 0.5),
 }
 SELL_MULTIPLIER = 0.8
@@ -38,7 +39,7 @@ class Item:
     def __init__(self, iid, name, raw_data):
         self.iid = iid
         self.name = name
-
+        self.sprite = Assets.get_sprite('ability', raw_data.default['sprite'] if 'sprite' in raw_data.default else self.name)
         self.category = getattr(ICAT, raw_data.default['category'].upper())
         self.color = CATEGORY_COLORS[self.category]
         self.cost = raw_data.default['cost']
@@ -76,9 +77,10 @@ class Item:
         ])
 
     def check_shop(self, engine, uid):
+        logger.warning(f'Item.check_shop() will be deprecated.')
         unit = engine.units[uid]
         icat = round(engine.get_status(uid, STATUS.SHOP))
-        if icat != self.category.value or None not in unit.item_slots:
+        if icat < self.category.value or None not in unit.item_slots:
             return False
         return True
 
@@ -89,7 +91,7 @@ class Item:
             return FAIL_RESULT.ON_COOLDOWN
 
         icat = round(engine.get_status(uid, STATUS.SHOP))
-        if icat != self.category.value:
+        if icat < self.category.value:
             return FAIL_RESULT.OUT_OF_RANGE
 
         if None not in unit.item_slots:

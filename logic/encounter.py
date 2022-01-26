@@ -158,9 +158,9 @@ class EncounterAPI(BaseEncounterAPI):
         item = ITEMS[iid]
         r = item.sell_item(self.engine, 0)
         if isinstance(r, FAIL_RESULT) and r in FAIL_SFX:
-            Assets.play_sfx('ui', FAIL_SFX[r], volume='feedback')
+            Assets.play_sfx('ui', FAIL_SFX[r])
         else:
-            Assets.play_sfx('ability', 'shop', volume=Settings.get_volume('feedback'))
+            Assets.play_sfx('ui', 'shop')
 
     def user_hotkey(self, hotkey, target):
         zoom_scale = 1.15
@@ -268,9 +268,8 @@ class EncounterAPI(BaseEncounterAPI):
                 sls.append(SpriteBox(str(Assets.get_sprite('ui', 'blank')), '', (0,0,0,0), (1,1,1,1)))
                 continue
             ability = self.abilities[aid]
-            sprite = Assets.get_sprite('ability', ability.sprite)
             s, color = ability.gui_state(self.engine, uid)
-            sls.append(SpriteBox(sprite, s, modify_color(color, a=1), (1,1,1,1)))
+            sls.append(SpriteBox(ability.sprite, s, modify_color(color, a=1), (1,1,1,1)))
         return sls
 
     def hud_right(self):
@@ -281,9 +280,8 @@ class EncounterAPI(BaseEncounterAPI):
                 sls.append(SpriteBox(Assets.get_sprite('ui', 'blank'), '', (0,0,0,0), (1,1,1,1)))
                 continue
             item = ITEMS[iid]
-            sprite = Assets.get_sprite('ability', item.name)
             s, color = item.gui_state(self.engine, uid)
-            sls.append(SpriteBox(sprite, s, modify_color(color, a=1), (1,1,1,1)))
+            sls.append(SpriteBox(item.sprite, s, modify_color(color, a=1), (1,1,1,1)))
         return sls
 
     def hud_middle_label(self):
@@ -378,11 +376,13 @@ class EncounterAPI(BaseEncounterAPI):
         ]
 
     def hud_drag_drop(self, hud, origin, target, button):
-        if self.selected_unit == 0 and button == 'middle':
+        if self.selected_unit == 0 and button == 'middle' and origin != target:
             if hud == 'left':
                 List.swap(self.units[0].abilities, origin, target)
+                Assets.play_sfx('ui', 'select')
             if hud == 'right':
                 List.swap(self.units[0].item_slots, origin, target)
+                Assets.play_sfx('ui', 'select')
 
     def hud_click(self, hud, index, button):
         if button == 'left':
@@ -391,9 +391,8 @@ class EncounterAPI(BaseEncounterAPI):
                 if aid is None:
                     return None
                 ability = self.abilities[aid]
-                # color = modify_color(ability.color, v=0.3, a=0.85)
                 stl = SpriteTitleLabel(
-                    Assets.get_sprite('ability', ability.name), ability.name,
+                    ability.sprite, ability.name,
                     ability.description(self.engine, self.selected_unit), None)
                 return stl
             elif hud == 'right':
@@ -401,7 +400,6 @@ class EncounterAPI(BaseEncounterAPI):
                 if iid is None:
                     return
                 item = ITEMS[iid]
-                # color = modify_color(item.color, v=0.3, a=0.85)
                 text = item.shop_text(self.engine, 0)
                 stl = SpriteTitleLabel(
                     Assets.get_sprite('ability', item.name), item.shop_name, text, None)
@@ -481,6 +479,8 @@ class EncounterAPI(BaseEncounterAPI):
                 label = f'Incoming blast damage amplified by {int(v)}%'
             if status is STAT.REFLECT:
                 label = f'Reflecting {int(v)}% of incoming blast damage as pure damage'
+            if status is STAT.SENSITIVITY:
+                label = f'Amplifying incoming and outgoing status effects by {int(v)}%'
         elif status == 'fountain':
             sprite = Assets.get_sprite('unit', 'fort')
             title = 'Fountain healing'
@@ -518,9 +518,10 @@ class EncounterAPI(BaseEncounterAPI):
         else:
             shop_name = 'Out of shop range'
             shop_color = (0.25,0.25,0.25,1)
+            map_hotkey = Settings.get_setting('toggle_map', 'Hotkeys')
             main_text = '\n'.join([
-                f'Shops:',
-                *(f'- {n.name.lower().capitalize()}' for n in ITEM_CATEGORIES),
+                f'Press {map_hotkey} to find a shop',
+                *(f'{_+1}. {n.name.lower().capitalize()} shop' for _, n in enumerate(ITEM_CATEGORIES)),
             ])
         return SpriteTitleLabel(
             Assets.get_sprite('unit', f'{shop_name}-shop'),
@@ -538,7 +539,7 @@ class EncounterAPI(BaseEncounterAPI):
             shop_color = (1,1,1) if (near_shop or already_owned) else item.color
             bg_color = modify_color(shop_color, v=SHOP_STATE_KEY[r])
             sts.append(SpriteBox(
-                Assets.get_sprite('ability', item.name),
+                item.sprite,
                 s, bg_color, None))
         return sts
 
@@ -546,17 +547,16 @@ class EncounterAPI(BaseEncounterAPI):
         if button == 'right':
             r = ITEMS[index].buy_item(self.engine, 0)
             if not isinstance(r, FAIL_RESULT):
-                Assets.play_sfx('ability', 'shop', volume='feedback')
+                Assets.play_sfx('ui', 'shop')
                 return
             if isinstance(r, FAIL_RESULT) and r in FAIL_SFX:
-                Assets.play_sfx('ui', FAIL_SFX[r], volume='feedback')
+                Assets.play_sfx('ui', FAIL_SFX[r])
         if button == 'left':
             item = ITEMS[index]
             return SpriteTitleLabel(
                 Assets.get_sprite('ability', item.name),
                 item.shop_name, item.shop_text(self.engine, 0),
-                None, # modify_color(item.color, a=0.9)
-            )
+                None)
 
     # Misc
     abilities = ABILITIES
@@ -685,7 +685,6 @@ class EncounterAPI(BaseEncounterAPI):
             unit.action_phase()
             self.always_visible[unit.uid] = unit.always_visible
             self.always_active[unit.uid] = unit.always_active
-        Assets.play_sfx('ui', 'play', volume=Settings.get_volume('feedback'))
 
     def leave(self):
         self.enc_over = True
@@ -713,10 +712,10 @@ class EncounterAPI(BaseEncounterAPI):
 
 
 FAIL_SFX = {
-    FAIL_RESULT.INACTIVE: 'pause',
+    FAIL_RESULT.INACTIVE: 'target',
     FAIL_RESULT.MISSING_TARGET: 'target',
     FAIL_RESULT.MISSING_COST: 'cost',
-    FAIL_RESULT.OUT_OF_BOUNDS: 'range',
+    FAIL_RESULT.OUT_OF_BOUNDS: 'target',
     FAIL_RESULT.OUT_OF_RANGE: 'range',
     FAIL_RESULT.OUT_OF_ORDER: 'target',
     FAIL_RESULT.ON_COOLDOWN: 'cooldown',

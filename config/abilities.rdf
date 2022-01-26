@@ -1,6 +1,5 @@
-=== Barter
-type: barter
-sfx: barter
+=== Loot
+type: loot
 show_stats: range, loot_multi
 draft_cost: 20
 -- stats
@@ -9,9 +8,11 @@ loot_multi: 1
 
 
 === Appraise
-type: barter
+type: loot
+sfx: loot
+sfx_grand: appraise
 show_stats: range, loot_multi, cooldown
-draft_cost: 20
+draft_cost: 30
 -- stats
 range: 300
 cooldown: 10000
@@ -66,7 +67,7 @@ type: attack
 color: cyan
 cooldown: base attack
 show_stats: damage, cooldown, range
-draft_cost: 100
+draft_cost: 90
 -- stats
 mana_cost: 0
 cooldown: water
@@ -84,12 +85,31 @@ color: cyan
 sfx: attack
 cooldown: base attack
 show_stats: damage, cooldown, range
-draft_cost: 105
+draft_cost: 90
 -- stats
 cooldown: water
 cooldown_reduc: 120
 cooldown_curve: 125
-range: 225
+range: 175
+damage: physical
+damage_base: 20
+damage_bonus: 1
+
+
+=== Monster shoot
+hidden
+type: attack
+color: cyan
+sfx: attack
+sprite: shoot
+cooldown: base attack
+show_stats: damage, cooldown, range
+draft_cost: 135
+-- stats
+cooldown: water
+cooldown_reduc: 120
+cooldown_curve: 125
+range: 250
 damage: physical
 damage_base: 20
 damage_bonus: 1
@@ -101,11 +121,13 @@ color: cyan
 sfx: attack
 cooldown: base attack
 show_stats: damage, cooldown, range
-draft_cost: 110
+draft_cost: 90
 -- stats
 cooldown: 120
-range: 300
-damage: physical
+range: air
+range_base: 30
+range_scale: 350
+range_curve: 80
 damage: physical
 damage_base: 20
 damage_bonus: 1
@@ -117,12 +139,27 @@ color: cyan
 sfx: attack
 cooldown: base attack
 show_stats: damage, cooldown, range
-draft_cost: 75
+draft_cost: 45
 -- stats
 mana_cost: 0
 cooldown: 200
 range: 15
 damage: 50
+
+
+=== Waterwhip
+type: passive_attack
+color: cyan
+sfx: attack
+show_stats: damage, cooldown, range
+draft_cost: 80
+-- stats
+mana_cost: 0
+cooldown: water
+cooldown_reduc: 200
+cooldown_curve: 35
+range: 30
+damage: 20
 
 
 === Tailwhip
@@ -136,7 +173,7 @@ mana_cost: 0
 cooldown: 250
 range: 30
 damage: earth
-damage_base: 10
+damage_base: 15
 damage_bonus: 1.25
 
 
@@ -146,7 +183,9 @@ color: green
 draft_cost: 65
 --- stats
 mana_cost: 30
-cooldown: 1200
+cooldown: water
+cooldown_reduc: 1200
+cooldown_curve: 50
 range: air
 range_base: 300
 range_bonus: 6
@@ -169,7 +208,31 @@ color: lime
 draft_cost: 25
 --- stats
 mana_cost: 10
-cooldown: 10000
+cooldown: water
+cooldown_reduc: 10000
+cooldown_curve: 50
+
+
+=== Hex
+type: buff
+color: yellow
+show_stats: mana_cost, cooldown, range, duration, stacks
+draft_cost: 25
+--- stats
+status: sensitivity
+target: other
+mana_cost: 20
+range: air
+range_base: 200
+range_bonus: 3
+cooldown: water
+cooldown_reduc: 1000
+cooldown_curve: 30
+duration: 1000
+stacks: earth
+stacks_base: 25
+stacks_bonus: 0.75
+
 
 
 === Dunder Beam
@@ -181,10 +244,10 @@ draft_cost: 20
 status: slow
 target: other
 mana_cost: 20
-cooldown: 600
-range: water
-range_base: 400
-range_bonus: 2
+cooldown: water
+cooldown_reduc: 600
+cooldown_curve: 75
+range: 500
 stacks: air
 stacks_base: 10
 stacks_bonus: 1
@@ -201,11 +264,30 @@ draft_cost: 30
 status: bounded
 target: other
 mana_cost: 35
-cooldown: 2000
+cooldown: water
+cooldown_reduc: 2000
+cooldown_curve: 60
 range: 600
-duration: water
+duration: air
 duration_base: 500
 duration_bonus: 8
+stacks: 1
+
+
+=== Net
+type: buff
+color: yellow
+draft_cost: 25
+show_stats: mana_cost, cooldown, range, duration
+--- stats
+status: bounded
+target: other
+mana_cost: 50
+cooldown: 1800
+range: 300
+duration: air
+duration_base: 200
+duration_bonus: 3
 stacks: 1
 
 
@@ -221,7 +303,7 @@ target: other
 mana_cost: 15
 cooldown: 1500
 range: 25
-duration: water
+duration: air
 duration_base: 200
 duration_bonus: 3
 stacks: 1
@@ -240,9 +322,9 @@ target: other
 mana_cost: 20
 cooldown: 2600
 range: 500
-stacks: air
+stacks: earth
 stacks_base: 20
-stacks_bonus: 0.1
+stacks_bonus: 1
 duration: 800
 
 
@@ -251,7 +333,7 @@ duration: 800
 type: buff
 color: yellow
 show_stats: mana_cost, cooldown, range, stacks, duration
-draft_cost: 50
+draft_cost: 45
 sfx: compliment
 -- stats
 status: vanity
@@ -261,9 +343,9 @@ cooldown: 100
 range: water
 range_base: 300
 range_bonus: 2
-stacks: air
+stacks: earth
 stacks_base: 20
-stacks_bonus: 0.1
+stacks_bonus: 1
 duration: 600
 
 
@@ -272,7 +354,7 @@ duration: 600
 type: buff
 color: yellow
 show_stats: mana_cost, cooldown, duration, stacks
-draft_cost: 50
+draft_cost: 40
 --- stats
 status: cuts
 target: other
@@ -280,9 +362,28 @@ mana_cost: 35
 range: 200
 cooldown: 500
 duration: 250
-stacks: air
+stacks: fire
 stacks_base: 10
 stacks_bonus: 0.75
+
+
+=== Meditate
+type: buff
+color: blue
+show_stats: mana_cost, cooldown, duration, stacks
+draft_cost: 25
+--- stats
+status: sensitivity
+target: self
+mana_cost: 40
+cooldown: 10000
+duration: water
+duration_base: 6000
+duration_scale: 10000
+duration_curve: 100
+stacks: earth
+stacks_base: 25
+stacks_bonus: 0.25
 
 
 
@@ -299,7 +400,10 @@ cooldown: 5000
 duration: water
 duration_base: 1500
 duration_bonus: 15
-stacks: 30
+stacks: earth
+stacks_base: 30
+stacks_scale: 25
+stacks_curve: 100
 
 
 
@@ -313,7 +417,10 @@ status: armor
 target: self
 mana_cost: 40
 cooldown: 2500
-duration: 1500
+duration: water
+duration_base: 1500
+duration_scale: 1500
+duration_curve: 100
 stacks: earth
 stacks_base: 10
 stacks_bonus: 1
@@ -329,10 +436,33 @@ status: reflect
 target: self
 mana_cost: 40
 cooldown: 2500
-duration: 1500
+duration: water
+duration_base: 1500
+duration_scale: 1500
+duration_curve: 100
 stacks: earth
 stacks_base: 25
 stacks_bonus: 0.5
+
+
+=== Carapace
+type: buff
+color: blue
+show_stats: mana_cost, cooldown, duration, stacks
+draft_cost: 50
+--- stats
+status: spikes
+target: self
+mana_cost: 40
+cooldown: 2500
+duration: water
+duration_base: 1500
+duration_scale: 1500
+duration_curve: 100
+stacks: earth
+stacks_base: 25
+stacks_bonus: 1.25
+
 
 
 === Fireblast
@@ -432,7 +562,10 @@ target: enemies
 destat: hp
 degen: fire
 degen_bonus: 0.01
-radius: 350
+radius: earth
+radius_base: 100
+radius_scale: 350
+radius_curve: 80
 
 === Lich Fog
 hidden
@@ -443,13 +576,14 @@ show_stats: degen, radius
 target: enemies
 destat: hp
 degen: fire
-degen_bonus: 0.005
+degen_bonus: 0.01
 radius: 500
 
 
 
 === Deadlifting 1
 type: passive_buff
+sprite: deadlifting
 draft_cost: 30
 show_stats: scaling
 -- stats
@@ -457,6 +591,7 @@ stat: physical
 scaling: 1
 === Deadlifting 2
 type: passive_buff
+sprite: deadlifting
 draft_cost: 65
 show_stats: scaling
 -- stats
@@ -464,6 +599,7 @@ stat: physical
 scaling: 2
 === Deadlifting 3
 type: passive_buff
+sprite: deadlifting
 draft_cost: 100
 show_stats: scaling
 -- stats
@@ -472,6 +608,7 @@ scaling: 3
 
 === Dragon Teeth 1
 type: passive_buff
+sprite: dragon teeth
 draft_cost: 30
 show_stats: scaling
 -- stats
@@ -479,6 +616,7 @@ stat: fire
 scaling: 1
 === Dragon Teeth 2
 type: passive_buff
+sprite: dragon teeth
 draft_cost: 65
 show_stats: scaling
 -- stats
@@ -486,6 +624,7 @@ stat: fire
 scaling: 2
 === Dragon Teeth 3
 type: passive_buff
+sprite: dragon teeth
 draft_cost: 100
 show_stats: scaling
 -- stats
@@ -494,6 +633,7 @@ scaling: 3
 
 === Geocrust 1
 type: passive_buff
+sprite: geocrust
 draft_cost: 30
 show_stats: scaling
 -- stats
@@ -501,6 +641,7 @@ stat: earth
 scaling: 1
 === Geocrust 2
 type: passive_buff
+sprite: geocrust
 draft_cost: 65
 show_stats: scaling
 -- stats
@@ -508,6 +649,7 @@ stat: earth
 scaling: 2
 === Geocrust 3
 type: passive_buff
+sprite: geocrust
 draft_cost: 100
 show_stats: scaling
 -- stats
@@ -516,6 +658,7 @@ scaling: 3
 
 === Aerodynamics 1
 type: passive_buff
+sprite: aerodynamics
 draft_cost: 30
 show_stats: scaling
 -- stats
@@ -523,6 +666,7 @@ stat: air
 scaling: 1
 === Aerodynamics 2
 type: passive_buff
+sprite: aerodynamics
 draft_cost: 65
 show_stats: scaling
 -- stats
@@ -530,6 +674,7 @@ stat: air
 scaling: 2
 === Aerodynamics 3
 type: passive_buff
+sprite: aerodynamics
 draft_cost: 100
 show_stats: scaling
 -- stats
@@ -538,6 +683,7 @@ scaling: 3
 
 === Aquaduct 1
 type: passive_buff
+sprite: aquaduct
 draft_cost: 30
 show_stats: scaling
 -- stats
@@ -545,6 +691,7 @@ stat: water
 scaling: 1
 === Aquaduct 2
 type: passive_buff
+sprite: aquaduct
 draft_cost: 65
 show_stats: scaling
 -- stats
@@ -552,6 +699,7 @@ stat: water
 scaling: 2
 === Aquaduct 3
 type: passive_buff
+sprite: aquaduct
 draft_cost: 100
 show_stats: scaling
 -- stats
@@ -611,26 +759,9 @@ duration: water
 duration_base: 1500
 duration_bonus: 15
 stacks: earth
-stacks_base: 35
+stacks_base: 10
 stacks_bonus: 0.25
 
-
-
-=== Net
-hidden
-type: buff
-color: purple
-show_stats: mana_cost, cooldown, range, duration
---- stats
-status: bounded
-target: other
-mana_cost: 50
-cooldown: 1800
-range: air
-range_base: 200
-range_bonus: 3
-duration: 200
-stacks: 1
 
 
 === Iron Boots
@@ -671,7 +802,7 @@ mana_cost: 10
 cooldown: 400
 range: 100
 duration: 400
-stacks: air
+stacks: fire
 stacks_base: 20
 stacks_bonus: 0.5
 
@@ -692,6 +823,21 @@ stacks: earth
 stacks_base: 20
 stacks_bonus: 2.5
 
+
+=== Book of Death
+hidden
+type: regen aura
+color: brown
+show_stats: degen, radius
+-- stats
+target: enemies
+destat: hp
+degen: fire
+degen_base: 0.5
+degen_bonus: 0.01
+radius: 350
+
+
 === Ninja Star
 hidden
 type: buff
@@ -705,7 +851,7 @@ mana_cost: 80
 cooldown: 800
 range: 300
 duration: 100
-stacks: air
+stacks: fire
 stacks_base: 0
 stacks_bonus: 3
 

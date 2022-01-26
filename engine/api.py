@@ -183,9 +183,9 @@ class EncounterAPI:
         logger.debug(f'Logic toggled play')
         if play_sfx and changed:
             if self.engine.auto_tick is True:
-                Assets.play_sfx('ui', 'play', volume=Settings.get_volume('ui'))
+                Assets.play_sfx('ui', 'play')
             else:
-                Assets.play_sfx('ui', 'pause', volume=Settings.get_volume('ui'))
+                Assets.play_sfx('ui', 'pause')
 
     def user_click(self, target, button):
         if button == 'right':
@@ -205,8 +205,7 @@ class EncounterAPI:
         hb = self.engine.get_stats(uid, STAT.HITBOX)
         if dist < max(50, hb) and self.sprite_visible_mask()[uid]:
             self.select_unit(uid)
-            Assets.play_sfx('ui', 'select',
-                volume=Settings.get_volume('feedback'))
+            Assets.play_sfx('ui', 'select', volume=Settings.get_volume('feedback'))
         else:
             self.select_unit(0)
             uid, hb = 0, self.engine.get_stats(0, STAT.HITBOX)
@@ -340,7 +339,7 @@ class EncounterAPI:
 
     def browse_click(self, index, button):
         logger.warning(f'{self.__class__}.browse_click() not implemented.')
-        Assets.play_sfx('ui', 'target', volume=Settings.get_volume('ui'))
+        Assets.play_sfx('ui', 'target')
         return SpriteTitleLabel(str(Assets.FALLBACK_SPRITE), 'Browse', f'{self.__class__}.browse_click() not implemented.', (0,0,0,1))
 
     def debug_panel_labels(self):

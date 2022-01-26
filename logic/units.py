@@ -61,7 +61,7 @@ class Unit(BaseUnit):
 
             if not self.is_alive:
                 logger.warning(f'Unit {self.uid} is dead and requested item {iid.name}')
-                return FAIL_RESULT.INACTIVE
+                return FAIL_RESULT.MISSING_TARGET
 
             target = np.array(target)
             if (target > self.api.map_size).any() or (target < 0).any():
@@ -82,7 +82,7 @@ class Unit(BaseUnit):
 
             if not self.is_alive:
                 logger.warning(f'Unit {self.uid} is dead and requested ability {aid.name}')
-                return FAIL_RESULT.INACTIVE
+                return FAIL_RESULT.MISSING_TARGET
 
             target = np.array(target)
             if (target > self.api.map_size).any() or (target < 0).any():
@@ -173,8 +173,6 @@ class Player(Unit):
         self._respawn_timer_scaling = 100
         self._max_hp_delta = float(self.p['max_hp_delta']) * self._max_hp_delta_interval if 'max_hp_delta' in self.p else 0
         self._next_max_hp_delta = self._max_hp_delta_interval
-        # self.engine.set_status(self.uid, STATUS.RESPAWN, 100, 1)
-        # self.engine.set_stats(self.uid, STAT.HP, 0)
         Assets.play_sfx('ability', 'player-respawn', volume=Settings.get_volume('feedback'))
 
     def passive_phase(self, *a, **k):
@@ -220,7 +218,7 @@ class Creep(Unit):
             self.scale_power()
         self.first_wave = False
         self.use_ability(ABILITY.WALK, self.target)
-        Assets.play_sfx('ability', 'wave-respawn', volume=Settings.get_volume('sfx'), replay=False)
+        Assets.play_sfx('ability', 'wave-respawn', volume=Settings.get_volume('feedback'), replay=False)
 
     def scale_power(self):
         currents = [STAT.PHYSICAL, STAT.FIRE, STAT.EARTH, STAT.WATER, STAT.GOLD]
@@ -295,7 +293,7 @@ class Boss(Camper):
 class Treasure(Unit):
     say = 'Breach me if you can'
     def _setup(self):
-        self._respawn_timer = 1_000_000
+        self._respawn_timer = 30000
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
 
 

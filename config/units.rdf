@@ -67,8 +67,8 @@ reaggro_range: 400
 camp_spread: 200
 -- stats
 hitbox: 40
-gold: 8
-hp.max: 40
+gold: 20
+hp.max: 45
 hp.delta: 0.0001
 physical: 10
 air: 15
@@ -83,27 +83,27 @@ reaggro_range: 500
 camp_spread: 200
 -- stats
 hitbox: 50
-gold: 7
+gold: 18
 hp.max: 35
 hp.delta: 0.0001
 mana.delta: 0.01
-physical: 25
+physical: 15
 air: 5
 
 ====== Glob
 type: camper
-abilities: walk, attack, dunder beam
+abilities: walk, attack, dunder beam, compliment
 aggro_range: 400
 deaggro_range: 700
 reaggro_range: 500
 camp_spread: 200
 -- stats
 hitbox: 60
-gold: 8
+gold: 20
 hp.max: 65
 hp.delta: 0.0001
 mana.delta: 0.01
-physical: 15
+physical: 5
 air: 25
 
 ====== Jackal
@@ -115,13 +115,30 @@ reaggro_range: 150
 camp_spread: 250
 --- stats
 hitbox: 50
-gold: 4
-hp.max: 30
+gold: 16
+hp.max: 40
 hp.delta: 0.001
 mana.max: 40
 mana.delta: 0.001
-physical: 8
+physical: 5
 air: 55
+
+====== Slank
+type: camper
+abilities: walk, attack, hex
+aggro_range: 400
+deaggro_range: 500
+reaggro_range: 150
+camp_spread: 250
+--- stats
+hitbox: 50
+gold: 14
+hp.max: 35
+hp.delta: 0.001
+mana.max: 40
+mana.delta: 0.001
+physical: 5
+air: 35
 
 ====== Ratzan
 type: camper
@@ -132,12 +149,12 @@ reaggro_range: 150
 camp_spread: 250
 --- stats
 hitbox: 50
-gold: 4
-hp.max: 30
+gold: 14
+hp.max: 35
 hp.delta: 0.001
 mana.max: 40
 mana.delta: 0.001
-physical: 4
+physical: 5
 air: 35
 
 ====== Blood Imp
@@ -149,12 +166,12 @@ reaggro_range: 100
 camp_spread: 300
 --- stats
 hitbox: 60
-gold: 6
-hp.max: 40
+gold: 24
+hp.max: 25
 hp.delta: 0.005
 mana.max: 40
-mana.delta: 0.005
-fire: 10
+mana.delta: 0.015
+fire: 20
 air: 20
 
 
@@ -171,13 +188,13 @@ reaggro_range: 600
 camp_spread: 300
 --- stats
 hitbox: 80
-gold: 35
-hp.max: 280
+gold: 70
+hp.max: 95
 hp.delta: 0.005
 mana.max: 100
-mana.delta: 0.001
-fire: 30
-air: 25
+mana.delta: 0.01
+fire: 40
+air: 30
 
 ====== Infester
 type: camper
@@ -188,8 +205,8 @@ reaggro_range: 600
 camp_spread: 300
 --- stats
 hitbox: 80
-gold: 35
-hp.max: 175
+gold: 70
+hp.max: 130
 hp.delta: 0.005
 mana.max: 40
 mana.delta: 0.005
@@ -205,11 +222,31 @@ reaggro_range: 600
 camp_spread: 350
 --- stats
 hitbox: 80
-gold: 35
-hp.max: 220
+gold: 70
+hp.max: 150
 hp.delta: 0.005
 physical: 35
 air: 30
+
+
+====== Gnome
+type: camper
+abilities: walk, lich fog
+aggro_range: 0
+deaggro_range: 0
+reaggro_range: 0
+camp_spread: 50
+--- stats
+hitbox: 120
+gold: 65
+hp.max: 170
+hp.delta: 0.005
+mana.max: 100
+mana.delta: 0.05
+fire: 35
+air: 2
+reflect: 30
+
 
 ====== Shako
 type: camper
@@ -219,8 +256,8 @@ reaggro_range: 600
 camp_spread: 100
 --- stats
 hitbox: 100
-gold: 40
-hp.max: 460
+gold: 80
+hp.max: 210
 hp.delta: 0.05
 spikes: 35
 vanity: 50
@@ -236,8 +273,8 @@ reaggro_range: 600
 camp_spread: 100
 --- stats
 hitbox: 100
-gold: 50
-hp.max: 460
+gold: 100
+hp.max: 170
 hp.delta: 0.05
 fire: 15
 physical: 20
@@ -258,13 +295,31 @@ reaggro_range: 600
 camp_spread: 250
 --- stats
 hitbox: 120
-gold: 120
-hp.max: 475
+gold: 180
+hp.max: 240
 hp.delta: 0.05
 mana.max: 120
-mana.delta: 0.3
+mana.delta: 0.6
 fire: 50
 air: 45
+
+====== Boo
+type: camper
+abilities: run, blink, hex, grab, compliment, slash, dunder beam
+aggro_range: 600
+deaggro_range: 800
+reaggro_range: 200
+camp_spread: 500
+--- stats
+hitbox: 85
+gold: 200
+hp.max: 350
+hp.delta: 0.001
+mana.max: 80
+mana.delta: 0.5
+fire: 50
+earth: 50
+air: 50
 
 ====== Harpy
 type: camper
@@ -275,12 +330,12 @@ reaggro_range: 600
 camp_spread: 250
 --- stats
 hitbox: 110
-gold: 120
-hp.max: 600
+gold: 200
+hp.max: 250
 hp.delta: 0.05
 mana.max: 40
 mana.delta: 0.02
-physical: 45
+physical: 85
 air: 80
 
 ====== Zombie
@@ -291,11 +346,28 @@ reaggro_range: 600
 camp_spread: 250
 --- stats
 hitbox: 120
-gold: 130
-hp.max: 650
+gold: 160
+hp.max: 280
 hp.delta: 0.05
-physical: 75
+physical: 135
 air: 8
+
+====== Repteye
+type: camper
+abilities: walk, monster shoot
+aggro_range: 700
+deaggro_range: 800
+reaggro_range: 450
+camp_spread: 50
+--- stats
+hitbox: 120
+gold: 220
+hp.max: 280
+hp.delta: 0.005
+physical: 80
+water: 80
+reflect: 30
+air: 5
 
 ====== Spiker
 type: camper
@@ -305,10 +377,10 @@ reaggro_range: 450
 camp_spread: 50
 --- stats
 hitbox: 120
-gold: 150
-hp.max: 750
+gold: 220
+hp.max: 320
 hp.delta: 0.005
-physical: 75
+physical: 80
 air: 20
 spikes: 50
 
@@ -316,6 +388,24 @@ spikes: 50
 
 
 ------------------------------------- Tier 4
+
+====== Golden Dragon
+type: camper
+abilities: walk, shoot
+aggro_range: 700
+deaggro_range: 1200
+reaggro_range: 900
+camp_spread: 500
+--- stats
+hitbox: 130
+gold: 400
+hp.max: 600
+hp.delta: 0.005
+mana.max: 100
+mana.delta: 0.05
+physical: 130
+water: 100
+air: 100
 
 ====== Fire Elemental
 type: camper
@@ -326,8 +416,8 @@ reaggro_range: 450
 camp_spread: 350
 --- stats
 hitbox: 160
-gold: 500
-hp.max: 600
+gold: 440
+hp.max: 480
 hp.delta: 0.005
 mana.max: 250
 mana.delta: 0.15
@@ -344,8 +434,8 @@ reaggro_range: 900
 camp_spread: 500
 --- stats
 hitbox: 170
-gold: 500
-hp.max: 1000
+gold: 400
+hp.max: 600
 hp.delta: 0.005
 mana.max: 100
 mana.delta: 0.05
@@ -361,12 +451,12 @@ reaggro_range: 0
 camp_spread: 50
 --- stats
 hitbox: 120
-gold: 400
-hp.max: 1200
+gold: 340
+hp.max: 800
 hp.delta: 0.005
 mana.max: 100
 mana.delta: 0.05
-fire: 200
+fire: 100
 air: 2
 reflect: 30
 
@@ -377,6 +467,7 @@ reflect: 30
 
 ====== Barkshroom
 type: boss
+abilities: jog, snipe, dunder beam
 aggro_range: 800
 deaggro_range: 1000
 reaggro_range: 500
@@ -385,12 +476,13 @@ always_visible
 --- stats
 allegiance: 1000
 hitbox: 200
-gold: 500
-hp.max: 5000
+gold: 5000
+hp.max: 3500
 hp.delta: 0.5
+mana.max: 40
+mana.delta: 0.01
 physical: 175
-air: 15
-armor: 15
+air: 150
 
 ====== Robot
 type: boss
@@ -402,8 +494,8 @@ always_visible
 --- stats
 allegiance: 1000
 hitbox: 200
-gold: 500
-hp.max: 2500
+gold: 5000
+hp.max: 2250
 hp.delta: 0.25
 physical: 500
 air: 35
@@ -419,12 +511,13 @@ always_visible
 --- stats
 allegiance: 1000
 hitbox: 220
-gold: 500
-hp.max: 4000
+gold: 5000
+hp.max: 3000
 hp.delta: 0.4
-physical: 250
+physical: 150
+water: 150
 air: 50
-reflect: 15
+reflect: 10
 
 
 
@@ -505,16 +598,18 @@ gold: 10000
 
 === Hero Treasure
 type: treasure
+always_visible
 --- stats
 hp.max: 750
 hp.delta: 0.5
-gold: 1000
+gold: 500
 spikes: 20
 armor: 20
 reflect: 20
 === Lost Treasure
 type: treasure
+always_visible
 --- stats
 hp.max: 750
 hp.delta: 1
-gold: 500
+gold: 300

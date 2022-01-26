@@ -15,7 +15,7 @@ class Settings:
                 'default_window': 'fullscreen',
                 'full_resolution': '1920, 1080',
                 'window_resolution': '1024, 768',
-                'default_zoom': 1000,
+                'default_zoom': 40,
             }
         },
         'UI': {
@@ -26,7 +26,7 @@ class Settings:
         },
         'Audio': {
             0: {
-                'volume_master': 0.3,
+                'volume_master': 0.1,
                 'volume_sfx': 1,
                 'volume_ui': 0.5,
                 'volume_feedback': 0.5,
@@ -48,6 +48,7 @@ class Settings:
                 'abilities': 'qwerasdf',
                 'items': '1234zxcv',
                 'enable_hold_mouse': 1,
+                'enable_hold_key': 1,
                 'reset_view': 'home',
                 'zoom_in': '=',
                 'zoom_out': '-',

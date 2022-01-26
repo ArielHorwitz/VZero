@@ -32,11 +32,11 @@ water: 5
 mana.delta: 0.02
 
 
-=== Net
+=== Scroll
 category: basic
 cost: 50
 --- stats
-air: 3
+air: 5
 === Shard
 category: basic
 cost: 100
@@ -47,8 +47,8 @@ hp.delta: 0.01
 category: basic
 cost: 100
 --- stats
-armor: 10
-spikes: 15
+armor: 8
+spikes: 12
 === Feather
 category: basic
 cost: 100
@@ -91,6 +91,12 @@ cost: 200
 --- stats
 water: 15
 
+=== Iron Boots
+category: basic
+cost: 250
+--- stats
+earth: 8
+armor: 15
 === Sophist Hat
 category: basic
 cost: 300
@@ -98,31 +104,26 @@ cost: 300
 hp.max: 50
 mana.delta: 0.08
 fire: 7
-=== Iron Boots
-category: basic
-cost: 300
---- stats
-earth: 8
-armor: 15
 === Necklace
 category: basic
 cost: 400
 --- stats
-hp.delta: 0.04
+hp.delta: 0.05
+mana.delta: 0.06
 physical: 5
 === Gloves
 category: basic
 cost: 400
 --- stats
-armor: 10
-reflect: 10
-lifesteal: 5
-spikes: 10
+armor: 15
+reflect: 30
+spikes: 20
 === Silk Vest
 category: basic
 cost: 500
 --- stats
 vanity: 15
+mana.max: 50
 
 
 
@@ -171,13 +172,13 @@ water: 10
 category: basic
 cost: 1200
 --- stats
-lifesteal: 30
+lifesteal: 15
 === Plated Armor
 category: basic
 cost: 1600
 --- stats
-armor: 35
-spikes: 45
+armor: 30
+spikes: 35
 === Cold Staff
 category: basic
 cost: 2000
@@ -193,31 +194,31 @@ mana.delta: 0.15
 ---------------- TIER 4
 === Art of War
 category: basic
-cost: 2400
+cost: 1800
 --- stats
-physical: 55
+physical: 40
 === Principia Mathematica
 category: basic
-cost: 2400
+cost: 1800
 --- stats
-fire: 75
-cuts: 25
+fire: 55
+cuts: 20
 === On the Origin of Species
 category: basic
-cost: 2400
+cost: 1800
 --- stats
-earth: 70
+earth: 50
 slow: 20
 === Zur Elektrodynamik
 category: basic
-cost: 2400
+cost: 1800
 --- stats
-air: 60
+air: 45
 === On Computable Numbers
 category: basic
-cost: 2400
+cost: 1800
 --- stats
-water: 60
+water: 45
 
 === Amulet
 category: basic
@@ -245,79 +246,73 @@ hp.delta: 0.15
 category: basic
 cost: 3200
 --- stats
-reflect: 500
-hp.delta: -0.2
-
-
 
 
 
 
 ---------------- HERBAL
-=== Leaf
-category: herbal
-cost: 2000
---- stats
-physical: 30
-earth: 30
-=== Lemon
-category: herbal
-cost: 2000
---- stats
-fire: 30
-water: 30
-=== Seed
-category: herbal
-cost: 2000
---- stats
-earth: 30
-air: 30
-=== Pear
-category: herbal
-cost: 2000
---- stats
-air: 30
-fire: 30
 === Banana
 category: herbal
-cost: 2000
---- stats
-water: 30
-physical: 30
-
-
-
-=== Wand
-category: basic
-cost: 3400
---- stats
-hp.max: 150
-mana.max: 300
-mana.delta: 0.2
-=== Green Egg
-category: basic
-cost: 3600
---- stats
-hp.max: 450
-armor: 20
-reflect: 40
-=== Spear
-category: basic
-cost: 3900
+cost: 2400
+ability: attack
 --- stats
 physical: 40
-lifesteal: 25
-=== Ice Blade
-category: basic
-cost: 4300
+=== Lemon
+category: herbal
+cost: 2400
+ability: vortex
 --- stats
-water: 40
-reflect: 120
-=== Ninja Star
-category: basic
-cost: 4750
+fire: 55
+hp.max: -20
+=== Seed
+category: herbal
+cost: 2400
+ability: carapace
 --- stats
-air: 40
+earth: 50
+=== Leaf
+category: herbal
+cost: 2400
+ability: dunder beam
+--- stats
+air: 45
+=== Pear
+category: herbal
+cost: 2400
+ability: waterwhip
+--- stats
+water: 45
+
+
+
+=== Fizzy Solution
+category: herbal
+cost: 2500
+--- stats
+lifesteal: 22
+=== Viscous Tar
+category: herbal
+cost: 2500
+--- stats
+spikes: 80
+=== Acid Punch
+category: herbal
+cost: 2500
+--- stats
+armor: 50
+=== Bottled Breeze
+category: herbal
+cost: 2500
+--- stats
+reflect: 100
+=== Distilled Essense
+category: herbal
+cost: 2500
+--- stats
+sensitivity: 200
+
+
+
 
 
 
@@ -351,33 +346,37 @@ cost: 5200
 water: 100
 
 
-
-
-
----------------- POTION
-=== Fizzy Solution
-category: potion
-cost: 0
+=== Wand
+category: ornament
+cost: 3400
 --- stats
-=== Viscous Tar
-category: potion
-cost: 0
+hp.max: 150
+mana.max: 300
+mana.delta: 0.2
+=== Green Egg
+category: ornament
+cost: 3600
 --- stats
-=== Acid Punch
-category: potion
-cost: 0
+hp.max: 450
+armor: 20
+reflect: 40
+=== Spear
+category: ornament
+cost: 3900
 --- stats
-=== Bottled Breeze
-category: potion
-cost: 0
+physical: 40
+lifesteal: 15
+=== Ice Blade
+category: ornament
+cost: 4300
 --- stats
-=== Distilled Essense
-category: potion
-cost: 0
+water: 40
+reflect: 120
+=== Ninja Star
+category: ornament
+cost: 4750
 --- stats
-
-
-
+fire: 20
 
 
 

@@ -21,14 +21,15 @@ STATS = [
     'AIR',
     'WATER',
     # Mechanics
-    'SLOW',
     'BOUNDED',
+    'SLOW',
     'CUTS',
-    'VANITY',
     'ARMOR',
-    'REFLECT',
     'SPIKES',
     'LIFESTEAL',
+    'VANITY',
+    'REFLECT',
+    'SENSITIVITY',
 ]
 
 STATUSES = [
@@ -38,14 +39,15 @@ STATUSES = [
     'SHOP',
     'MAP_EDITOR',
     # Mechanics
-    'ARMOR',
-    'LIFESTEAL',
-    'SPIKES',
-    'VANITY',
-    'SLOW',
-    'REFLECT',
-    'CUTS',
     'BOUNDED',
+    'SLOW',
+    'CUTS',
+    'ARMOR',
+    'SPIKES',
+    'LIFESTEAL',
+    'VANITY',
+    'REFLECT',
+    'SENSITIVITY',
 ]
 
 ABILITIES = [*RDF(RDF.CONFIG_DIR / 'abilities.rdf').keys()]

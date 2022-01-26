@@ -104,7 +104,7 @@ class PassiveAttack(BaseAbility):
         return self.aid
 
 
-class Barter(BaseAbility):
+class Loot(BaseAbility):
     info = 'Loot the dead.'
     lore = 'Hello there, corpse. I see your negotiation capabilities have diminished drastically.'
     defaults = {
@@ -123,13 +123,15 @@ class Barter(BaseAbility):
         if not isinstance(loot_result, FAIL_RESULT):
             looted_gold = loot_result
             # check cooldown and mana for bonus gold
+            grand_sfx = False
             if self.check_many(api, uid, target) is True:
                 self.cost_many(api, uid)
                 looted_gold *= self.p.get_loot_multi(api, uid)
+                grand_sfx = True
 
             # gold income effect
             api.set_stats(uid, STAT.GOLD, looted_gold, additive=True)
-            self.play_sfx()
+            self.play_sfx(grand=grand_sfx)
             api.add_visual_effect(VisualEffect.SPRITE, 50, params={
                 'source': 'coin',
                 'point': api.get_position(loot_target),
@@ -166,7 +168,7 @@ class Buff(BaseAbility):
         # status effect
         duration = self.p.get_duration(api, uid)
         stacks = self.p.get_stacks(api, uid)
-        Mechanics.apply_debuff(api, target_uid, self.__status, duration, stacks)
+        Mechanics.apply_debuff(api, target_uid, self.__status, duration, stacks, caster=uid)
 
         # vfx
         if self.p.target == 'other':
@@ -423,7 +425,7 @@ class MapEditorDroplet(BaseAbility):
 
 ABILITY_CLASSES = {
     'move': Move,
-    'barter': Barter,
+    'loot': Loot,
     'attack': Attack,
     'passive_attack': PassiveAttack,
     'buff': Buff,
