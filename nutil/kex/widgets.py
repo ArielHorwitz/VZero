@@ -57,7 +57,7 @@ from kivy.core.audio import SoundLoader as kvSoundLoader
 from kivy.core.audio import Sound as kvSound
 
 import nutil
-from nutil import display as ndis
+from nutil.time import ping, pong
 from nutil import kex
 from nutil.kex import KexWidget
 
@@ -254,6 +254,8 @@ class InputManager(Widget):
         self.__recording_release = None
         self.__recording_press = None
         self.block_repeat = True
+        self.repeat_cooldown = 25
+        self.__last_key_down_ping = ping() - self.repeat_cooldown
         self.keyboard = kvWindow.request_keyboard(lambda: None, self)
         self.activate()
         if defaults is True:
@@ -297,8 +299,12 @@ class InputManager(Widget):
 
     def _on_key_down(self, keyboard, key, key_hex, modifiers):
         key_code, key_name = key
-        if key_code == self.__last_key_code and self.block_repeat:
-            return
+        if key_code == self.__last_key_code:
+            if self.block_repeat:
+                return
+            if pong(self.__last_key_down_ping) < self.repeat_cooldown:
+                return
+        self.__last_key_down_ping = ping()
         self.__last_key_code = key_code
         self.__last_keys_down = self._convert_keys(modifiers, key_name)
         if self.__recording_press:

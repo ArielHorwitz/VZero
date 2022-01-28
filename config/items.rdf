@@ -43,6 +43,7 @@ cost: 100
 --- stats
 hp.max: 50
 hp.delta: 0.01
+hitbox: 5
 === Crown
 category: basic
 cost: 100
@@ -104,6 +105,7 @@ cost: 300
 hp.max: 50
 mana.delta: 0.08
 fire: 7
+hitbox: 5
 === Necklace
 category: basic
 cost: 400
@@ -162,6 +164,7 @@ cost: 800
 hp.max: 125
 reflect: 50
 armor: 15
+hitbox: 10
 === Broadsword
 category: basic
 cost: 900
@@ -208,7 +211,7 @@ category: basic
 cost: 1800
 --- stats
 earth: 50
-slow: 20
+slow: 15
 === Zur Elektrodynamik
 category: basic
 cost: 1800
@@ -242,6 +245,7 @@ cost: 3000
 --- stats
 hp.max: 400
 hp.delta: 0.15
+hitbox: 15
 === Book of Death
 category: basic
 cost: 3200
@@ -270,6 +274,7 @@ cost: 2400
 ability: carapace
 --- stats
 earth: 50
+slow: 15
 === Leaf
 category: herbal
 cost: 2400
@@ -304,12 +309,12 @@ armor: 50
 category: herbal
 cost: 2500
 --- stats
-reflect: 100
+reflect: 150
 === Distilled Essense
 category: herbal
 cost: 2500
 --- stats
-sensitivity: 200
+sensitivity: 50
 
 
 
@@ -333,7 +338,7 @@ category: ornament
 cost: 5200
 --- stats
 earth: 125
-slow: 40
+slow: 30
 === Wings
 category: ornament
 cost: 5200
@@ -353,6 +358,7 @@ cost: 3400
 hp.max: 150
 mana.max: 300
 mana.delta: 0.2
+hitbox: 10
 === Green Egg
 category: ornament
 cost: 3600
@@ -360,6 +366,7 @@ cost: 3600
 hp.max: 450
 armor: 20
 reflect: 40
+hitbox: 20
 === Spear
 category: ornament
 cost: 3900

@@ -205,7 +205,7 @@ class EncounterAPI:
         hb = self.engine.get_stats(uid, STAT.HITBOX)
         if dist < max(50, hb) and self.sprite_visible_mask()[uid]:
             self.select_unit(uid)
-            Assets.play_sfx('ui', 'select', volume=Settings.get_volume('feedback'))
+            Assets.play_sfx('ui', 'select')
         else:
             self.select_unit(0)
             uid, hb = 0, self.engine.get_stats(0, STAT.HITBOX)

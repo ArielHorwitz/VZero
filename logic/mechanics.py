@@ -73,13 +73,17 @@ class Mechanics:
             return
         else:
             logger.debug(f'Applied status {status.name} {duration} × {stacks} to {targets.sum()} targets')
-        if status is not STATUS.SHOP:
+        if status not in {STATUS.SHOP, STATUS.SENSITIVITY}:
             sensitivity = cls.get_status(api, targets, STAT.SENSITIVITY)
             if caster is not None:
                 sensitivity += cls.get_status(api, caster, STAT.SENSITIVITY)
-            stacks *= 1 + (sensitivity / 100)
+            sensitivity = cls.scaling(sensitivity, 100, ascending=True)
+            if status is STATUS.BOUNDED:
+                duration *= 1 + sensitivity
+            else:
+                stacks *= 1 + sensitivity
         api.set_status(targets, status, duration, stacks)
-        if status in [STATUS.SLOW, STATUS.BOUNDED]:
+        if status in {STATUS.SLOW, STATUS.BOUNDED}:
             cls.apply_move(api, targets)
 
     @classmethod
@@ -166,11 +170,13 @@ class Mechanics:
 
     @staticmethod
     def rp2reduction(rp):
-        return ((rp + 50) ** -1) * 50
+        return 50 / (50 + rp)
 
     @staticmethod
-    def scaling(sp, curve):
-        return curve / (curve + sp)
+    def scaling(sp, curve=50, ascending=False):
+        if not ascending:
+            return curve / (curve + sp)
+        return 1 - (curve / (curve + sp))
 
     @classmethod
     def get_status(cls, api, uid, stat):

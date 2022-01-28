@@ -4,7 +4,7 @@ show_stats: range, loot_multi
 draft_cost: 20
 -- stats
 range: 300
-loot_multi: 1
+loot_multi: 1.2
 
 
 === Appraise
@@ -18,8 +18,8 @@ range: 300
 cooldown: 10000
 loot_multi: water
 loot_multi_base: 0.75
-loot_multi_scale: 5
-loot_multi_curve: 50
+loot_multi_scale: 3
+loot_multi_curve: 100
 
 
 === Walk
@@ -53,11 +53,10 @@ show_stats: speed, cooldown, range
 draft_cost: 25
 -- stats
 range: 2000
-cooldown: 2200
-speed: earth
-speed_base: 400
-speed_scale: 800
-speed_curve: 50
+speed: 800
+cooldown: earth
+cooldown_reduc: 2200
+cooldown_curve: 150
 
 
 
@@ -108,7 +107,7 @@ draft_cost: 135
 -- stats
 cooldown: water
 cooldown_reduc: 120
-cooldown_curve: 125
+cooldown_curve: 50
 range: 250
 damage: physical
 damage_base: 20
@@ -125,7 +124,7 @@ draft_cost: 90
 -- stats
 cooldown: 120
 range: air
-range_base: 30
+range_base: 50
 range_scale: 350
 range_curve: 80
 damage: physical
@@ -274,22 +273,6 @@ duration_bonus: 8
 stacks: 1
 
 
-=== Net
-type: buff
-color: yellow
-draft_cost: 25
-show_stats: mana_cost, cooldown, range, duration
---- stats
-status: bounded
-target: other
-mana_cost: 50
-cooldown: 1800
-range: 300
-duration: air
-duration_base: 200
-duration_bonus: 3
-stacks: 1
-
 
 === Grab
 type: buff
@@ -320,10 +303,10 @@ draft_cost: 25
 status: vanity
 target: other
 mana_cost: 20
-cooldown: 2600
+cooldown: 2000
 range: 500
 stacks: earth
-stacks_base: 20
+stacks_base: 30
 stacks_bonus: 1
 duration: 800
 
@@ -371,11 +354,11 @@ stacks_bonus: 0.75
 type: buff
 color: blue
 show_stats: mana_cost, cooldown, duration, stacks
-draft_cost: 25
+draft_cost: 55
 --- stats
 status: sensitivity
 target: self
-mana_cost: 40
+mana_cost: 120
 cooldown: 10000
 duration: water
 duration_base: 6000
@@ -461,7 +444,7 @@ duration_scale: 1500
 duration_curve: 100
 stacks: earth
 stacks_base: 25
-stacks_bonus: 1.25
+stacks_bonus: 0.5
 
 
 
@@ -561,11 +544,12 @@ draft_cost: 110
 target: enemies
 destat: hp
 degen: fire
+degen_base: 0.03
 degen_bonus: 0.01
 radius: earth
-radius_base: 100
+radius_base: 50
 radius_scale: 350
-radius_curve: 80
+radius_curve: 50
 
 === Lich Fog
 hidden
@@ -577,7 +561,7 @@ target: enemies
 destat: hp
 degen: fire
 degen_bonus: 0.01
-radius: 500
+radius: 350
 
 
 
@@ -835,7 +819,7 @@ destat: hp
 degen: fire
 degen_base: 0.5
 degen_bonus: 0.01
-radius: 350
+radius: 300
 
 
 === Ninja Star
@@ -883,7 +867,7 @@ status: fountain
 restat: hp
 regen: earth
 regen_bonus: 0.01
-radius: 500
+radius: 350
 
 
 === Fountain Mana
@@ -898,7 +882,7 @@ status: fountain
 restat: mana
 regen: water
 regen_bonus: 0.01
-radius: 500
+radius: 350
 
 
 

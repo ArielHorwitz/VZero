@@ -341,18 +341,12 @@ class RegenAura(BaseAbility):
     def passive(self, api, uid, dt):
         pos = api.get_position(uid)
         radius = self.p.get_radius(api, uid)
-        mask = self.mask_enemies(api, uid)
         if self.target == 'allies':
-            mask = np.invert(mask)
+            mask = self.mask_allies(api, uid)
             mask[uid] = self.include_self
-        targets = self.find_aoe_targets(api, pos, radius, mask)
-        if self.show_aura > 0:
-            api.add_visual_effect(VisualEffect.CIRCLE, dt*5, {
-                'center': pos,
-                'radius': radius,
-                'color': (*self.color, self.p.show_aura),
-                # 'fade': dt*1000,
-            })
+        else:
+            mask = self.mask_enemies(api, uid)
+        targets = self.find_aura_targets(api, uid, radius, mask)
         if targets.sum() == 0:
             return
         if self.status is not None:

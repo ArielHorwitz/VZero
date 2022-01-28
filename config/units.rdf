@@ -391,7 +391,7 @@ spikes: 50
 
 ====== Golden Dragon
 type: camper
-abilities: walk, shoot
+abilities: walk, monster shoot
 aggro_range: 700
 deaggro_range: 1200
 reaggro_range: 900
@@ -403,9 +403,9 @@ hp.max: 600
 hp.delta: 0.005
 mana.max: 100
 mana.delta: 0.05
-physical: 130
-water: 100
-air: 100
+physical: 50
+water: 250
+air: 80
 
 ====== Fire Elemental
 type: camper
@@ -439,7 +439,7 @@ hp.max: 600
 hp.delta: 0.005
 mana.max: 100
 mana.delta: 0.05
-physical: 190
+physical: 230
 water: 40
 
 ====== Lich

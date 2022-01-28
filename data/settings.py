@@ -22,6 +22,7 @@ class Settings:
             0: {
                 'hud_scale': 1,
                 'decorations': 0.75,
+                'feedback_sfx_cooldown': 350,
             },
         },
         'Audio': {

@@ -9,7 +9,7 @@ from collections import defaultdict
 from nutil.vars import NP, nsign_str
 from nutil.random import SEED
 from nutil.display import njoin, make_title
-from nutil.time import RateCounter
+from nutil.time import RateCounter, ping, pong
 from nutil.vars import modify_color, List
 
 from data import resource_name
@@ -40,6 +40,9 @@ SHOP_STATE_KEY = defaultdict(lambda: 0.7, {
     FAIL_RESULT.OUT_OF_RANGE: 1,
     FAIL_RESULT.ON_COOLDOWN: 0,
 })
+
+
+FAIL_SFX_INTERVAL = Settings.get_setting('feedback_sfx_cooldown', 'UI')
 
 
 class EncounterAPI(BaseEncounterAPI):
@@ -120,8 +123,9 @@ class EncounterAPI(BaseEncounterAPI):
         ability = self.abilities[aid]
         r = self.units[0].use_ability(aid, target)
         if isinstance(r, FAIL_RESULT) and r in FAIL_SFX:
-            Assets.play_sfx('ui', FAIL_SFX[r], replay=False,
-                volume=Settings.get_volume('feedback'))
+            if pong(self.__last_fail_sfx_ping) > FAIL_SFX_INTERVAL:
+                Assets.play_sfx('ui', FAIL_SFX[r], volume='feedback')
+                self.__last_fail_sfx_ping = ping()
         if r is not FAIL_RESULT.INACTIVE:
             self.engine.add_visual_effect(VisualEffect.SPRITE, 15, {
                 'point': target,
@@ -138,7 +142,9 @@ class EncounterAPI(BaseEncounterAPI):
             return
         r = self.units[0].use_item(iid, target)
         if isinstance(r, FAIL_RESULT) and r in FAIL_SFX:
-            Assets.play_sfx('ui', FAIL_SFX[r], volume='feedback')
+            if pong(self.__last_fail_sfx_ping) > FAIL_SFX_INTERVAL:
+                Assets.play_sfx('ui', FAIL_SFX[r], volume='feedback')
+                self.__last_fail_sfx_ping = ping()
         if r not in (FAIL_RESULT.INACTIVE, FAIL_RESULT.MISSING_ACTIVE):
             a = ITEMS[iid].ability
             color = (1,1,1,1) if a is None else a.color
@@ -480,7 +486,8 @@ class EncounterAPI(BaseEncounterAPI):
             if status is STAT.REFLECT:
                 label = f'Reflecting {int(v)}% of incoming blast damage as pure damage'
             if status is STAT.SENSITIVITY:
-                label = f'Amplifying incoming and outgoing status effects by {int(v)}%'
+                sp = int(100 * Mechanics.scaling(v, 100, ascending=True))
+                label = f'Amplifying incoming and outgoing status effects by {sp}%'
         elif status == 'fountain':
             sprite = Assets.get_sprite('unit', 'fort')
             title = 'Fountain healing'
@@ -678,6 +685,7 @@ class EncounterAPI(BaseEncounterAPI):
         self.always_visible = np.zeros(len(self.engine.units), dtype=np.bool)
         self.always_active = np.zeros(len(self.engine.units), dtype=np.bool)
         self.__last_hud_statuses = []
+        self.__last_fail_sfx_ping = ping()
         self.map_mode = False
         self.set_zoom()
         # Setup units

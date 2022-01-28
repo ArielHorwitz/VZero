@@ -166,13 +166,27 @@ class Ability:
         not_neutral = all_allegiances >= 0
         return (all_allegiances != my_allegiance) & not_neutral
 
+    def mask_allies(self, api, uid):
+        my_allegiance = api.get_stats(uid, STAT.ALLEGIANCE)
+        all_allegiances = api.get_stats(slice(None), STAT.ALLEGIANCE)
+        return all_allegiances == my_allegiance
+
     def find_aoe_targets(self, api, point, radius, mask=None, alive_only=True):
         dists = api.get_distances(point)
         in_radius = dists < radius
         if mask is not None:
-            in_radius = np.logical_and(in_radius, mask)
+            in_radius = in_radius & mask
         if alive_only:
-            in_radius = np.logical_and(in_radius, api.mask_alive())
+            in_radius = in_radius & api.mask_alive()
+        return in_radius
+
+    def find_aura_targets(self, api, uid, radius, mask=None, alive_only=True):
+        dists = api.unit_distance(uid)
+        in_radius = dists < radius
+        if mask is not None:
+            in_radius = in_radius & mask
+        if alive_only:
+            in_radius = in_radius & api.mask_alive()
         return in_radius
 
     # Properties

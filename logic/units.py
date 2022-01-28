@@ -173,7 +173,7 @@ class Player(Unit):
         self._respawn_timer_scaling = 100
         self._max_hp_delta = float(self.p['max_hp_delta']) * self._max_hp_delta_interval if 'max_hp_delta' in self.p else 0
         self._next_max_hp_delta = self._max_hp_delta_interval
-        Assets.play_sfx('ability', 'player-respawn', volume=Settings.get_volume('feedback'))
+        Assets.play_sfx('ability', 'player-respawn', volume='feedback')
 
     def passive_phase(self, *a, **k):
         if self.engine.tick >= self._next_max_hp_delta:
@@ -190,7 +190,7 @@ class Player(Unit):
         logger.info(f'Player {self.name} {self.uid} respawned.')
         super().respawn(reset_gold=False)
         self._respawn_timer += self._respawn_timer_scaling
-        Assets.play_sfx('ability', 'player-respawn', volume=Settings.get_volume('feedback'))
+        Assets.play_sfx('ability', 'player-respawn', volume='feedback')
 
 
 class Creep(Unit):
@@ -218,7 +218,7 @@ class Creep(Unit):
             self.scale_power()
         self.first_wave = False
         self.use_ability(ABILITY.WALK, self.target)
-        Assets.play_sfx('ability', 'wave-respawn', volume=Settings.get_volume('feedback'), replay=False)
+        Assets.play_sfx('ability', 'wave-respawn', volume='feedback', replay=False)
 
     def scale_power(self):
         currents = [STAT.PHYSICAL, STAT.FIRE, STAT.EARTH, STAT.WATER, STAT.GOLD]
