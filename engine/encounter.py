@@ -234,6 +234,10 @@ class Encounter:
     def add_dmod(self):
         return self.stats.add_dmod
 
+    @property
+    def unmoveable_mask(self):
+        return self.stats.get_stats(slice(None), STAT.WEIGHT) < 0
+
     # GUI utilities (not precise for mechanics)
     def ticks2s(self, ticks=1):
         return ticks / self.target_tps

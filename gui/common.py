@@ -8,6 +8,9 @@ from nutil.kex import widgets
 from data.assets import Assets
 
 
+TOOLTIP_SIZE = 400, 600
+
+
 class CenteredSpriteBox(widgets.AnchorLayout):
     def __init__(self,
             size_hint=(.9, .9),
@@ -213,7 +216,7 @@ class Tooltip(widgets.BoxLayout):
         self.__frame = widgets.AnchorLayout()
         self.stl = self.__frame.add(SpriteTitleLabel(text_color=(0,0,0,1), top_bg=(0,0,0,0)))
         self.stl.set_size(hx=0.96, hy=0.9)
-        self.__frame.set_size(300, 400)
+        self.__frame.set_size(*TOOLTIP_SIZE)
         self.__frame.make_bg(modify_color((1,1,1), v=0.85))
         self.__frame._bg.source = Assets.get_sprite('ui', 'tooltip')
         self.bind(on_touch_down=self._check_click)

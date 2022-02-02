@@ -107,10 +107,10 @@ class Item:
             return self.ability.gui_state(api, uid, target)
         return '', (0, 0, 0, 0)
 
-    def cast(self, api, uid, target):
+    def active(self, api, uid, target, alt=0):
         if self.aid is None:
             return FAIL_RESULT.MISSING_ACTIVE
-        r = api.abilities[self.aid].cast(api.engine, uid, target)
+        r = api.abilities[self.aid].active(api.engine, uid, target, alt)
         return r
 
     def passive(self, api, uid, dt):

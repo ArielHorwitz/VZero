@@ -61,7 +61,184 @@ cooldown_curve: 150
 
 
 
+=== Test New Hit
+type: base
+color: cyan
+sprite: snipe
+cooldown: base attack
+sfx: attack
+--- info
+Testing [u][i][b]base[/b][/i][/u] ability class.
+-- stats
+
+-- active
+no_sfx
+target: enemy
+mana_cost: 0
+cooldown: 0
+-- active.unconditional.select
+-- active.unconditional.show_select
+-- active.unconditional.recast
+phase: passive
+
+-- passive
+target: selected
+range.scale: 100, air, 350, 25
+mana_cost: 0
+cooldown.reduc: 1.5, water, 0.2, 50
+-- passive.upcast.vfx-line
+p1: source
+p2: selected
+-- passive.upcast.sfx
+-- passive.upcast.hit
+damage.bonus: 5, physical, 0.25
+-- passive.upcast.status
+status: cuts
+stacks.scale: 5, fire, 15, 50
+stacks_op: additive
+duration.bonus: 5, water, 1
+-- passive.upcast.steal
+stat: physical
+delta: 1
+
+
+
+
+=== Test New Aura
+type: base
+color: green
+sprite: death fog
+--- info
+Testing [u][i][b]base[/b][/i][/u] ability class.
+Aura.
+-- stats
+-- passive
+point_target
+target: enemy
+area: circle
+radius: 500
+-- passive.upcast.status
+target: area
+status: vanity
+stacks: 10
+-- passive.upcast.regen
+target: area
+stat: hp
+delta: -10
+
+-- active
+point_target
+target: enemy
+area: circle
+radius: 500
+range: 750
+-- active.upcast.vfx-circle
+center: point
+radius: 500
+color: 0.1, 0.1, 0.1, 0.3
+-- active.upcast.pull
+target: area
+speed: 600
+range: 0
+
+
+=== Test New Blink
+type: base
+color: green
+sprite: yip yip
+sfx: blink
+--- info
+Testing [u][i][b]base[/b][/i][/u] ability class.
+Blink.
+Range; 500-1000 ([b]air[/b])
+Mana cost; 50
+Cooldown; 3s-1s ([b]water[/b])
+-- stats
+range: 1000
+
+-- active
+point: fix
+range.scale: 500, air, 1000, 25
+mana_cost: 50
+cooldown.reduc: 3, water, 1, 10
+status_block: bounded
+-- active.upcast.vfx-line
+p1: source
+p2: point
+-- active.upcast.teleport
+range.bonus: 50, air, 3
+
+
+=== Test New Fireblast
+type: base
+color: red
+sprite: fireblast
+sfx: fireblast
+--- info
+Testing [u][i][b]base[/b][/i][/u] ability class.
+Fireblast!
+-- stats
+range: 500
+
+-- ACTIVE
+point: fix
+target: other
+point_target
+area: rect
+length: 1000
+width: 250
+range: 10
+mana_cost: 0
+cooldown: 0
+-- ~active.upcast.vfx-line
+p1: source
+p2: point
+-- ~active.upcast.vfx-circle
+duration: 50
+center: point
+radius: 100
+color: red
+fade: 50
+-- active.upcast.vfx-rect
+origin: self
+length: 1000
+width: 250
+color: 1, 1, 0, 0.3
+duration: 50
+fade: 50
+-- active.upcast.sfx
+sfx: fireblast
+-- active.upcast.blast
+damage: 4
+
+
 === Attack
+type: base
+color: cyan
+cooldown: base attack
+info: Testing [u][i][b]base[/b][/i][/u] ability class.
+-- stats
+
+--- alt
+no_sfx
+range: 1000
+--- alt.upcast.teleport
+--- alt.upcast.sfx
+sfx: blink
+--- active
+target: enemy
+range: 30
+cooldown.reduc: 1.5, water, 0.2, 80
+
+--- active.upcast.hit
+damage.bonus: 20, physical, 1
+--- active.upcast.vfx-line
+p1: source
+p2: target
+
+
+
+=== Attack oldgen
 type: attack
 color: cyan
 cooldown: base attack

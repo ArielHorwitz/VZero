@@ -15,7 +15,7 @@ from data.settings import Settings
 from gui import cc_int, center_position
 from gui.common import Tooltip
 from gui.encounter.sprites import Sprites
-from gui.encounter.vfx import VFX
+from gui.encounter.vfx import VFX as VFXLayer
 from gui.encounter.panels import Decoration, Menu, LogicLabel, HUD, ModalBrowse, ViewFade, DebugPanel
 
 from engine.common import *
@@ -49,7 +49,7 @@ class Encounter(widgets.RelativeLayout):
         )
         self.overlays = {
             'sprites': self.add(Sprites(enc=self)),
-            'vfx': self.add(VFX(enc=self)),
+            'vfx': self.add(VFXLayer(enc=self)),
             'viewfade': self.add(ViewFade(enc=self)),
         }
         self.decorations = self.add(Decoration(enc=self))
@@ -147,16 +147,22 @@ class Encounter(widgets.RelativeLayout):
         # Abilities
         for i, key in enumerate(Settings.get_setting('abilities', 'Hotkeys')):
             hotkeys.append((
-                f'ability {key.upper()}',
-                key,
+                f'ability {key.upper()}', key,
                 lambda *a, x=i: self.api.quickcast(x, self.mouse_real_pos)
+            ))
+            hotkeys.append((
+                f'ability alt {key.upper()}', f'! {key}',
+                lambda *a, x=i: self.api.quickcast(x, self.mouse_real_pos, alt=1)
             ))
         # Items
         for i, key in enumerate(Settings.get_setting('items', 'Hotkeys')):
             hotkeys.append((
-                f'item {key.upper()} ability',
-                key,
+                f'item {key.upper()} ability', key,
                 lambda *a, x=i: self.api.itemcast(x, self.mouse_real_pos)
+            ))
+            hotkeys.append((
+                f'item alt {key.upper()}', f'! {key}',
+                lambda *a, x=i: self.api.itemcast(x, self.mouse_real_pos, alt=1)
             ))
         # View control
         hotkeys.extend([

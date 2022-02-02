@@ -15,7 +15,6 @@ from gui.api import SpriteLabel, SpriteTitleLabel, SpriteBox
 
 from logic.data import ABILITIES
 from logic.encounter import EncounterAPI
-from logic.base import Ability
 
 
 class GameAPI(BaseGameAPI):

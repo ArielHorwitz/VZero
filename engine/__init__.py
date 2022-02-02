@@ -83,29 +83,25 @@ class COLOR:
 
 
 # VFX
-_VFX = AutoIntEnum('_VFX', [
+VFX = AutoIntEnum('VFX', [
     'BACKGROUND',
     'LINE',
     'CIRCLE',
+    'QUAD',
     'SPRITE',
     'SFX',
 ])
 
 
 class VisualEffect:
-    BACKGROUND = _VFX.BACKGROUND
-    LINE = _VFX.LINE
-    CIRCLE = _VFX.CIRCLE
-    SPRITE = _VFX.SPRITE
-    SFX = _VFX.SFX
-
+    VFX = VFX
     def __init__(self, eid, ticks, params=None):
         self.eid = eid
         self.total_ticks = ticks
         self.elapsed_ticks = 0
         self.params = {} if params is None else params
 
-        if eid is self.SFX:
+        if eid is self.VFX.SFX:
             category = 'ability'
             if 'category' in params:
                 category = params['category']

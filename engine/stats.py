@@ -9,7 +9,7 @@ from engine.common import *
 
 
 DMOD_CACHE_SIZE = 10_000
-COLLISION_PASSES = 2
+COLLISION_PASSES = 1
 COLLISION_DEFAULT = True
 
 
@@ -64,6 +64,8 @@ class UnitStats:
             index = slice(None)
         if value_name is None:
             value_name = VALUE.CURRENT
+        if isinstance(index, np.ndarray):
+            return np.column_stack(self.table[index, a, VALUE.CURRENT] for a in (STAT.POS_X, STAT.POS_Y))
         return self.table[index, (STAT.POS_X, STAT.POS_Y), value_name]
 
     def set_position(self, index, pos, value_name=None,
@@ -98,9 +100,13 @@ class UnitStats:
         return np.linalg.norm(v)
 
     def get_distances(self, point, index=None, include_hitbox=True):
-        if index is None:
-            index = slice(None)
-        positions = self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.CURRENT]
+        if isinstance(index, int) or isinstance(index, np.int):
+            _ = np.zeros(len(self.table), dtype=np.bool)
+            _[index] = True
+            index = _
+        elif index is None:
+            index = np.ones(len(self.table), dtype=np.bool)
+        positions = np.column_stack(self.table[index, a, VALUE.CURRENT] for a in (STAT.POS_X, STAT.POS_Y))
         dist = np.linalg.norm(positions - np.array(point), axis=-1)
         if include_hitbox is True:
             dist -= self.table[index, STAT.HITBOX, VALUE.CURRENT]

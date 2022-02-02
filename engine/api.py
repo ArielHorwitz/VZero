@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 from collections import defaultdict
 import math
 import numpy as np
-from nutil.vars import minmax, nsign
+from nutil.vars import minmax, nsign, NP
 from nutil.time import humanize_ms
 from gui.api import SpriteBox, SpriteTitleLabel, ProgressBar
 from data.load import RDF
@@ -201,21 +201,29 @@ class EncounterAPI:
             logger.warning(f'{self.__class__}.user_click() with button: {button} not implemented.')
 
     def user_select(self, target):
-        uid, dist = self.engine.nearest_uid(target, alive_only=False)
-        hb = self.engine.get_stats(uid, STAT.HITBOX)
-        if dist < max(50, hb) and self.sprite_visible_mask()[uid]:
-            self.select_unit(uid)
-            Assets.play_sfx('ui', 'select')
+        play_sfx = False
+        visible = self.sprite_visible_mask()
+        distances = self.engine.get_distances(target)
+        uid = NP.argmin(distances, visible)
+        dist = distances[uid]
+        if dist < 50:
+            play_sfx = True
         else:
-            self.select_unit(0)
-            uid, hb = 0, self.engine.get_stats(0, STAT.HITBOX)
-        self.engine.add_visual_effect(VisualEffect.SPRITE, 60, {
+            uid = 0
+        self.select_unit(uid)
+        self.draw_unit_selection(uid, play_sfx=play_sfx)
+
+    def draw_unit_selection(self, uid, play_sfx=False, volume='ui'):
+        if play_sfx:
+            Assets.play_sfx('ui', 'select', volume=volume)
+        hb = self.engine.get_stats(uid, STAT.HITBOX)
+        self.engine.add_visual_effect(VFX.SPRITE, 60, {
             'uid': uid,
             'fade': 100,
             'category': 'ui',
             'source': 'crosshair2',
             'size': (hb*2.1, hb*2.1),
-            'tint': (0, 0, 0),
+            'color': (0, 0, 0),
         })
 
     def quickcast(self, ability_index, target):

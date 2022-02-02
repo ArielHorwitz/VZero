@@ -26,7 +26,7 @@ class Unit(BaseUnit):
     say = ''
 
     def __init__(self, api, uid, name, params):
-        super().__init__(uid, name)
+        super().__init__(uid)
         self.cache = defaultdict(lambda: None)
         self.always_visible = True if 'always_visible' in params.positional else False
         self.always_active = True if 'always_active' in params.positional else False
@@ -53,7 +53,7 @@ class Unit(BaseUnit):
             nw += ITEMS[iid].cost
         return nw
 
-    def use_item(self, iid, target):
+    def use_item(self, iid, target, alt=0):
         with ratecounter(self.engine.timers['ability_single']):
             if not self.engine.auto_tick and not self.api.dev_mode:
                 logger.warning(f'Unit {self.uid} tried using item {iid.name} while paused')
@@ -68,13 +68,13 @@ class Unit(BaseUnit):
                 return FAIL_RESULT.OUT_OF_BOUNDS
 
             item = ITEMS[iid]
-            r = item.cast(self.api, self.uid, target)
+            r = item.active(self.api, self.uid, target, alt)
             if r is None:
-                m = f'Item {item} ability {item.ability.__class__}.cast() method returned None. Must return FAIL_RESULT on fail or aid on success.'
+                m = f'Item {item} ability {item.ability.__class__}.active() method returned None. Must return FAIL_RESULT on fail or aid on success.'
                 logger.warning(m)
             return r
 
-    def use_ability(self, aid, target):
+    def use_ability(self, aid, target, alt=0):
         with ratecounter(self.engine.timers['ability_single']):
             if not self.engine.auto_tick and not self.api.dev_mode:
                 logger.warning(f'Unit {self.uid} tried using ability {aid.name} while paused')
@@ -89,9 +89,9 @@ class Unit(BaseUnit):
                 return FAIL_RESULT.OUT_OF_BOUNDS
 
             ability = self.api.abilities[aid]
-            r = ability.cast(self.engine, self.uid, target)
+            r = ability.active(self.engine, self.uid, target, alt)
             if r is None:
-                m = f'Ability {ability.__class__}.cast() method returned None. Must return FAIL_RESULT on fail or aid on success.'
+                m = f'Ability {ability.__class__}.active() method returned None. Must return FAIL_RESULT on fail or aid on success.'
                 logger.warning(m)
             return r
 
@@ -153,7 +153,6 @@ class Unit(BaseUnit):
 
     @property
     def networth_str(self):
-        gold = self.engine.get_stats(self.uid, STAT.GOLD)
         nw = self.total_networth
         if nw > 10**3:
             nw = round(nw/1000, 1)
@@ -162,6 +161,13 @@ class Unit(BaseUnit):
             nw = math.floor(nw)
             k = ''
         return f'Networth: Σ{nw}{k}'
+
+    @property
+    def debug_str(self):
+        return str(self.cache)
+
+    def __repr__(self):
+        return f'{self.name} #{self.uid}'
 
 
 class Player(Unit):

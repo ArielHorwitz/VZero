@@ -6,7 +6,7 @@ from data.assets import Assets
 
 
 class Unit:
-    def __init__(self, uid, name):
+    def __init__(self, uid):
         self.__uid = uid
         self.__debug_str = f'Unit #{uid} `debug_str` undefined.'
 

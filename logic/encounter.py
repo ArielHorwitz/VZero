@@ -10,7 +10,7 @@ from nutil.vars import NP, nsign_str
 from nutil.random import SEED
 from nutil.display import njoin, make_title
 from nutil.time import RateCounter, ping, pong
-from nutil.vars import modify_color, List
+from nutil.vars import modify_color, List, is_iterable
 
 from data import resource_name
 from data.load import RDF
@@ -68,10 +68,25 @@ class EncounterAPI(BaseEncounterAPI):
         logger.debug(f'Unit {unit.name} lost status {status.name}')
         self.engine.units[uid].status_zero(status)
 
-    ouch_feedback = [
-        (0, 'ouch', COLOR.RED),
-        (1, 'ouch2', COLOR.BLUE),
-    ]
+    sfx_feedback_uids = miss_feedback_uids = {0}  # Assuming player is created first
+    def play_feedback(self, feedback, uid=0):
+        if not uid in self.sfx_feedback_uids:
+            return
+        if pong(self.__last_fail_sfx_ping) > FAIL_SFX_INTERVAL:
+            if feedback in FAIL_SFX:
+                Assets.play_sfx('ui', FAIL_SFX[feedback], volume='feedback')
+                self.__last_fail_sfx_ping = ping()
+
+    ouch_feedback_uids = {0, 1}  # Assuming player then fort are created first
+    def ouch(self, uids):
+        if not (set(uids) & self.ouch_feedback_uids):
+            return
+        sfx, color = ('ouch', COLOR.RED) if (0 in uids) else ('ouch2', COLOR.BLUE)
+
+        Assets.play_sfx('ui', sfx, volume='feedback')
+        self.engine.add_visual_effect(VFX.BACKGROUND, 40, params={
+            'color': modify_color(color, a=0.15)
+        })
 
     # GUI handlers
     @property
@@ -115,32 +130,32 @@ class EncounterAPI(BaseEncounterAPI):
             self.selected_unit = 0
             self.raise_gui_flag('browse_toggle')
 
-    def quickcast(self, ability_index, target):
+    def quickcast(self, ability_index, target, alt=0):
         # Ability from player input (requires handling user feedback)
         aid = self.units[0].abilities[ability_index]
         if aid is None:
             return
         ability = self.abilities[aid]
-        r = self.units[0].use_ability(aid, target)
+        r = self.units[0].use_ability(aid, target, alt)
         if isinstance(r, FAIL_RESULT) and r in FAIL_SFX:
             if pong(self.__last_fail_sfx_ping) > FAIL_SFX_INTERVAL:
                 Assets.play_sfx('ui', FAIL_SFX[r], volume='feedback')
                 self.__last_fail_sfx_ping = ping()
         if r is not FAIL_RESULT.INACTIVE:
-            self.engine.add_visual_effect(VisualEffect.SPRITE, 15, {
+            self.engine.add_visual_effect(VFX.SPRITE, 15, {
                 'point': target,
                 'fade': 30,
                 'category': 'ui',
                 'source': 'crosshair',
                 'size': (40, 40),
-                'tint': ability.color,
+                'color': ability.color,
             })
 
-    def itemcast(self, item_index, target):
+    def itemcast(self, item_index, target, alt=0):
         iid = self.units[0].item_slots[item_index]
         if iid is None:
             return
-        r = self.units[0].use_item(iid, target)
+        r = self.units[0].use_item(iid, target, alt)
         if isinstance(r, FAIL_RESULT) and r in FAIL_SFX:
             if pong(self.__last_fail_sfx_ping) > FAIL_SFX_INTERVAL:
                 Assets.play_sfx('ui', FAIL_SFX[r], volume='feedback')
@@ -148,13 +163,13 @@ class EncounterAPI(BaseEncounterAPI):
         if r not in (FAIL_RESULT.INACTIVE, FAIL_RESULT.MISSING_ACTIVE):
             a = ITEMS[iid].ability
             color = (1,1,1,1) if a is None else a.color
-            self.engine.add_visual_effect(VisualEffect.SPRITE, 15, {
+            self.engine.add_visual_effect(VFX.SPRITE, 15, {
                 'point': target,
                 'fade': 30,
                 'category': 'ui',
                 'source': 'crosshair',
                 'size': (40, 40),
-                'tint': color,
+                'color': color,
             })
 
     def itemsell(self, item_index, target):
@@ -720,11 +735,14 @@ class EncounterAPI(BaseEncounterAPI):
 
 
 FAIL_SFX = {
+    'select': 'select',
+    'ouch': 'ouch',
+    'ouch2': 'ouch2',
     FAIL_RESULT.INACTIVE: 'target',
     FAIL_RESULT.MISSING_TARGET: 'target',
-    FAIL_RESULT.MISSING_COST: 'cost',
     FAIL_RESULT.OUT_OF_BOUNDS: 'target',
-    FAIL_RESULT.OUT_OF_RANGE: 'range',
     FAIL_RESULT.OUT_OF_ORDER: 'target',
+    FAIL_RESULT.OUT_OF_RANGE: 'range',
     FAIL_RESULT.ON_COOLDOWN: 'cooldown',
+    FAIL_RESULT.MISSING_COST: 'cost',
 }

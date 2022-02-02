@@ -5,6 +5,7 @@ NAME = f'VZero'
 TITLE = f'{NAME} v{VERSION:.3f}'
 
 FPS = 60
+TPS = 100
 
 
 

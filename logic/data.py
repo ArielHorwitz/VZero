@@ -14,9 +14,6 @@ from engine.common import *
 from logic.abilities import ABILITY_CLASSES
 
 
-class CorruptedDataError(Exception):
-    pass
-
 
 # Abilities
 def _load_abilities():

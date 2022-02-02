@@ -51,7 +51,7 @@ from kivy.graphics import Ellipse as kvEllipse
 from kivy.graphics import Quad as kvQuad
 from kivy.graphics import Triangle as kvTriangle
 from kivy.graphics import Bezier as kvBezier
-from kivy.graphics import Rotate as kvRotate
+from kivy.graphics import Rotate as kvRotate, PushMatrix as kvPushMatrix, PopMatrix as kvPopMatrix
 # Audio
 from kivy.core.audio import SoundLoader as kvSoundLoader
 from kivy.core.audio import Sound as kvSound

@@ -94,7 +94,7 @@ class App(widgets.App):
 
     @property
     def fps_color(self):
-        return (1, 0, 0, (60-self.fps.rate)/60)
+        return (1, 0, 0, (FPS-self.fps.rate)/45)
 
     def mainloop_hook(self, dt):
         self.fps.tick()

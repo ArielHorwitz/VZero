@@ -9,7 +9,9 @@ from data import ROOT_DIR
 
 
 class SubCategory(dict):
-    def __init__(self, raw_data):
+    def __init__(self, raw_data=None):
+        if raw_data is None:
+            raw_data = {0: []}
         self.positional = raw_data[0]
         del raw_data[0]
         super().__init__(raw_data)
@@ -17,8 +19,11 @@ class SubCategory(dict):
     def __repr__(self):
         return f'<RDF SubCategory; positional {self.positional} {super().__repr__()}>'
 
+
 class Category(dict):
     def __init__(self, raw_data):
+        if raw_data is None:
+            raw_data = {0: {0: []}}
         self.default = SubCategory(raw_data[0])
         del raw_data[0]
         super().__init__({k: SubCategory(v) for k, v in raw_data.items()})
@@ -55,6 +60,11 @@ class RDF(dict):
                     category_lines.append(lines.pop(0))
                     if len(lines) == 0:
                         break
+                if category in data:
+                    nonce = 1
+                    while f'{category}.{nonce}' in data:
+                        nonce += 1
+                    category = f'{category}.{nonce}'
                 data[category] = cls._read_category(category_lines)
         return data
 
@@ -78,6 +88,11 @@ class RDF(dict):
                 subcategory_lines.append(lines.pop(0))
                 if len(lines) == 0:
                     break
+            if subcategory_name in data:
+                nonce = 1
+                while f'{subcategory_name}.{nonce}' in data:
+                    nonce += 1
+                subcategory_name = f'{subcategory_name}.{nonce}'
             data[subcategory_name] = cls._read_subcategory(subcategory_lines)
             if len(lines) == 0:
                 break
