@@ -53,10 +53,13 @@ class BaseAbility:
         logger.info(f'Created ability {self.name} with arguments: {raw_data.default}. Stats: {raw_stats}. Defaults: {self.defaults}.')
 
     def _setup(self):
-        self.cooldown_aid = str2ability(self.__shared_cooldown_name)
+        self.cooldown_aid = self.off_cooldown_aid = str2ability(self.__shared_cooldown_name)
         self.setup()
 
     def setup(self):
+        pass
+
+    def off_cooldown(self, api, uid):
         pass
 
     def passive(self, api, uid, dt):

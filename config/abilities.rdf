@@ -76,6 +76,7 @@ no_sfx
 target: enemy
 mana_cost: 0
 cooldown: 0
+selection_distance: 100
 -- active.unconditional.select
 -- active.unconditional.show_select
 -- active.unconditional.recast

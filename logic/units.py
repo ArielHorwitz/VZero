@@ -6,8 +6,8 @@ from collections import defaultdict
 import itertools
 import math
 import numpy as np
-import random
-from nutil.vars import normalize, collide_point
+import copy, random
+from nutil.vars import normalize, collide_point, is_iterable
 from nutil.time import ratecounter
 from nutil.random import SEED
 from data.assets import Assets
@@ -15,34 +15,195 @@ from data.settings import Settings
 
 from engine.common import *
 from engine.unit import Unit as BaseUnit
+from logic.data import RAW_UNITS
 from logic.items import ITEMS, ITEM_CATEGORIES as ICAT
 from logic.mechanics import Mechanics
 
 RNG = np.random.default_rng()
 
 
+def s2statvalue(s):
+    stat_name, value_name = s.split('.') if '.' in s else (s, 'current')
+    return str2stat(stat_name), str2value(value_name)
+
+
+class Slots:
+    def __init__(self, max_slots):
+        self.max_slots = max_slots
+        self.slots = [None for i in range(self.max_slots)]
+        self.unslotted = set()
+        self.elements = set()
+        self.empty_slot = 0
+        self.clear()
+
+    def swap_slots(self, i1, i2):
+        List.swap(self.slots, i1, i2)
+        self.refresh()
+
+    def clear(self):
+        self.slots = [None for i in range(self.max_slots)]
+        self.unslotted = set()
+        self.elements = set()
+        self.empty_slot = 0
+
+    def refresh(self):
+        self.elements = set(e for e in self.slots) | self.unslotted
+        if None in self.elements:
+            self.elements.remove(None)
+        for i, e in enumerate(self.slots):
+            if e is None:
+                self.empty_slot = i
+                break
+        else:
+            self.empty_slot = None
+
+    def add(self, e):
+        es = [e] if not is_iterable(e) else e
+        for e in es:
+            if self.empty_slot is None:
+                self.add_unslotted(e)
+            else:
+                self.add_slotted(e)
+
+    def add_slotted(self, e, slot=None):
+        if slot is None:
+            slot = self.empty_slot
+        assert slot is not None
+        assert self.slots[slot] is None
+        self.slots[slot] = e
+        self.refresh()
+        return slot
+
+    def add_unslotted(self, e):
+        assert e not in self.unslotted
+        self.unslotted.add(e)
+        self.refresh()
+
+    def remove(self, e):
+        if e in self.slots:
+            self.slots.remove(e)
+        elif e in self.unslotted:
+            self.unslotted.remove(e)
+        else:
+            raise ValueError(f'Requested remove {e} from {self} but not found: {self.slots} {self.unslotted}')
+
+
 class Unit(BaseUnit):
     _respawn_timer = 12000  # ~ 2 minutes
     say = ''
 
-    def __init__(self, api, uid, name, params):
+    @staticmethod
+    def _get_default_stats():
+        table = np.zeros(shape=(len(STAT), len(VALUE)))
+        LARGE_ENOUGH = 1_000_000_000
+        table[:, VALUE.CURRENT] = 0
+        table[:, VALUE.DELTA] = 0
+        table[:, VALUE.TARGET] = -LARGE_ENOUGH
+        table[:, VALUE.MIN] = 0
+        table[:, VALUE.MAX] = LARGE_ENOUGH
+
+        table[STAT.ALLEGIANCE, VALUE.MIN] = -LARGE_ENOUGH
+        table[STAT.ALLEGIANCE, VALUE.CURRENT] = 1
+        table[(STAT.POS_X, STAT.POS_Y), VALUE.MIN] = -LARGE_ENOUGH
+        table[STAT.WEIGHT, VALUE.MIN] = -1
+        table[STAT.HITBOX, VALUE.CURRENT] = 100
+        table[STAT.HP, VALUE.CURRENT] = LARGE_ENOUGH
+        table[STAT.HP, VALUE.TARGET] = 0
+        table[STAT.MANA, VALUE.CURRENT] = LARGE_ENOUGH
+        table[STAT.MANA, VALUE.MAX] = 20
+
+        ELEMENTAL_STATS = [STAT.PHYSICAL, STAT.FIRE, STAT.EARTH, STAT.AIR, STAT.WATER]
+        table[ELEMENTAL_STATS, VALUE.CURRENT] = 1
+        table[ELEMENTAL_STATS, VALUE.MIN] = 1
+        return table
+
+    @classmethod
+    def _load_raw_stats(cls, raw_stats):
+        stats = cls._get_default_stats()
+        modified_stats = []
+        for raw_key, raw_value in raw_stats.items():
+            stat, value = s2statvalue(raw_key)
+            stats[stat][value] = float(raw_value)
+            modified_stats.append(f'{stat.name}.{value.name}: {raw_value}')
+        logger.debug(f'Loaded raw stats: {", ".join(modified_stats)}')
+        return stats
+
+    @classmethod
+    def from_data(cls, api, uid, unit_name):
+        raw_data = copy.deepcopy(RAW_UNITS[internal_name(unit_name)])
+        unit_cls = UNIT_CLASSES[raw_data.default['type']]
+        return unit_cls(api, uid, unit_name, raw_data)
+
+    def __init__(self, api, uid, name, raw_data):
         super().__init__(uid)
+        self._raw_data = raw_data
+        self.p = raw_data.default
+        raw_stats = raw_data['stats'] if 'stats' in raw_data else {}
+        self.starting_stats = self._load_raw_stats(raw_stats)
         self.cache = defaultdict(lambda: None)
-        self.always_visible = True if 'always_visible' in params.positional else False
-        self.always_active = True if 'always_active' in params.positional else False
+        self.always_visible = True if 'always_visible' in self.p.positional else False
+        self.always_active = True if 'always_active' in self.p.positional else False
         self.win_on_death = False
         self.lose_on_death = False
         self.api = api
         self.engine = api.engine
         self.name = self.__start_name = name
-        self.p = params
-        if 'abilities' in params:
-            abilities = [str2ability(a) for a in params['abilities'].split(', ')]
-        else:
-            abilities = [ABILITY.WALK, ABILITY.ATTACK]
-        self.abilities = abilities
-        self.abilities.extend([None for i in range(8-len(self.abilities))])
-        self.item_slots = [None for i in range(8)]
+        self.cooldown_aids = defaultdict(set)
+
+        self._ability_slots = Slots(8)
+        self._item_slots = Slots(8)
+
+        if 'abilities' in self.p:
+            default_abilities = [str2ability(a) for a in self.p['abilities'].split(', ')]
+            self.set_abilities(default_abilities)
+
+        logger.info(f'Created unit: {name} with data: {self._raw_data}')
+
+    def swap_ability_slots(self, i1, i2):
+        self._ability_slots.swap_slots(i1, i2)
+
+    def swap_item_slots(self, i1, i2):
+        self._item_slots.swap_slots(i1, i2)
+
+    def add_item(self, iid):
+        self._item_slots.add_slotted(iid)
+        item = ITEMS[iid]
+        if item.ability:
+            self.cooldown_aids[item.ability.off_cooldown_aid].add(item.aid)
+
+    def remove_item(self, iid):
+        self._item_slots.remove(iid)
+        item = ITEMS[iid]
+        if item.ability:
+            self.cooldown_aids[item.ability.off_cooldown_aid].remove(item.aid)
+
+    def set_abilities(self, abilities):
+        self._ability_slots.clear()
+        self._ability_slots.add(abilities)
+        self.passive_aids = defaultdict(set)
+        for aid in self.abilities:
+            paid = self.api.abilities[aid].off_cooldown_aid
+            self.passive_aids[paid].add(aid)
+
+    @property
+    def items(self):
+        return self._item_slots.elements
+
+    @property
+    def item_slots(self):
+        return self._item_slots.slots
+
+    @property
+    def abilities(self):
+        return self._ability_slots.elements
+
+    @property
+    def ability_slots(self):
+        return self._ability_slots.slots
+
+    def set_spawn_location(self, spawn):
+        self.starting_stats[(STAT.POS_X, STAT.POS_Y), VALUE.CURRENT] = spawn
+        self.starting_stats[(STAT.POS_X, STAT.POS_Y), VALUE.TARGET] = spawn
 
     @property
     def total_networth(self):
@@ -102,13 +263,13 @@ class Unit(BaseUnit):
 
     def passive_phase(self):
         for aid in self.abilities:
-            if aid is None:
-                continue
             self.api.abilities[aid].passive(self.engine, self.uid, self.engine.AGENCY_PHASE_COUNT)
-        for iid in self.item_slots:
-            if iid is None:
-                continue
+        for iid in self.items:
             ITEMS[iid].passive(self.engine, self.uid, self.engine.AGENCY_PHASE_COUNT)
+
+    def off_cooldown(self, aid):
+        for paid in self.passive_aids[aid]:
+            self.api.abilities[paid].off_cooldown(self.engine, self.uid)
 
     @property
     def sprite(self):
@@ -125,10 +286,7 @@ class Unit(BaseUnit):
 
     @property
     def empty_item_slots(self):
-        s = set(self.item_slots)
-        if None in s:
-            s.remove(None)
-        return 8-len(s)
+        return self.item_slots.count(None)
 
     def _setup(self):
         pass
@@ -164,7 +322,13 @@ class Unit(BaseUnit):
 
     @property
     def debug_str(self):
-        return str(self.cache)
+        s = []
+        for k, v in self.cache.items():
+            if is_iterable(v):
+                if len(v) > 20:
+                    v = str(np.flatnonzero(v)[:10])
+            s.append(f'{k}: {v}')
+        return '\n'.join(s)
 
     def __repr__(self):
         return f'{self.name} #{self.uid}'
@@ -253,6 +417,8 @@ class Camper(Unit):
     say = '"Personal space... I need my personal space..."'
     def _setup(self):
         self.color = (1, 0, 0)
+        if len(self.abilities) == 0:
+            self.set_abilities([ABILITY.WALK, ABILITY.ATTACK])
         self.camp = self.engine.get_position(self.uid)
         self.__aggro_range = float(self.p['aggro_range'])
         self.__deaggro_range = float(self.p['deaggro_range'])
@@ -267,15 +433,16 @@ class Camper(Unit):
         camp_dist = self.engine.get_distances(self.camp, self.uid)
         in_aggro_range = self.engine.unit_distance(self.uid, 0) < self.__aggro_range
         if in_aggro_range and not self.__deaggro and self.engine.units[0].is_alive:
-            for aid in self.abilities:
-                if aid is None: continue
+            for aid in self.ability_slots:
+                if aid is None:
+                    continue
                 self.use_ability(aid, player_pos)
             if camp_dist > self.__deaggro_range:
                 self.__deaggro = True
         else:
             if self.__deaggro is True and camp_dist < self.__reaggro_range:
                     self.__deaggro = False
-            self.use_ability(self.abilities[0], self.walk_target)
+            self.use_ability(self.ability_slots[0], self.walk_target)
 
     @property
     def walk_target(self):
@@ -306,7 +473,7 @@ class Treasure(Unit):
 class Shopkeeper(Unit):
     say = 'Looking for wares?'
     def _setup(self):
-        self.abilities = [ABILITY.SHOPKEEPER, *(None for _ in range(7))]
+        self.set_abilities(ABILITY.SHOPKEEPER)
         category = 'BASIC' if 'category' not in self.p else self.p['category'].upper()
         for icat in ICAT:
             if category == icat.name:
@@ -324,7 +491,7 @@ class Shopkeeper(Unit):
 class Fountain(Unit):
     say = 'Bestowing life is a great pleasure'
     def _setup(self):
-        self.abilities = [ABILITY.FOUNTAIN_HP, ABILITY.FOUNTAIN_MANA, *(None for _ in range(6))]
+        self.set_abilities([ABILITY.FOUNTAIN_HP, ABILITY.FOUNTAIN_MANA])
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
 
 
@@ -341,7 +508,6 @@ class DPSMeter(Unit):
         self.engine.set_stats(self.uid, STAT.HP, 10**12)
         self.engine.set_stats(self.uid, STAT.HP, 0, value_name=VALUE.DELTA)
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
-        self.abilities = [None for _ in range(8)]
         self.__started = False
         self.__sample_size = 10
         self.__sample_index = 0

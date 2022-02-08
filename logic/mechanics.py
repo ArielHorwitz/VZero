@@ -1,6 +1,6 @@
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.DEBUG)
 
 
 import math
@@ -69,7 +69,8 @@ class Mechanics:
     def apply_debuff(cls, api, targets, status, duration, stacks, caster=None, reset_move=True):
         if targets.sum() == 0:
             return
-        logger.debug(f'Applying status {status.name} {duration} × {stacks} to targets: {np.flatnonzero(targets)}')
+        if status not in {STATUS.SHOP}:
+            logger.debug(f'Applying status {status.name} {duration} × {stacks} to targets: {np.flatnonzero(targets)}')
         if status not in {STATUS.SHOP, STATUS.SENSITIVITY}:
             sensitivity = cls.get_status(api, targets, STAT.SENSITIVITY)
             if caster is not None:

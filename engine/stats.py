@@ -178,8 +178,8 @@ class UnitStats:
         for _ in range(COLLISION_PASSES):
             self._collision_push()
         status_zero = self._do_status_deltas(ticks)
-        self._do_cooldown_deltas(ticks)
-        return hp_zero, status_zero
+        cooldown_zero = self._do_cooldown_deltas(ticks)
+        return hp_zero, status_zero, cooldown_zero
 
     def _dmod_deltas(self):
         active_dmods = self._dmod_ticks > 0
@@ -241,7 +241,11 @@ class UnitStats:
         return np.column_stack(reaching_zero_now.nonzero())
 
     def _do_cooldown_deltas(self, ticks):
+        already_at_zero = self.cooldowns[:, :] <= 0
+        will_be_at_zero = self.cooldowns[:, :] - ticks <= 0
+        reaching_zero_now = np.invert(already_at_zero) & will_be_at_zero
         self.cooldowns -= ticks
+        return np.column_stack(reaching_zero_now.nonzero())
 
     def _collision_push(self):
         # Get full distance table

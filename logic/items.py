@@ -57,6 +57,7 @@ class Item:
         if 'stats' in raw_data:
             self.stats = _load_raw_stats(raw_data['stats'])
         self.shop_name = f'{self.name}\n{round(self.cost)} ({self.category.name.lower().capitalize()})'
+        logger.info(f'Created item: {self} from raw_data: {raw_data}')
 
     def shop_text(self, engine, uid):
         stat_str = []
@@ -80,7 +81,7 @@ class Item:
         logger.warning(f'Item.check_shop() will be deprecated.')
         unit = engine.units[uid]
         icat = round(engine.get_status(uid, STATUS.SHOP))
-        if icat < self.category.value or None not in unit.item_slots:
+        if icat < self.category.value or unit.empty_item_slots == 0:
             return False
         return True
 
@@ -94,7 +95,7 @@ class Item:
         if icat < self.category.value:
             return FAIL_RESULT.OUT_OF_RANGE
 
-        if None not in unit.item_slots:
+        if unit.empty_item_slots == 0:
             return FAIL_RESULT.MISSING_TARGET
 
         if not engine.get_stats(uid, STAT.GOLD) >= self.cost:
@@ -123,14 +124,8 @@ class Item:
         r = self.check_buy(engine, uid)
         if isinstance(r, FAIL_RESULT):
             return r
-
         unit = engine.units[uid]
-        for index in range(len(unit.item_slots)):
-            if unit.item_slots[index] is None:
-                unit.item_slots[index] = self.iid
-                break
-        else:
-            raise RuntimeError(f'Failed to find empty item slot. This should not happen')
+        unit.add_item(self.iid)
 
         engine.set_stats(uid, STAT.GOLD, -self.cost, additive=True)
         for stat_name, stat in self.stats.items():
@@ -143,15 +138,15 @@ class Item:
 
     def sell_item(self, engine, uid):
         unit = engine.units[uid]
-        assert self.iid in unit.item_slots
-        index = unit.item_slots.index(self.iid)
+        assert self.iid in unit.items
 
         icat = round(engine.get_status(uid, STATUS.SHOP))
         if icat == 0:
             logger.debug(f'{unit.name} missing shop status to sell')
             return FAIL_RESULT.MISSING_TARGET
 
-        unit.item_slots[index] = None
+        unit.remove_item(self.iid)
+
         buy_tick = engine.units[uid].cache[f'{self}-buy']
         sell_multi = 1 if engine.tick - buy_tick < QUICK_RESELL_WINDOW else self.sell_multi
         engine.set_stats(uid, STAT.GOLD, self.cost*sell_multi, additive=True)
@@ -199,8 +194,8 @@ def _load_items():
         name = ALL_ITEM_NAMES[iid]
         raw_data = raw_items[name]
         item = Item(iid, name, raw_data)
-        logger.info(f'Loaded item: {item}')
         items.append(item)
+    logger.info(f'Loaded {len(items)} items.')
     return items
 
 

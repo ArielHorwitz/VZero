@@ -61,10 +61,13 @@ class BaseAbility:
             effect = EFFECT_CLASSES[etype](self, effect_data)
             phase.add_effect(condition, effect)
 
-        logger.info(f'Created ability {self.name} with data: {raw_data}')
+        logger.info(f'Created ability {self} with data: {raw_data}')
+
+    def off_cooldown(self, api, uid):
+        self.passive(api, uid, 0)
 
     def _setup(self):
-        self.cooldown_aid = str2ability(self.__shared_cooldown_name)
+        self.cooldown_aid = self.off_cooldown_aid = str2ability(self.__shared_cooldown_name)
         self.fail_sfx = 'no_fail_sfx' not in self._raw_data.default.positional
         self.upcast_sfx = 'no_upcast_sfx' not in self._raw_data.default.positional
 
@@ -268,6 +271,7 @@ class Phase:
         self.pid = pid
         self.phase_name = pid.name.lower()
         self.ability = ability
+        self.debug = 'debug' in raw_data.positional
         self.auto_fail_sfx = False if 'no_fail_sfx' in raw_data.positional else (self.pid is not PHASE.PASSIVE)
         self.auto_sfx = False if 'no_sfx' in raw_data.positional else (self.pid is not PHASE.PASSIVE)
         self.show_cond = False if 'no_description' in raw_data.positional else True
@@ -286,7 +290,7 @@ class Phase:
         self.target = raw_data['target'] if 'target' in raw_data else 'none'
         assert self.target in {'none', 'self', 'selected', 'other', 'ally', 'enemy', 'neutral'}
         self.targeting_point = self.target == 'none' or self.point == 'self' or 'point_target' in raw_data.positional
-        self.selection_distance = resolve_formula('selection_distance', raw_data, 100)
+        self.single_selection_distance = resolve_formula('selection_distance', raw_data, float('inf'))
         self.range = resolve_formula('range', raw_data, sentinel=float('inf'))
         self.mana_cost = resolve_formula('mana_cost', raw_data, sentinel=0)
         self.cooldown = resolve_formula('cooldown', raw_data, sentinel=0)
@@ -299,18 +303,34 @@ class Phase:
             CONDITION.DOWNCAST: [],
         }
 
+        if self.debug:
+            logger.debug(f'Logging {self.ability} {self.phase_name} debug')
+
     def apply_effects(self, api, uid, dt, target_point=None, draw_miss=False):
         if not self.has_effect:
             return
+        # Collect targets
         if target_point is None:
             target_point = api.get_position(uid)
         targets = self.get_targets(api, uid, target_point, dt, draw_miss)
+        # Unconditional effects
         for effect in self.effects[CONDITION.UNCONDITIONAL]:
             effect.apply(api, uid, targets)
+        # Conditional (upcast/downcast) effects
         condition = CONDITION.DOWNCAST if targets.fails else CONDITION.UPCAST
         for effect in self.effects[condition]:
             effect.apply(api, uid, targets)
-
+        if self.debug:
+            d = ' '.join(str(_) for _ in [
+                targets.dt,
+                targets.source,
+                targets.point,
+                np.flatnonzero(targets.mask),
+                np.flatnonzero(targets.area),
+                np.flatnonzero(targets.selected),
+            ])
+            logger.debug(f'{self} fails: {targets.fails} {d}')
+        # Auto SFX
         if targets.fails:
             if self.auto_fail_sfx:
                 fail_sfx = sorted(targets.fails, key=self.sort_fails_key)[0]
@@ -329,10 +349,10 @@ class Phase:
         for condition in CONDITION:
             fx = self.effects[condition]
             if len(fx) > 0:
-                cond_str = f': {self.repr(None)}' if self.show_cond else ''
+                cond_str = f': {self.repr(au)}' if self.show_cond else ''
                 s.append(f'\n[u]{self.phase_name.capitalize()} {condition.name.lower()}[/u]{cond_str}')
                 for effect in fx:
-                    r = effect.repr(None)
+                    r = effect.repr(au)
                     if r:
                         s.append(r)
         return s
@@ -424,7 +444,7 @@ class Phase:
             idx = NP.argmin(subset_distances)
             single_target_uid = subset_uids[idx]
             single_target_dist = subset_distances[idx]
-            if single_target_dist > self.selection_distance.get_value(api, uid):
+            if single_target_dist > self.single_selection_distance.get_value(api, uid):
                 single_target_uid = None
                 if not self.targeting_point:
                     fails.add(FAIL_RESULT.MISSING_TARGET)

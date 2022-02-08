@@ -57,17 +57,20 @@ class Encounter:
 
     def _do_ticks(self, ticks):
         with ratecounter(self.timers['logic_stats']):
-            hp_zero, status_zero = self.stats.do_tick(ticks)
+            hp_zero, status_zero, cooldown_zero = self.stats.do_tick(ticks)
         with ratecounter(self.timers['logic_vfx']):
             self._iterate_visual_effects(ticks)
         with ratecounter(self.timers['logic_agency']):
             self._do_agency(ticks)
-            if len(hp_zero)> 0:
+            if len(hp_zero) > 0:
                 for uid in hp_zero:
                     self.logic.hp_zero(uid)
-            if len(status_zero)> 0:
+            if len(status_zero) > 0:
                 for uid, status in status_zero:
                     self.logic.status_zero(uid, status)
+            if len(cooldown_zero) > 0:
+                for uid, aid in cooldown_zero:
+                    self.units[uid].off_cooldown(aid)
 
     def _iterate_visual_effects(self, ticks):
         if len(self._visual_effects) == 0:

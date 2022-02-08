@@ -132,7 +132,7 @@ class EncounterAPI(BaseEncounterAPI):
 
     def quickcast(self, ability_index, target, alt=0):
         # Ability from player input (requires handling user feedback)
-        aid = self.units[0].abilities[ability_index]
+        aid = self.units[0].ability_slots[ability_index]
         if aid is None:
             return
         ability = self.abilities[aid]
@@ -284,7 +284,7 @@ class EncounterAPI(BaseEncounterAPI):
     def hud_left(self):
         uid = self.selected_unit
         sls = []
-        for aid in self.units[uid].abilities:
+        for aid in self.units[uid].ability_slots:
             if aid is None:
                 sls.append(SpriteBox(str(Assets.get_sprite('ui', 'blank')), '', (0,0,0,0), (1,1,1,1)))
                 continue
@@ -399,16 +399,16 @@ class EncounterAPI(BaseEncounterAPI):
     def hud_drag_drop(self, hud, origin, target, button):
         if self.selected_unit == 0 and button == 'middle' and origin != target:
             if hud == 'left':
-                List.swap(self.units[0].abilities, origin, target)
+                self.units[0].swap_ability_slots(origin, target)
                 Assets.play_sfx('ui', 'select')
             if hud == 'right':
-                List.swap(self.units[0].item_slots, origin, target)
+                self.units[0].swap_item_slots(origin, target)
                 Assets.play_sfx('ui', 'select')
 
     def hud_click(self, hud, index, button):
         if button == 'left':
             if hud == 'left':
-                aid = self.units[self.selected_unit].abilities[index]
+                aid = self.units[self.selected_unit].ability_slots[index]
                 if aid is None:
                     return None
                 ability = self.abilities[aid]
@@ -665,14 +665,15 @@ class EncounterAPI(BaseEncounterAPI):
         text_unit2 = '\n'.join([
             make_title(f'{unit.name} (#{unit.uid})', length=30),
             make_title(f'Abilities', length=30),
-            *(str(_) for _ in unit.abilities),
+            *(str(_) for _ in unit.ability_slots),
+            str(unit.abilities),
             make_title(f'Items', length=30),
             *(str(_) for _ in unit.item_slots),
             make_title(f'Debug', length=30),
-            f'{unit.debug_str}',
             f'Action phase: {unit.uid % self.engine.AGENCY_PHASE_COUNT}',
             f'Agency: {self.engine.timers["agency"][unit.uid].mean_elapsed_ms:.3f} ms',
             f'Distance to player: {self.engine.unit_distance(0, uid):.1f}',
+            f'{unit.debug_str}',
         ])
 
         timer_strs = []
@@ -695,8 +696,8 @@ class EncounterAPI(BaseEncounterAPI):
         self.game = game
         self.engine = EncounterEngine(self)
         self.map = MapGenerator(self)
+        self.engine.units[0].set_abilities(player_abilities)
         self.draft_cost = draft_cost
-        self.engine.units[0].abilities = player_abilities
         self.always_visible = np.zeros(len(self.engine.units), dtype=np.bool)
         self.always_active = np.zeros(len(self.engine.units), dtype=np.bool)
         self.__last_hud_statuses = []

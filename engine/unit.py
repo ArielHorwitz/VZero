@@ -10,6 +10,9 @@ class Unit:
         self.__uid = uid
         self.__debug_str = f'Unit #{uid} `debug_str` undefined.'
 
+    def off_cooldown(self, aid):
+        pass
+
     def passive_phase(self):
         pass
 

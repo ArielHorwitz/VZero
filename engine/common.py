@@ -1,4 +1,4 @@
-from data import TPS
+from data import TPS, resource_name
 from engine import ABILITY
 from engine import STAT
 from engine import VALUE

@@ -2,7 +2,7 @@ import logging
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
-import copy, random
+import random
 import numpy as np
 from collections import namedtuple, defaultdict
 
@@ -11,7 +11,7 @@ from data.load import RDF
 from data.tileset import TileMap
 
 from engine.common import *
-from logic.data import RAW_UNITS, set_spawn_location
+from logic.units import Unit
 
 
 Biome = namedtuple('Biome', ['pos', 'weight', 'tile'])
@@ -42,6 +42,8 @@ class MapGenerator:
         self.generate_map_image()
         self.spawn_unit('player', self.player_spawn)
         self.spawn_map()
+        for unit in self.engine.units:
+            unit.setup()
 
     def add_spawn(self, spawn, location, quadrant=False):
         self.spawns.append((spawn, np.array(location) * self.size))
@@ -88,19 +90,11 @@ class MapGenerator:
                     self.spawn_unit(utype, location)
 
     def spawn_unit(self, unit_type, location):
-        internal_name = resource_name(unit_type)
-        raw_unit_data = copy.deepcopy(RAW_UNITS[internal_name])
-        unit_cls = raw_unit_data['cls']
-        name = raw_unit_data['name']
-        stats = raw_unit_data['stats']
-        set_spawn_location(stats, location)
-        params = raw_unit_data['params']
         uid = self.engine.next_uid
-        unit = unit_cls(self.api, uid, name, params)
-        self.engine.add_unit(unit, stats)
-        unit.setup()
-        logger.debug(f'Created new unit {internal_name} with uid {uid} and params: {params}')
-        return unit
+        unit = Unit.from_data(self.api, uid, unit_type)
+        unit.set_spawn_location(location)
+        self.engine.add_unit(unit, unit.starting_stats)
+        logger.debug(f'Spawned new unit: {unit} @{location}')
 
     def refresh(self):
         self.__biome_pos = np.array([[*b.pos] for b in self.biomes], dtype=np.float64)
