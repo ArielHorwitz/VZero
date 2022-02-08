@@ -1,25 +1,31 @@
 === Loot
-type: loot
-show_stats: range, loot_multi
-draft_cost: 20
+type: base
+sfx: loot
+info: Loot the dead.
 -- stats
+physical:
+-- ACTIVE
+point_target
+no_sfx
+--- active.unconditional.loot
 range: 300
-loot_multi: 1.2
+loot_multi: 100
 
 
 === Appraise
-type: loot
+type: base
 sfx: loot
-sfx_grand: appraise
-show_stats: range, loot_multi, cooldown
-draft_cost: 30
--- stats
+info: Loot the dead.
+-- ACTIVE
+cooldown: 100
+point_target
+no_sfx
+--- active.upcast.loot
 range: 300
-cooldown: 10000
-loot_multi: water
-loot_multi_base: 0.75
-loot_multi_scale: 3
-loot_multi_curve: 100
+loot_multi=scale: 75, water, 300, 100
+--- active.downcast.loot
+range: 300
+loot_multi: 75
 
 
 === Walk
@@ -67,9 +73,7 @@ color: cyan
 sprite: snipe
 cooldown: base attack
 sfx: attack
---- info
-Testing [u][i][b]base[/b][/i][/u] ability class.
--- stats
+info: Testing [u][i][b]base[/b][/i][/u] ability class.
 
 -- active
 no_sfx
@@ -84,20 +88,20 @@ phase: passive
 
 -- passive
 target: selected
-range.scale: 100, air, 350, 25
+range=scale: 100, air, 350, 25
 mana_cost: 0
-cooldown.reduc: 1.5, water, 0.2, 50
+cooldown=reduc: 1.5, water, 0.2, 50
 -- passive.upcast.vfx-line
 p1: source
 p2: selected
 -- passive.upcast.sfx
 -- passive.upcast.hit
-damage.bonus: 5, physical, 0.25
+damage=bonus: 5, physical, 0.25
 -- passive.upcast.status
 status: cuts
-stacks.scale: 5, fire, 15, 50
+stacks=scale: 5, fire, 15, 50
 stacks_op: additive
-duration.bonus: 5, water, 1
+duration=bonus: 5, water, 1
 -- passive.upcast.steal
 stat: physical
 delta: 1
@@ -112,12 +116,12 @@ sprite: death fog
 --- info
 Testing [u][i][b]base[/b][/i][/u] ability class.
 Aura.
--- stats
+
 -- passive
 point_target
 target: enemy
 area: circle
-radius: 500
+radius: 300
 -- passive.upcast.status
 target: area
 status: vanity
@@ -126,6 +130,10 @@ stacks: 10
 target: area
 stat: hp
 delta: -10
+-- passive.upcast.steal
+target: area
+stat: physical
+delta: 1
 
 -- active
 point_target
@@ -133,13 +141,14 @@ target: enemy
 area: circle
 radius: 500
 range: 750
+mana_cost: 50
 -- active.upcast.vfx-circle
 center: point
 radius: 500
 color: 0.1, 0.1, 0.1, 0.3
 -- active.upcast.pull
 target: area
-speed: 600
+speed: 200
 range: 0
 
 
@@ -155,19 +164,20 @@ Range; 500-1000 ([b]air[/b])
 Mana cost; 50
 Cooldown; 3s-1s ([b]water[/b])
 -- stats
-range: 1000
+hp.max=scale: 20, earth, 100, 50
+spikes=bonus: 10, air, 2
 
 -- active
 point: fix
-range.scale: 500, air, 1000, 25
+range=scale: 500, air, 1000, 25
 mana_cost: 50
-cooldown.reduc: 3, water, 1, 10
+cooldown=reduc: 3, water, 1, 10
 status_block: bounded
 -- active.upcast.vfx-line
 p1: source
 p2: point
 -- active.upcast.teleport
-range.bonus: 50, air, 3
+range=bonus: 50, air, 3
 
 
 === Test New Fireblast
@@ -178,39 +188,28 @@ sfx: fireblast
 --- info
 Testing [u][i][b]base[/b][/i][/u] ability class.
 Fireblast!
--- stats
-range: 500
 
 -- ACTIVE
 point: fix
 target: other
 point_target
-area: rect
-length: 1000
-width: 250
-range: 10
-mana_cost: 0
-cooldown: 0
--- ~active.upcast.vfx-line
+area: circle
+radius=scale: 100, water, 500, 80
+range: 500
+-- active.upcast.vfx-line
 p1: source
 p2: point
--- ~active.upcast.vfx-circle
+-- active.upcast.vfx-circle
 duration: 50
 center: point
-radius: 100
+radius=scale: 100, water, 500, 80
 color: red
-fade: 50
--- active.upcast.vfx-rect
-origin: self
-length: 1000
-width: 250
-color: 1, 1, 0, 0.3
-duration: 50
 fade: 50
 -- active.upcast.sfx
 sfx: fireblast
 -- active.upcast.blast
-damage: 4
+target: area
+damage=bonus: 20, fire, 1
 
 
 === Attack
@@ -218,25 +217,124 @@ type: base
 color: cyan
 cooldown: base attack
 info: Testing [u][i][b]base[/b][/i][/u] ability class.
--- stats
 
---- alt
-no_sfx
-range: 1000
---- alt.upcast.teleport
---- alt.upcast.sfx
-sfx: blink
 --- active
 target: enemy
 range: 30
-cooldown.reduc: 1.5, water, 0.2, 80
-
+cooldown=reduc: 1.5, water, 0.2, 80
 --- active.upcast.hit
-damage.bonus: 20, physical, 1
+damage=bonus: 20, physical, 1
 --- active.upcast.vfx-line
 p1: source
-p2: target
+p2: single
 
+
+
+=== Phase Strike
+type: base
+color: cyan
+cooldown: base attack
+sfx: attack
+
+--- ACTIVE
+target: enemy
+range=scale: 100, air, 300, 50
+cooldown: 2
+--- active.upcast.teleport
+target: single
+offset: 5
+--- active.upcast.hit
+damage=bonus: 20, physical, 1
+--- active.upcast.vfx-line
+p1: source
+p2: single
+
+
+
+=== Spike Blast
+type: base
+color: blue
+sfx: fireblast
+--- PASSIVE
+target: self
+--- passive.unconditional.status
+status: spikes
+stacks: 0.25
+stacks_op: additive
+duration: 5
+max_stacks=scale: 20, earth, 100, 80
+--- ACTIVE
+target: enemy
+point_target
+point: self
+area: circle
+radius: 400
+cooldown: 0.3
+--- active.upcast.blast
+target: area
+damage=scale: 1, physical, 350, 100
+status_multi: spikes
+--- active.upcast.vfx-line
+p1: source
+p2: single
+--- active.upcast.status
+target: self
+status: spikes
+stacks: 0
+--- active.upcast.vfx-circle
+center: point
+radius: 400
+color: 0, 0, 0.7, 0.5
+
+
+
+
+=== Heavy Slam
+type: base
+color: green
+sprite: yip yip
+-- ACTIVE
+point: fix
+target: other
+area: circle
+radius: 200
+range=scale: 500, air, 1000, 25
+mana_cost: 50
+cooldown=reduc: 20, water, 4, 50
+status_block: bounded
+-- active.upcast.vfx-line
+p1: source
+p2: point
+-- active.upcast.vfx-circle
+center: point
+radius: 200
+color: 0.3, 0.4, 0, 0.3
+-- active.upcast.teleport
+-- active.upcast.status
+target: area
+status: slow
+stacks: 80
+duration: 2
+-- active.upcast.sfx
+sfx: fireblast
+
+
+
+
+=== Siphon
+type: base
+color: cyan
+cooldown: base attack
+sfx: attack2
+--- ACTIVE
+target: enemy
+range: 30
+cooldown=reduc: 1.5, water, 0.2, 50
+--- active.upcast.hit
+damage=bonus: 20, physical, 0.25
+--- active.upcast.steal
+stat: mana
+delta=bonus: 20, physical, 1
 
 
 === Attack oldgen
@@ -528,7 +626,26 @@ stacks_base: 10
 stacks_bonus: 0.75
 
 
+
 === Meditate
+type: base
+color: blue
+--- ACTIVE
+mana_cost: 120
+cooldown: 0
+target: self
+--- active.upcast.status
+status: sensitivity
+stacks=bonus: 25, earth, 0.25
+duration=scale: 60, water, 120, 100
+--- active.upcast.regen
+stat: hp
+delta=scale: 5, water, 50, 120
+duration: 15
+
+
+
+=== Meditateold
 type: buff
 color: blue
 show_stats: mana_cost, cooldown, duration, stacks
@@ -711,6 +828,31 @@ damage: fire
 damage_base: 50
 damage_bonus: 1
 
+
+=== Slow Aura
+type: base
+color: brown
+sprite: dunder beam
+sfx: implosion
+
+-- PASSIVE
+point_target
+target: enemy
+area: circle
+radius=scale: 150, air, 450, 60
+-- passive.upcast.status
+target: area
+status: slow
+stacks=scale: 10, air, 150, 60
+-- passive.downcast.steal
+target: area
+stat: mana
+delta=scale: 1, slow, 5, 25
+--- ACTIVE
+cooldown: 20
+mana_cost: 50
+no_sfx
+--- active.upcast.sfx
 
 
 === Death Fog
@@ -906,6 +1048,19 @@ scaling: 3
 
 
 
+=== Necklace
+hidden
+type: base
+--- info
+Testing [u][i][b]base[/b][/i][/u] ability class for items.
+-- stats
+hp.max=scale: 10, earth, 100, 100
+hp.delta: 5
+mana.delta: 6
+physical: 5
+
+
+
 === Buckler
 hidden
 type: buff
@@ -1070,13 +1225,30 @@ radius: 350
 
 
 
-=== Dev blink
+=== Dev Stone
 hidden
-type: teleport
+type: base
+sfx: blink
 -- stats
-range: 10000
-cooldown: 0
-mana_cost: 0
+hp.delta: 10000
+hp.max: 10000
+mana.delta: 10000
+mana.max: 10000
+
+-- ACTIVE
+-- active.upcast.vfx-line
+p1: source
+p2: point
+-- active.upcast.teleport
+-- ALT
+no_sfx
+-- alt.unconditional.stat
+target: self
+stat: gold
+delta: 10000
+-- alt.unconditional.sfx
+sfx: loot
+
 
 
 === Base Attack

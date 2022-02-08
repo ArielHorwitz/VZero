@@ -38,12 +38,13 @@ ABILITIES = _load_abilities()
 
 # Units
 def _load_unit_types():
-    raw_data = RDF(RDF.CONFIG_DIR / 'units.rdf')
+    all_raw_data = RDF(RDF.CONFIG_DIR / 'units.rdf')
     units = {}
-    for unit_name, raw_data in raw_data.items():
+    for unit_name, raw_data in all_raw_data.items():
         iname = internal_name(unit_name)
         if iname in units:
             raise CorruptedDataError(f'Unit name duplication: {iname}')
+        raw_data.default['name'] = unit_name
         units[iname] = raw_data
     logger.info(f'Loaded {len(units)} units.')
     return units

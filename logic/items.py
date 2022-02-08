@@ -66,7 +66,7 @@ class Item:
                 sname = stat.name.lower().capitalize()
                 value = self.stats[stat][value_name]
                 if value_name is VALUE.DELTA:
-                    value = f'{nsign_str(round(engine.s2ticks(value), 5))}/s'
+                    value = f'{nsign_str(round(s2ticks(value), 5))}/s'
                 else:
                     value = nsign_str(value)
                     if value_name is not VALUE.CURRENT:
@@ -105,7 +105,7 @@ class Item:
 
     def gui_state(self, api, uid, target=None):
         if self.ability is not None:
-            return self.ability.gui_state(api, uid, target)
+            return self.ability.gui_state(api, uid)
         return '', (0, 0, 0, 0)
 
     def active(self, api, uid, target, alt=0):
@@ -125,6 +125,7 @@ class Item:
         if isinstance(r, FAIL_RESULT):
             return r
         unit = engine.units[uid]
+        assert unit.empty_item_slots > 0
         unit.add_item(self.iid)
 
         engine.set_stats(uid, STAT.GOLD, -self.cost, additive=True)
@@ -132,7 +133,7 @@ class Item:
             for value_name, value in stat.items():
                 engine.set_stats(uid, stat_name, value, value_name=value_name, additive=True)
         result = self.iid
-        logger.debug(f'{unit.name} bought item: {self.name}')
+        logger.debug(f'{unit.name} bought item: {self}')
         engine.units[uid].cache[f'{self}-buy'] = engine.tick
         return result
 
@@ -156,7 +157,7 @@ class Item:
 
         result = self.iid
 
-        logger.debug(f'{unit.name} sold item: {self.name}')
+        logger.debug(f'{unit.name} sold item: {self}')
         return result
 
     def __repr__(self):

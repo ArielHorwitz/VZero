@@ -109,10 +109,6 @@ hitbox: 5
 === Necklace
 category: basic
 cost: 400
---- stats
-hp.delta: 0.05
-mana.delta: 0.06
-physical: 5
 === Gloves
 category: basic
 cost: 400
@@ -392,10 +388,3 @@ fire: 20
 === Dev Stone
 category: basic
 cost: 0
-ability: dev blink
---- stats
-hp.delta: 100
-hp.max: 10000
-mana.delta: 100
-mana.max: 10000
-gold: 1000000

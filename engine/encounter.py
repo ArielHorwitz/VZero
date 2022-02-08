@@ -8,12 +8,12 @@ from collections import defaultdict
 from nutil.vars import NP
 from nutil.time import ping, pong, RateCounter, pingpong, ratecounter
 from nutil.random import Seed
+from data.settings import Settings
 from engine.stats import UnitStats
 from engine.common import *
 
 
 class Encounter:
-    DEFAULT_TPS = 100  # Assumed constant by other systems
     AGENCY_PHASE_COUNT = 30
 
     def __init__(self, logic):
@@ -24,7 +24,7 @@ class Encounter:
         self.timers = defaultdict(RateCounter)
         self.timers['agency'] = defaultdict(lambda: RateCounter(sample_size=10))
         self.auto_tick = True
-        self.__tps = self.DEFAULT_TPS
+        self.__tps = Settings.get_setting('tps', 'General')
         self.ticktime = 1000 / self.__tps
         self.__t0 = self.__last_tick = ping()
         self.stats = UnitStats()
@@ -44,6 +44,7 @@ class Encounter:
                 ticks = 1
             if ticks > 0:
                 self._do_ticks(ticks)
+        self.stats._cap_minmax_values()
 
     def _check_ticks(self):
         dt = pong(self.__last_tick)
@@ -122,10 +123,6 @@ class Encounter:
     def tick(self):
         return self.stats.tick
 
-    @property
-    def target_tps(self):
-        return self.__tps
-
     def set_auto_tick(self, auto=None):
         if auto is None:
             auto = not self.auto_tick
@@ -136,7 +133,7 @@ class Encounter:
 
     def set_tps(self, tps=None):
         if tps is None:
-            tps = self.DEFAULT_TPS
+            tps = Settings.get_setting('tps', 'General')
         self.__tps = tps
         self.ticktime = 1000 / self.__tps
         logger.debug(f'set tps {self.__tps}')
@@ -240,10 +237,3 @@ class Encounter:
     @property
     def unmoveable_mask(self):
         return self.stats.get_stats(slice(None), STAT.WEIGHT) < 0
-
-    # GUI utilities (not precise for mechanics)
-    def ticks2s(self, ticks=1):
-        return ticks / self.target_tps
-
-    def s2ticks(self, seconds=1):
-        return seconds * self.target_tps

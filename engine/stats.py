@@ -30,6 +30,7 @@ class UnitStats:
         elif multiplicative:
             stat_value *= cv
         self.table[index, stat, value_name] = stat_value
+        self._cap_minmax_values()
 
     def get_status(self, index, status, value_name=None):
         """
@@ -222,16 +223,22 @@ class UnitStats:
         current_values[at_target] = target_values[at_target]
 
         # Cap at min and max value
-        below_min_mask = current_values < min_values
-        above_max_mask = current_values > max_values
-        current_values[below_min_mask] = min_values[below_min_mask]
-        current_values[above_max_mask] = max_values[above_max_mask]
+        self._cap_minmax_values()
 
         # Return a list of units that reached 0 HP
         hp_below_zero = self.table[:, STAT.HP, VALUE.CURRENT] <= 0
         hp_zero = self._flags_alive & hp_below_zero
         self._flags_alive = np.invert(hp_below_zero)
         return hp_zero.nonzero()[0]
+
+    def _cap_minmax_values(self):
+        current_values = self.table[:, :, VALUE.CURRENT]
+        min_values = self.table[:, :, VALUE.MIN]
+        max_values = self.table[:, :, VALUE.MAX]
+        below_min_mask = current_values < min_values
+        above_max_mask = current_values > max_values
+        current_values[below_min_mask] = min_values[below_min_mask]
+        current_values[above_max_mask] = max_values[above_max_mask]
 
     def _do_status_deltas(self, ticks):
         already_at_zero = self.status_table[:, :, STATUS_VALUE.DURATION] <= 0

@@ -1,6 +1,6 @@
 import logging
 logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 
 import math
@@ -48,6 +48,33 @@ class Mechanics:
         api.set_position(uid, target, VALUE.TARGET)
 
     @classmethod
+    def apply_walk(cls, api, uid, target):
+        bounded = cls.get_status(api, uid, STAT.BOUNDED)
+        if bounded > 0:
+            logger.debug(f'Tried applying walk on {uid} but bounded.')
+            return
+        speed = cls.get_status(api, uid, STAT.MOVESPEED)
+        slow = cls.get_status(api, uid, STAT.SLOW)
+        if slow > 0:
+            speed *= cls.scaling(slow)
+        target_vector = target - api.get_position(uid)
+        delta = normalize(target_vector, move_speed)
+        api.set_position(uid, delta, value_name=VALUE.DELTA)
+        api.set_position(uid, target, value_name=VALUE.TARGET)
+
+    @classmethod
+    def apply_push(cls, api, uid, target, speed):
+        bounded = cls.get_status(api, uid, STAT.BOUNDED)
+        if bounded > 0:
+            logger.debug(f'Tried applying push on {uid} but bounded.')
+            return
+        slow = cls.get_status(api, uid, STAT.SLOW)
+        target_vector = target - api.get_position(uid)
+        delta = normalize(target_vector, speed)
+        api.set_position(uid, delta, value_name=VALUE.DELTA)
+        api.set_position(uid, target, value_name=VALUE.TARGET)
+
+    @classmethod
     def apply_move(cls, api, uid, target=None, move_speed=None):
         bounded = cls.get_status(api, uid, STAT.BOUNDED)
         if bounded > 0:
@@ -82,10 +109,15 @@ class Mechanics:
                 stacks *= 1 + sensitivity
         api.set_status(targets, status, duration, stacks)
         if status in {STATUS.SLOW, STATUS.BOUNDED} and reset_move:
-            cls.apply_move(api, targets)
+            if isinstance(targets, np.ndarray):
+                for tuid in np.flatnonzero(targets):
+                    cls.apply_move(api, tuid)
+            else:
+                cls.apply_move(api, targets)
 
     @classmethod
     def apply_regen(cls, api, targets, stat, duration, delta):
+        logger.debug(f'Applying {delta} {stat.name} regen for {duration} ticks to {np.flatnonzero(targets)}')
         api.add_dmod(duration, targets, stat, delta)
 
     @classmethod
@@ -173,7 +205,7 @@ class Mechanics:
     @classmethod
     def get_status(cls, api, uid, stat):
         base = api.get_stats(uid, stat)
-        from_status = api.get_status(uid, cls.STATUSES[stat])
+        from_status = api.get_status(uid, str2status(stat.name))
         return base + from_status
 
 

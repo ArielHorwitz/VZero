@@ -9,7 +9,7 @@ from pathlib import Path
 import nutil
 from nutil.kex import widgets
 from nutil.time import RateCounter, pingpong
-from data import TITLE, FPS
+from data import TITLE
 from data.settings import Settings
 from gui.home import HomeGUI
 from gui.encounter.encounter import Encounter
@@ -18,8 +18,9 @@ from engine import get_api
 
 
 class App(widgets.App):
+    DEFAULT_FPS = int(Settings.get_setting('fps', 'General'))
     def __init__(self, **kwargs):
-        logger.info(f'Initializing GUI @ {FPS} fps.')
+        logger.info(f'Initializing GUI @ {self.DEFAULT_FPS} fps.')
         super().__init__(make_bg=False, make_menu=False, **kwargs)
         self.home_hotkeys = widgets.InputManager()
         self.enc_hotkeys = widgets.InputManager()
@@ -37,8 +38,8 @@ class App(widgets.App):
         self.switch.add_screen('enc', self.enc_frame)
 
         # Start mainloop
-        self.fps = RateCounter(sample_size=FPS)
-        self.hook_mainloop(FPS)
+        self.fps = RateCounter(sample_size=self.DEFAULT_FPS)
+        self.hook_mainloop(self.DEFAULT_FPS)
 
         widgets.kvWindow.size = self.configured_resolution(full=False)
         default_window_state = Settings.get_setting('default_window', 'General')
@@ -94,7 +95,7 @@ class App(widgets.App):
 
     @property
     def fps_color(self):
-        return (1, 0, 0, (FPS-self.fps.rate)/45)
+        return (1, 0, 0, (self.DEFAULT_FPS-self.fps.rate)/45)
 
     def mainloop_hook(self, dt):
         self.fps.tick()

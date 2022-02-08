@@ -19,6 +19,11 @@ def str2value(name):
     return getattr(VALUE, name.upper())
 
 
+def str2statvalue(s):
+    stat_name, value_name = s.split('.') if '.' in s else (s, 'current')
+    return str2stat(stat_name), str2value(value_name)
+
+
 def str2status(name):
     return getattr(STATUS, name.upper())
 
@@ -44,11 +49,11 @@ def str2vfx(s):
     return getattr(VFX, internal_name(s))
 
 
-def s2ticks(s):
+def s2ticks(s=1):
     return TPS * s
 
 
-def ticks2s(t):
+def ticks2s(t=1):
     return t / TPS
 
 

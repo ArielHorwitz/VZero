@@ -10,7 +10,7 @@ from nutil.vars import NP, nsign_str
 from nutil.random import SEED
 from nutil.display import njoin, make_title
 from nutil.time import RateCounter, ping, pong
-from nutil.vars import modify_color, List, is_iterable
+from nutil.vars import modify_color, is_iterable
 
 from data import resource_name
 from data.load import RDF
@@ -322,7 +322,7 @@ class EncounterAPI(BaseEncounterAPI):
         current = [f'{math.floor(c)}' for c in current]
         current.extend([
             f'{round(self.units[uid]._respawn_timer/100)}s',
-            f'{round(self.engine.s2ticks(self.engine.get_velocity(uid)))}',
+            f'{round(s2ticks(self.engine.get_velocity(uid)))}',
             f'{round(self.engine.get_stats(uid, STAT.HITBOX))}',
         ])
         return tuple(SpriteLabel(
@@ -333,7 +333,7 @@ class EncounterAPI(BaseEncounterAPI):
         def get(s):
             return Mechanics.get_status(self.engine, uid, s)
         def format_time(t):
-            return math.ceil(self.engine.ticks2s(t))
+            return math.ceil(ticks2s(t))
         def format_rp(v):
             return round((1-Mechanics.rp2reduction(v))*100)
 
@@ -385,11 +385,11 @@ class EncounterAPI(BaseEncounterAPI):
         hp = self.engine.get_stats(uid, STAT.HP)
         max_hp = self.engine.get_stats(uid, STAT.HP, value_name=VALUE.MAX)
         delta_hp = self.engine.get_stats(uid, STAT.HP, value_name=VALUE.DELTA)
-        delta_hp = f'{nsign_str(round(self.engine.s2ticks(delta_hp), 1))} /s'
+        delta_hp = f'{nsign_str(round(s2ticks(delta_hp), 1))} /s'
         mana = self.engine.get_stats(uid, STAT.MANA)
         max_mana = self.engine.get_stats(uid, STAT.MANA, value_name=VALUE.MAX)
         delta_mana = self.engine.get_stats(uid, STAT.MANA, value_name=VALUE.DELTA)
-        delta_mana = f'{nsign_str(round(self.engine.s2ticks(delta_mana), 1))} /s'
+        delta_mana = f'{nsign_str(round(s2ticks(delta_mana), 1))} /s'
         bar_colors = self.sprite_bar_color(uid)
         return [
             ProgressBar(hp/max_hp, f'HP: {hp:.1f}/{max_hp:.1f} {delta_hp}', bar_colors[0]),
@@ -433,7 +433,7 @@ class EncounterAPI(BaseEncounterAPI):
                     ][index]
                     current = self.engine.get_stats(self.selected_unit, stat)
                     delta = self.engine.get_stats(self.selected_unit, stat, value_name=VALUE.DELTA)
-                    dval = round(self.engine.s2ticks(delta)*60, 2)
+                    dval = round(s2ticks(delta)*60, 2)
                     ds = ''
                     if dval != 0:
                         ds = f'\n{nsign_str(dval)} /m'
@@ -602,11 +602,11 @@ class EncounterAPI(BaseEncounterAPI):
         stat_table = self.engine.stats.table
         velocity = self.engine.get_velocity(uid)
         s = [
-            f'Speed: {self.engine.s2ticks(velocity):.2f}/s ({velocity:.2f}/t)',
+            f'Speed: {s2ticks(velocity):.2f}/s ({velocity:.2f}/t)',
         ]
         for stat in stats:
             current = stat_table[uid, stat, VALUE.CURRENT]
-            delta = self.engine.s2ticks()*stat_table[uid, stat, VALUE.DELTA]
+            delta = s2ticks()*stat_table[uid, stat, VALUE.DELTA]
             d_str = f' + {delta:.2f}' if delta != 0 else ''
             max_value = stat_table[uid, stat, VALUE.MAX]
             mv_str = f' / {max_value:.2f}' if max_value < 100_000 else ''
@@ -620,7 +620,7 @@ class EncounterAPI(BaseEncounterAPI):
             s = self.engine.get_status(uid, status, value_name=STATUS_VALUE.STACKS)
             if d > 0:
                 name_ = status.name.lower().capitalize()
-                t.append(f'{name_}: {self.engine.ticks2s(d):.2f} × {s:.2f}')
+                t.append(f'{name_}: {ticks2s(d):.2f} × {s:.2f}')
         return njoin(t) if len(t) > 0 else 'No statuses'
 
     def pretty_cooldowns(self, uid):
@@ -629,7 +629,7 @@ class EncounterAPI(BaseEncounterAPI):
             v = self.engine.get_cooldown(uid, ability)
             if v > 0:
                 name_ = ability.name.lower().capitalize()
-                s.append(f'{name_}: {self.engine.ticks2s(v):.2f} ({round(v)})')
+                s.append(f'{name_}: {ticks2s(v):.2f} ({round(v)})')
         return njoin(s) if len(s) > 0 else 'No cooldowns'
 
     def debug_panel_labels(self):
@@ -652,7 +652,15 @@ class EncounterAPI(BaseEncounterAPI):
             '200 rp = 80 %',
         ])
 
-        text_unit = '\n'.join([
+        text_unit1 = '\n'.join([
+            make_title(f'Unit debug', length=30),
+            f'Action phase: {unit.uid % self.engine.AGENCY_PHASE_COUNT}',
+            f'Agency: {self.engine.timers["agency"][unit.uid].mean_elapsed_ms:.3f} ms',
+            f'Distance to player: {self.engine.unit_distance(0, uid):.1f}',
+            f'{unit.debug_str}',
+        ])
+
+        text_unit2 = '\n'.join([
             make_title(f'{unit.name} (#{unit.uid})', length=30),
             make_title(f'Stat', length=30),
             f'{self.pretty_stats(uid)}',
@@ -662,18 +670,14 @@ class EncounterAPI(BaseEncounterAPI):
             f'{self.pretty_cooldowns(uid)}',
         ])
 
-        text_unit2 = '\n'.join([
+        text_unit3 = '\n'.join([
             make_title(f'{unit.name} (#{unit.uid})', length=30),
             make_title(f'Abilities', length=30),
             *(str(_) for _ in unit.ability_slots),
-            str(unit.abilities),
+            f'Unslotted:',
+            *(str(_) for _ in (unit.abilities - set(unit.ability_slots))),
             make_title(f'Items', length=30),
             *(str(_) for _ in unit.item_slots),
-            make_title(f'Debug', length=30),
-            f'Action phase: {unit.uid % self.engine.AGENCY_PHASE_COUNT}',
-            f'Agency: {self.engine.timers["agency"][unit.uid].mean_elapsed_ms:.3f} ms',
-            f'Distance to player: {self.engine.unit_distance(0, uid):.1f}',
-            f'{unit.debug_str}',
         ])
 
         timer_strs = []
@@ -683,12 +687,15 @@ class EncounterAPI(BaseEncounterAPI):
         text_performance = njoin([
             make_title('Logic Performance', length=30),
             f'Game time: {self.time_str}',
-            f'Tick: {self.engine.tick} +{self.engine.s2ticks()} t/s',
+            f'Tick: {self.engine.tick} +{s2ticks()} t/s',
             *timer_strs,
             f'Map size: {self.map_size}',
             f'Agency phase: {self.engine.tick % self.engine.AGENCY_PHASE_COUNT}',
         ])
-        return rp_table, text_unit, text_unit2, text_performance
+
+        logic_overview = '\n\n'.join([text_performance, rp_table])
+
+        return text_unit1, text_unit2, text_unit3, logic_overview
 
     def __init__(self, game, player_abilities, draft_cost):
         self.dev_mode = Settings.get_setting('dev_build', 'General')

@@ -1,12 +1,12 @@
 import logging
 logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 
 import collections
 import math
 import numpy as np
-from nutil.vars import normalize, is_floatable, nsign_str, modify_color, try_float, NP, AutoIntEnum
+from nutil.vars import normalize, is_floatable, nsign_str, modify_color, try_float, NP, AutoIntEnum, is_iterable
 from nutil.random import SEED
 from data.load import SubCategory as RDFSubCategory
 from data.assets import Assets
@@ -17,6 +17,8 @@ from logic.compat_abilities import ABILITY_CLASSES as COMPAT_ABILITY_CLASSES
 
 
 PHASE = AutoIntEnum('AbilityPhase', ['PASSIVE', 'ACTIVE', 'ALT'])
+CONDITION = AutoIntEnum('PhaseCondition', ['UNCONDITIONAL', 'UPCAST', 'DOWNCAST'])
+Targets = collections.namedtuple('Targets', ['aid', 'dt', 'fails', 'source', 'point', 'single', 'area', 'selected'])
 
 
 class BaseAbility:
@@ -40,6 +42,7 @@ class BaseAbility:
         self.sprite = Assets.get_sprite('ability', raw_data.default['sprite'] if 'sprite' in raw_data.default else self.name)
         self.__shared_cooldown_name = raw_data.default['cooldown'] if 'cooldown' in raw_data.default else self.name
 
+        self.stats = self._parse_stats(raw_data['stats'] if 'stats' in raw_data else RDFSubCategory())
         self.phases = {p: Phase(self, p, RDFSubCategory()) for p in PHASE}
         for phase_name, phase_data in raw_data.items():
             if not self.has_phase(phase_name):
@@ -63,8 +66,51 @@ class BaseAbility:
 
         logger.info(f'Created ability {self} with data: {raw_data}')
 
+    def balance_stats(self, api, uid):
+        if not self.stats:
+            return
+        unit = api.units[uid]
+        for i, (stat, value, formula) in enumerate(self.stats):
+            pre_stat = api.get_stats(uid, stat, value)
+            pre_bonus = unit.cache[f'{self.aid}-stats'][i][2]
+            target = formula.get_value(api, uid)
+            if value is VALUE.DELTA:
+                target = ticks2s(target)
+            delta = target - pre_bonus
+            api.set_stats(uid, stat, delta, value, additive=True)
+            post_stat = api.get_stats(uid, stat, value)
+            actual_delta = round(post_stat - pre_stat, 4)
+            unit.cache[f'{self.aid}-stats'][i][2] += actual_delta
+
+    def remove_stats(self, api, uid):
+        if not self.stats:
+            return
+        unit = api.units[uid]
+        for s, v, bonus in unit.cache[f'{self.aid}-stats']:
+            api.set_stats(uid, s, -bonus, value_name=v, additive=True)
+        unit.cache[f'{self.aid}-stats'] = None
+
+    @staticmethod
+    def _parse_stats(raw_data):
+        stats = []
+        for raw_key, raw_value in raw_data.items():
+            raw_statval = raw_key
+            if '=' in raw_key:
+                raw_statval, formula_name = raw_key.split('=')
+            stat, statval = str2statvalue(raw_statval)
+            formula = resolve_formula(raw_statval, {raw_key: raw_value})
+            stats.append((stat, statval, formula))
+        return stats
+
     def off_cooldown(self, api, uid):
         self.passive(api, uid, 0)
+
+    def load_on_unit(self, api, uid):
+        unit = api.units[uid]
+        unit.cache[f'{self.aid}-stats'] = [[s, v, 0] for s,v,f in self.stats]
+
+    def unload_from_unit(self, api, uid):
+        self.remove_stats(api, uid)
 
     def _setup(self):
         self.cooldown_aid = self.off_cooldown_aid = str2ability(self.__shared_cooldown_name)
@@ -72,6 +118,7 @@ class BaseAbility:
         self.upcast_sfx = 'no_upcast_sfx' not in self._raw_data.default.positional
 
     def passive(self, api, uid, dt):
+        self.balance_stats(api, uid)
         phase = self.phases[PHASE.PASSIVE]
         phase.apply_effects(api, uid, dt)
         return self.aid
@@ -88,11 +135,29 @@ class BaseAbility:
     def description(self, api, uid):
         return self._description((api, uid))
 
+    def stats_str(self, au):
+        strs = ['[u]Stats:[/u]']
+        for s, v, f in self.stats:
+            name = stat_name = s.name.lower().capitalize()
+            value = f.value_repr(au)
+            if v is VALUE.MAX:
+                name = f'Max {stat_name}'
+            elif v is VALUE.MIN:
+                name = f'Min {stat_name}'
+            elif v is VALUE.DELTA:
+                name = f'{stat_name} /s'
+            strs.append(f'[b]{name}[/b]: {value}')
+        if len(strs) > 1:
+            return strs
+        return []
+
     def _description(self, au=None):
         s = [
             self.info,
             self.shared_cooldown_repr,
         ]
+        if self.stats:
+            s.extend(self.stats_str(au))
         for phase in self.phases.values():
             s.extend(phase.description(au))
         return '\n'.join(s)
@@ -103,7 +168,7 @@ class BaseAbility:
         strings = []
         color = (0, 0, 0, 0)
         if cd > 0:
-            strings.append(f'C: {api.ticks2s(cd):.1f}')
+            strings.append(f'C: {ticks2s(cd):.1f}')
             color = (1, 0, 0, 1)
             miss += 1
         if missing_mana > 0:
@@ -141,125 +206,6 @@ ABILITY_CLASSES = {
 }
 
 
-class Formula:
-    def __init__(self, raw_param):
-        self.__raw_param = raw_param
-
-    @property
-    def base_value(self):
-        return self.__raw_param
-
-    @property
-    def repr(self):
-        return ''
-
-    @property
-    def raw_param(self):
-        return self.__raw_param
-
-    def get_value(self, api, uid):
-        return self.__raw_param
-
-    def full_str(self, key, nl=True):
-        r = self.repr
-        if r:
-            nl = '\n' if nl else ''
-            return f'{nl}{key}{r}'
-        return ''
-
-
-class BonusFormula(Formula):
-    def __init__(self, raw_param):
-        super().__init__(raw_param)
-        base, stat, factor = [_.strip() for _ in raw_param.split(',')]
-        self._base = float(base)
-        self._stat = str2stat(stat)
-        self._factor = float(factor)
-
-    @property
-    def base_value(self):
-        return self._base
-
-    @property
-    def repr(self):
-        return f'{self._base} + {self._factor} × [b]{self._stat.name.lower()}[/b]'
-
-    def get_value(self, api, uid):
-        return self._base + self._factor * api.get_stats(uid, self._stat)
-
-
-class ScaleFormula(Formula):
-    def __init__(self, raw_param):
-        super().__init__(raw_param)
-        base, stat, factor, curve = [_.strip() for _ in raw_param.split(', ')]
-        self._base = float(base)
-        self._stat = str2stat(stat)
-        self._factor = float(factor) - self._base
-        self._curve = float(curve)
-
-    @property
-    def base_value(self):
-        return self._base
-
-    @property
-    def repr(self):
-        return f'{self._base} < [b]{self._stat.name.lower()}[/b] §{self._curve} < {self._factor+self._base}'
-
-    def get_value(self, api, uid):
-        stat = api.get_stats(uid, self._stat)
-        scale = self._factor * Mechanics.scaling(stat, self._curve, ascending=True)
-        return self._base + scale
-
-
-class ReducFormula(Formula):
-    def __init__(self, raw_param):
-        super().__init__(raw_param)
-        factor, stat, base, curve = [_.strip() for _ in raw_param.split(', ')]
-        self._base = float(base)
-        self._stat = str2stat(stat)
-        self._factor = float(factor) - self._base
-        self._curve = float(curve)
-
-    @property
-    def base_value(self):
-        return self._factor
-
-    @property
-    def repr(self):
-        return f'{self._factor+self._base} > [b]{self._stat.name.lower()}[/b] §{self._curve} > {self._base}'
-
-    def get_value(self, api, uid):
-        stat = api.get_stats(uid, self._stat)
-        scale = self._factor * Mechanics.scaling(stat, self._curve, ascending=False)
-        return self._base + scale
-
-
-def resolve_formula(name, raw_data, sentinel=None):
-    clsmap = {
-        'bonus': BonusFormula,
-        'scale': ScaleFormula,
-        'reduc': ReducFormula,
-    }
-    for raw_name, raw_formula in raw_data.items():
-        if raw_name == name:
-            return Formula(raw_formula)
-        if not raw_name.startswith(name):
-            continue
-        assert '.' in raw_name
-        raw_name, raw_pcls = raw_name.split('.')
-        if raw_name != name:
-            continue
-        pcls = clsmap[raw_pcls]
-        return pcls(raw_formula)
-    if sentinel is None:
-        raise CorruptedDataError(f'Failed to find a formula for {name} in {raw_data}')
-    return Formula(sentinel)
-
-
-CONDITION = AutoIntEnum('PhaseCondition', ['UNCONDITIONAL', 'UPCAST', 'DOWNCAST'])
-Targets = collections.namedtuple('Targets', ['aid', 'dt', 'fails', 'source', 'point', 'mask', 'area', 'selected'])
-
-
 class Phase:
     CONDITION = CONDITION
 
@@ -274,7 +220,6 @@ class Phase:
         self.debug = 'debug' in raw_data.positional
         self.auto_fail_sfx = False if 'no_fail_sfx' in raw_data.positional else (self.pid is not PHASE.PASSIVE)
         self.auto_sfx = False if 'no_sfx' in raw_data.positional else (self.pid is not PHASE.PASSIVE)
-        self.show_cond = False if 'no_description' in raw_data.positional else True
 
         # Geometry
         self.point = raw_data['point'] if 'point' in raw_data else 'nofix'
@@ -306,6 +251,9 @@ class Phase:
         if self.debug:
             logger.debug(f'Logging {self.ability} {self.phase_name} debug')
 
+    def __repr__(self):
+        return f'<{self.ability.name} {self.ability.aid} {self.phase_name} phase>'
+
     def apply_effects(self, api, uid, dt, target_point=None, draw_miss=False):
         if not self.has_effect:
             return
@@ -325,7 +273,7 @@ class Phase:
                 targets.dt,
                 targets.source,
                 targets.point,
-                np.flatnonzero(targets.mask),
+                np.flatnonzero(targets.single),
                 np.flatnonzero(targets.area),
                 np.flatnonzero(targets.selected),
             ])
@@ -349,7 +297,7 @@ class Phase:
         for condition in CONDITION:
             fx = self.effects[condition]
             if len(fx) > 0:
-                cond_str = f': {self.repr(au)}' if self.show_cond else ''
+                cond_str = f': {self.repr(au)}' if condition is CONDITION.UPCAST else ''
                 s.append(f'\n[u]{self.phase_name.capitalize()} {condition.name.lower()}[/u]{cond_str}')
                 for effect in fx:
                     r = effect.repr(au)
@@ -374,13 +322,16 @@ class Phase:
             area_length = self.area_length.base_value
         target_str = f'[b]Point target[/b]' if self.targeting_point else f'[b]{self.target.capitalize()} target[/b]'
         range_str = f' in [b]{int(range)}[/b] range' if range < 10**6 else ''
+        subs = []
         if self.area_shape == 'circle':
-            area_str = f'; {self.target} in {area_radius} radius {self.area_shape}'
+            area_str = f'; {self.target} in {int(area_radius)} radius {self.area_shape}'
+            subs.append(self.area_radius.full_str('Radius: '))
         elif self.area_shape == 'rect':
-            area_str = f'; {self.target} in {area_width} × {area_length} area'
+            area_str = f'; {self.target} in {int(area_width)} × {int(area_length)} area'
+            subs.append(self.area_width.full_str('Width: '))
+            subs.append(self.area_length.full_str('Length: '))
         else:
             area_str = ''
-        subs = []
         if range_str:
             subs.append(self.range.full_str('Range: '))
         cost_str = []
@@ -548,6 +499,133 @@ class Phase:
         return cls.sorted_fails.index(x)
 
 
+def resolve_formula(name, raw_data, sentinel=None):
+    clsmap = {
+        'bonus': BonusFormula,
+        'scale': ScaleFormula,
+        'reduc': ReducFormula,
+    }
+    for raw_name, raw_formula in raw_data.items():
+        if raw_name == name:
+            return Formula(raw_formula)
+        if not raw_name.startswith(name):
+            continue
+        if '=' not in raw_name:
+            raise CorruptedDataError(f'Trying to find formula type in {raw_name}, but missing \'=\' seperator')
+        raw_name, raw_pcls = raw_name.split('=')
+        if raw_name != name:
+            continue
+        pcls = clsmap[raw_pcls]
+        return pcls(raw_formula)
+    if sentinel is None:
+        raise CorruptedDataError(f'Failed to find a formula for {name} in {raw_data}')
+    return Formula(sentinel)
+
+
+class Formula:
+    name = 'base'
+    def __init__(self, raw_param):
+        self.__raw_param = raw_param
+
+    @property
+    def base_value(self):
+        return self.__raw_param
+
+    @property
+    def repr(self):
+        return str(self.__raw_param)
+
+    def value_repr(self, au=None, rounding=1):
+        if au and self.name != 'base':
+            return f'{round(self.get_value(*au), rounding)} ({self.repr})'
+        return self.repr
+
+    @property
+    def raw_param(self):
+        return self.__raw_param
+
+    def get_value(self, api, uid):
+        return self.__raw_param
+
+    def full_str(self, key, nl=True):
+        if not self.name == 'base':
+            nl = '\n' if nl else ''
+            return f'{nl}{key}{self.repr}'
+        return ''
+
+    def __repr__(self):
+        return f'<{self.name} formula: {self.__raw_param}>'
+
+
+class BonusFormula(Formula):
+    name = 'bonus'
+    def __init__(self, raw_param):
+        super().__init__(raw_param)
+        base, stat, factor = [_.strip() for _ in raw_param.split(',')]
+        self._base = float(base)
+        self._stat = str2stat(stat)
+        self._factor = float(factor)
+
+    @property
+    def base_value(self):
+        return self._base
+
+    @property
+    def repr(self):
+        return f'{self._base} + [b]{self._stat.name.lower()}[/b] ×{self._factor}'
+
+    def get_value(self, api, uid):
+        return self._base + self._factor * api.get_stats(uid, self._stat)
+
+
+class ScaleFormula(Formula):
+    name = 'scaling'
+    def __init__(self, raw_param):
+        super().__init__(raw_param)
+        base, stat, factor, curve = [_.strip() for _ in raw_param.split(', ')]
+        self._base = float(base)
+        self._stat = str2stat(stat)
+        self._factor = float(factor) - self._base
+        self._curve = float(curve)
+
+    @property
+    def base_value(self):
+        return self._base
+
+    @property
+    def repr(self):
+        return f'{self._base} < [b]{self._stat.name.lower()}[/b] §{self._curve} < {self._factor+self._base}'
+
+    def get_value(self, api, uid):
+        stat = api.get_stats(uid, self._stat)
+        scale = self._factor * Mechanics.scaling(stat, self._curve, ascending=True)
+        return self._base + scale
+
+
+class ReducFormula(Formula):
+    name = 'reduction'
+    def __init__(self, raw_param):
+        super().__init__(raw_param)
+        factor, stat, base, curve = [_.strip() for _ in raw_param.split(', ')]
+        self._base = float(base)
+        self._stat = str2stat(stat)
+        self._factor = float(factor) - self._base
+        self._curve = float(curve)
+
+    @property
+    def base_value(self):
+        return self._factor
+
+    @property
+    def repr(self):
+        return f'{self._factor+self._base} > [b]{self._stat.name.lower()}[/b] §{self._curve} > {self._base}'
+
+    def get_value(self, api, uid):
+        stat = api.get_stats(uid, self._stat)
+        scale = self._factor * Mechanics.scaling(stat, self._curve, ascending=False)
+        return self._base + scale
+
+
 class Effect:
     def __init__(self, ability, raw_data):
         pass
@@ -555,15 +633,15 @@ class Effect:
     def repr(self, au):
         return ''
 
-    valid_mask_targets = {'self', 'target', 'area', 'selected'}
-    valid_point_targets = {'self', 'source', 'point', 'target', 'selected'}
-    valid_uid_targets = {'self', 'target', 'selected'}
+    valid_mask_targets = {'self', 'single', 'area', 'selected'}
+    valid_point_targets = {'self', 'source', 'point', 'single', 'selected'}
+    valid_uid_targets = {'self', 'single', 'selected'}
     @classmethod
     def resolve_target_mask(cls, api, uid, p, targets):
         if p == 'self':
-            return uid
-        if p == 'target':
-            return targets.mask
+            return Mechanics.mask(api, uid)
+        if p == 'single':
+            return targets.single
         if p == 'area':
             return targets.area
         if p == 'selected':
@@ -578,10 +656,10 @@ class Effect:
             return targets.source
         if p == 'point':
             return targets.point
-        if p == 'target':
-            if targets.mask.sum() == 0:
+        if p == 'single':
+            if targets.single.sum() == 0:
                 raise RuntimeError(f'Failed to find uids for target {p} from targets {targets}')
-            return api.get_position(np.flatnonzero(targets.mask)[0])
+            return api.get_position(np.flatnonzero(targets.single)[0])
         if p == 'selected':
             if targets.selected.sum() == 0:
                 raise RuntimeError(f'Failed to find uids for target {p} from targets {targets}')
@@ -592,8 +670,8 @@ class Effect:
     def resolve_target_uid(cls, api, uid, p, targets):
         if p == 'self':
             return uid
-        if p == 'target':
-            return np.flatnonzero(targets.mask)[0]
+        if p == 'single':
+            return np.flatnonzero(targets.single)[0]
         if p == 'selected':
             return np.flatnonzero(targets.selected)[0]
         raise ValueError(f'Effect.resolve_target_uid() expecting one of: {self.valid_uid_targets}; instead got: {p}')
@@ -605,6 +683,19 @@ class Effect:
             fixed_vector = normalize(target - pos, range)
             target = pos + fixed_vector
         return target
+
+
+class EffectWalk(Effect):
+    def __init__(self, ability, raw_data):
+        self.target = raw_data['target']
+        assert self.target in self.valid_point_targets
+
+    def repr(self, au):
+        return f'[u][b]Walk[/b][/u] at movespeed'
+
+    def apply(self, api, uid, targets):
+        target_point = self.resolve_target_point(api, uid, self.target, targets)
+        Mechanics.apply_move(api, uid, target_point)
 
 
 class EffectMove(Effect):
@@ -626,7 +717,7 @@ class EffectMove(Effect):
         return f'[u][b]Move[/b] at [b]{speed:.1f} speed[/b]{range_str}[/u]{self.speed.full_str("Speed: ")}{self.range.full_str("Range: ")}'
 
     def apply(self, api, uid, targets):
-        speed = self.speed.get_value(api, uid) / s2ticks(1)
+        speed = self.speed.get_value(api, uid) / s2ticks()
         range = self.range.get_value(api, uid)
         target_point = self.fix_vector(api, uid, targets.point, range)
         Mechanics.apply_move(api, uid, target_point, speed)
@@ -635,7 +726,7 @@ class EffectMove(Effect):
 class EffectPush(Effect):
     effect_name = 'Push'
     def __init__(self, ability, raw_data):
-        self.target = raw_data['target'] if 'target' in raw_data else 'target'
+        self.target = raw_data['target'] if 'target' in raw_data else 'single'
         self.speed = resolve_formula('speed', raw_data, 3)
         self.range = resolve_formula('range', raw_data, 200)
 
@@ -688,6 +779,8 @@ class EffectLoot(Effect):
     def __init__(self, ability, raw_data):
         self.loot_multi = resolve_formula('loot_multi', raw_data)
         self.range = resolve_formula('range', raw_data)
+        self.sfx = raw_data['sfx'] if 'sfx' in raw_data else ability.sfx
+        self.category = raw_data['category'] if 'category' in raw_data else 'ability'
 
     def repr(self, au):
         if au:
@@ -697,10 +790,10 @@ class EffectLoot(Effect):
             loot_multi = self.loot_multi.base_value
             range = self.range.base_value
         if range < 10**6:
-            range_str = f' @[b]{int(range)} units[/b]'
+            range_str = f' in [b]{int(range)} range[/b]'
         else:
             range_str = ''
-        return f'[u][b]Loot[/b] for [b]{int(loot_multi)}%[/b] gold{range_str}[/u]{self.loot_multi.full_str("Loot multi: ")}{self.range.full_str("Range: ")}'
+        return f'[u][b]Loot[/b] for [b]{loot_multi}%[/b] gold{range_str}[/u]{self.loot_multi.full_str("Loot multi: ")}{self.range.full_str("Range: ")}'
 
     def apply(self, api, uid, targets):
         range = self.range.get_value(api, uid)
@@ -709,17 +802,25 @@ class EffectLoot(Effect):
             loot_multi = self.loot_multi.get_value(api, uid) / 100
             looted_gold = loot_result * loot_multi
             api.set_stats(uid, STAT.GOLD, looted_gold, additive=True)
+            Assets.play_sfx(self.category, self.sfx, volume='sfx')
 
 
 class EffectTeleport(Effect):
     def __init__(self, ability, raw_data):
         self.target = raw_data['target'] if 'target' in raw_data else 'point'
+        self.offset = resolve_formula('offset', raw_data, 0)
 
     def repr(self, au):
         return f'[u][b]Teleport[/b][/u]'
 
     def apply(self, api, uid, targets):
         target_point = self.resolve_target_point(api, uid, self.target, targets)
+        offset = self.offset.get_value(api, uid)
+        if offset > 0:
+            current_pos = api.get_position(uid)
+            target_vector = target_point - current_pos
+            fixed_target_vector = normalize(target_vector, np.linalg.norm(target_vector)+offset)
+            target_point = current_pos + fixed_target_vector
         Mechanics.apply_teleport(api, uid, target_point)
 
 
@@ -734,11 +835,12 @@ class EffectTeleportHome(Effect):
 
 class EffectStatus(Effect):
     def __init__(self, ability, raw_data):
-        self.target = raw_data['target'] if 'target' in raw_data else 'target'
+        self.target = raw_data['target'] if 'target' in raw_data else 'single'
         assert self.target in self.valid_mask_targets
         self.status = str2status(raw_data['status'])
         self.stacks = resolve_formula('stacks', raw_data)
         self.stacks_op = raw_data['stacks_op'] if 'stacks_op' in raw_data else None
+        self.max_stacks = resolve_formula('max_stacks', raw_data, 'null')
         self.duration = resolve_formula('duration', raw_data, -1)
         self.duration_op = raw_data['duration_op'] if 'duration_op' in raw_data else None
 
@@ -760,26 +862,35 @@ class EffectStatus(Effect):
 
     def apply(self, api, uid, targets):
         target_mask = self.resolve_target_mask(api, uid, self.target, targets)
+        if target_mask.sum() == 0:
+            return
         stacks = self.stacks.get_value(api, uid)
         duration = s2ticks(self.duration.get_value(api, uid))
         if duration < 0:
             duration = targets.dt
         if self.stacks_op == 'additive':
-            stacks += api.get_status(targets.mask, self.status)
+            stacks += api.get_status(target_mask, self.status)
         elif self.stacks_op == 'multiplicative':
-            stacks *= api.get_status(targets.mask, self.status)
+            stacks *= api.get_status(target_mask, self.status)
         if self.duration_op == 'additive':
-            duration += max(0, api.get_status(targets.mask, self.status, value_name=STATUS_VALUE.DURATION))
+            duration += max(0, api.get_status(target_mask, self.status, value_name=STATUS_VALUE.DURATION))
         elif self.duration_op == 'multiplicative':
-            duration *= max(0, api.get_status(targets.mask, self.status, value_name=STATUS_VALUE.DURATION))
+            duration *= max(0, api.get_status(target_mask, self.status, value_name=STATUS_VALUE.DURATION))
+
         Mechanics.apply_debuff(api, target_mask, self.status, duration, stacks, caster=uid)
+        max_stacks = self.max_stacks.get_value(api, uid)
+        if max_stacks is not 'null':
+            stack_values = api.get_status(slice(None), self.status, value_name=STATUS_VALUE.STACKS)
+            duration_values = api.get_status(slice(None), self.status, value_name=STATUS_VALUE.DURATION)
+            stack_values[(stack_values > max_stacks) & target_mask] = max_stacks
+            api.set_status(slice(None), self.status, duration_values, stack_values)
 
 
 class EffectStat(Effect):
     def __init__(self, ability, raw_data):
-        self.target = raw_data['target'] if 'target' in raw_data else 'target'
+        self.target = raw_data['target'] if 'target' in raw_data else 'single'
         assert self.target in self.valid_mask_targets
-        self.stat = str2stat(raw_data['stat'])
+        self.stat, self.value = str2statvalue(raw_data['stat'])
         self.stat_name = self.stat.name.lower()
         self.delta = resolve_formula('delta', raw_data)
 
@@ -791,12 +902,12 @@ class EffectStat(Effect):
     def apply(self, api, uid, targets):
         target_mask = self.resolve_target_mask(api, uid, self.target, targets)
         delta = self.delta.get_value(api, uid)
-        api.set_stats(target_mask, self.stat, delta, additive=True)
+        api.set_stats(target_mask, self.stat, delta, value_name=self.value, additive=True)
 
 
 class EffectSteal(Effect):
     def __init__(self, ability, raw_data):
-        self.target = raw_data['target'] if 'target' in raw_data else 'target'
+        self.target = raw_data['target'] if 'target' in raw_data else 'single'
         assert self.target in self.valid_mask_targets
         self.stat = str2stat(raw_data['stat'])
         self.stat_name = self.stat.name.lower()
@@ -804,22 +915,27 @@ class EffectSteal(Effect):
 
     def repr(self, au):
         delta = self.delta.get_value(*au) if au else self.delta.base_value
+        delta = round(delta, 3)
         stat_str = f'Steal {delta}' if delta >= 0 else f'Give {delta}'
         return f'[u][b]{stat_str} {self.stat_name}[/b][/u]{self.delta.full_str("Delta: ")}'
 
     def apply(self, api, uid, targets):
         target_mask = self.resolve_target_mask(api, uid, self.target, targets)
+        if target_mask.sum() == 0:
+            return
         delta = self.delta.get_value(api, uid)
         pre_sub = api.get_stats(target_mask, self.stat)
         api.set_stats(target_mask, self.stat, -delta, additive=True)
         post_sub = api.get_stats(target_mask, self.stat)
         stolen = pre_sub - post_sub
+        if target_mask.sum() > 0:
+            stolen = stolen.sum()
         api.set_stats(uid, self.stat, stolen, additive=True)
 
 
 class EffectRegen(Effect):
     def __init__(self, ability, raw_data):
-        self.target = raw_data['target'] if 'target' in raw_data else 'target'
+        self.target = raw_data['target'] if 'target' in raw_data else 'single'
         assert self.target in self.valid_mask_targets
         self.stat = str2stat(raw_data['stat'])
         self.stat_name = self.stat.name.lower()
@@ -848,7 +964,7 @@ class EffectRegen(Effect):
 
 class EffectHit(Effect):
     def __init__(self, ability, raw_data):
-        self.target = raw_data['target'] if 'target' in raw_data else 'target'
+        self.target = raw_data['target'] if 'target' in raw_data else 'single'
         assert self.target in self.valid_mask_targets
         self.damage = resolve_formula('damage', raw_data)
 
@@ -867,6 +983,7 @@ class EffectBlast(Effect):
         self.target = raw_data['target'] if 'target' in raw_data else 'area'
         assert self.target in self.valid_mask_targets
         self.damage = resolve_formula('damage', raw_data)
+        self.status_multi = str2status(raw_data['status_multi']) if 'status_multi' in raw_data else None
 
     def repr(self, au):
         damage = self.damage.get_value(*au) if au else self.damage.base_value
@@ -874,11 +991,18 @@ class EffectBlast(Effect):
 
     def apply(self, api, uid, targets):
         damage = self.damage.get_value(api, uid)
+        if self.status_multi is not None:
+            status_multi = api.get_status(uid, self.status_multi)
+            damage *= status_multi
         mask = self.resolve_target_mask(api, uid, self.target, targets)
         Mechanics.do_blast_damage(api, uid, mask, damage)
 
 
 class EffectSelect(Effect):
+    def __init__(self, ability, raw_data):
+        self.target = raw_data['target'] if 'target' in raw_data else 'single'
+        assert self.target in self.valid_mask_targets
+
     def repr(self, au):
         return 'Select a target'
 
@@ -890,27 +1014,23 @@ class EffectSelect(Effect):
     def apply(self, api, uid, targets):
         if targets.fails & self.dismissable_fails:
             return
-        api.units[uid].cache[f'{targets.aid}-selected'] = targets.mask
+        target_mask = self.resolve_target_mask(api, uid, self.target, targets)
+        api.units[uid].cache[f'{targets.aid}-selected'] = target_mask
 
 
 class EffectUnselect(EffectSelect):
     def repr(self, au):
         return 'Unselect a target'
 
-    dismissable_fails = {
-        FAIL_RESULT.MISSING_TARGET,
-        FAIL_RESULT.OUT_OF_RANGE,
-        FAIL_RESULT.OUT_OF_BOUNDS,
-    }
     def apply(self, api, uid, targets):
-        if targets.fails & self.dismissable_fails:
-            return
-        api.units[uid].cache[f'{targets.aid}-selected'] = targets.mask
+        # if targets.fails & self.dismissable_fails:
+        #     return
+        api.units[uid].cache[f'{targets.aid}-selected'] = None
 
 
 class EffectShowSelect(EffectSelect):
     def __init__(self, ability, raw_data):
-        self.target = raw_data['target'] if 'target' in raw_data else 'target'
+        self.target = raw_data['target'] if 'target' in raw_data else 'single'
         assert self.target in self.valid_uid_targets
         self.play_sfx = 'no_sfx' not in raw_data.positional
 
@@ -948,26 +1068,27 @@ class EffectVFXFlash(Effect):
 
 class EffectVFXLine(Effect):
     def __init__(self, ability, raw_data):
-        self.width = raw_data['width'] if 'width' in raw_data else 2
+        self.duration = resolve_formula('duration', raw_data, 15)
+        self.width = resolve_formula('width', raw_data, 2)
         self.color = str2color(raw_data['color']) if 'color' in raw_data else ability.color
-        self.duration = raw_data['duration'] if 'duration' in raw_data else 15
         self.p1 = raw_data['p1']
         self.p2 = raw_data['p2']
         assert self.p1 in self.valid_point_targets and self.p2 in self.valid_point_targets
 
     def apply(self, api, uid, targets):
         p1, p2 = (self.resolve_target_point(api, uid, p, targets) for p in (self.p1, self.p2))
-        api.add_visual_effect(VFX.LINE, self.duration, {
-            'color': self.color, 'width': self.width,
+        api.add_visual_effect(VFX.LINE, self.duration.get_value(api, uid), {
+            'color': self.color,
+            'width': self.width.get_value(api, uid),
             'p1': p1, 'p2': p2,
         })
 
 
 class EffectVFXCircle(Effect):
     def __init__(self, ability, raw_data):
-        self.duration = raw_data['duration'] if 'duration' in raw_data else 100
-        self.fade = {'fade': raw_data['fade']} if 'fade' in raw_data else {}
-        self.radius = raw_data['radius']
+        self.duration = resolve_formula('duration', raw_data, 100)
+        self.radius = resolve_formula('radius', raw_data)
+        self.fade = resolve_formula('fade', raw_data, -1)
         self.color = str2color(raw_data['color']) if 'color' in raw_data else ability.color
         self.center = raw_data['center']
         assert self.center in self.valid_point_targets
@@ -975,12 +1096,15 @@ class EffectVFXCircle(Effect):
         self.resolve_method = self.resolve_target_uid if self.center_key == 'uid' else self.resolve_target_point
 
     def apply(self, api, uid, targets):
-        api.add_visual_effect(VFX.CIRCLE, self.duration, {
+        fade = self.fade.get_value(api, uid)
+        fade = {'fade': fade} if fade > 0 else {}
+        params = {
             self.center_key: self.resolve_method(api, uid, self.center, targets),
-            'radius': self.radius,
+            'radius': self.radius.get_value(api, uid),
             'color': self.color,
-            **self.fade,
-        })
+            **fade,
+        }
+        api.add_visual_effect(VFX.CIRCLE, self.duration.get_value(api, uid), params)
 
 
 class EffectVFXRect(Effect):

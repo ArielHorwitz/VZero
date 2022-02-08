@@ -59,6 +59,12 @@ class BaseAbility:
     def setup(self):
         pass
 
+    def load_on_unit(self, api, uid):
+        pass
+
+    def unload_from_unit(self, api, uid):
+        pass
+
     def off_cooldown(self, api, uid):
         pass
 
@@ -212,7 +218,7 @@ class BaseAbility:
         strings = []
         color = (0, 0, 0, 0)
         if cd > 0:
-            strings.append(f'C: {api.ticks2s(cd):.1f}')
+            strings.append(f'C: {ticks2s(cd):.1f}')
             color = (1, 0, 0, 1)
             miss += 1
         if excess_mana < 0:
@@ -280,9 +286,9 @@ class Params:
         pval = self._param_value(param_name, api, uid)
         if is_floatable(pval):
             if param_name in self.show_as_time:
-                pval = f'{round(api.ticks2s(pval), 2)} s'
+                pval = f'{round(ticks2s(pval), 2)} s'
             elif param_name in self.show_as_delta:
-                pval = f'{round(api.s2ticks(pval), 2)}/s'
+                pval = f'{round(s2ticks(pval), 2)}/s'
             else:
                 pval = f'{round(pval, 2)}'
         return self.repr_param(param_name, pval)

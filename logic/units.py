@@ -7,7 +7,7 @@ import itertools
 import math
 import numpy as np
 import copy, random
-from nutil.vars import normalize, collide_point, is_iterable
+from nutil.vars import normalize, collide_point, is_iterable, List
 from nutil.time import ratecounter
 from nutil.random import SEED
 from data.assets import Assets
@@ -20,11 +20,6 @@ from logic.items import ITEMS, ITEM_CATEGORIES as ICAT
 from logic.mechanics import Mechanics
 
 RNG = np.random.default_rng()
-
-
-def s2statvalue(s):
-    stat_name, value_name = s.split('.') if '.' in s else (s, 'current')
-    return str2stat(stat_name), str2value(value_name)
 
 
 class Slots:
@@ -81,11 +76,13 @@ class Slots:
 
     def remove(self, e):
         if e in self.slots:
-            self.slots.remove(e)
+            i = self.slots.index(e)
+            self.slots[i] = None
         elif e in self.unslotted:
             self.unslotted.remove(e)
         else:
             raise ValueError(f'Requested remove {e} from {self} but not found: {self.slots} {self.unslotted}')
+        self.refresh()
 
 
 class Unit(BaseUnit):
@@ -107,6 +104,7 @@ class Unit(BaseUnit):
         table[(STAT.POS_X, STAT.POS_Y), VALUE.MIN] = -LARGE_ENOUGH
         table[STAT.WEIGHT, VALUE.MIN] = -1
         table[STAT.HITBOX, VALUE.CURRENT] = 100
+        table[STAT.MOVESPEED, VALUE.CURRENT] = 100
         table[STAT.HP, VALUE.CURRENT] = LARGE_ENOUGH
         table[STAT.HP, VALUE.TARGET] = 0
         table[STAT.MANA, VALUE.CURRENT] = LARGE_ENOUGH
@@ -122,7 +120,7 @@ class Unit(BaseUnit):
         stats = cls._get_default_stats()
         modified_stats = []
         for raw_key, raw_value in raw_stats.items():
-            stat, value = s2statvalue(raw_key)
+            stat, value = str2statvalue(raw_key)
             stats[stat][value] = float(raw_value)
             modified_stats.append(f'{stat.name}.{value.name}: {raw_value}')
         logger.debug(f'Loaded raw stats: {", ".join(modified_stats)}')
@@ -147,15 +145,15 @@ class Unit(BaseUnit):
         self.lose_on_death = False
         self.api = api
         self.engine = api.engine
-        self.name = self.__start_name = name
+        self.name = self.__start_name = raw_data.default['name'] if 'name' in raw_data.default else name
         self.cooldown_aids = defaultdict(set)
 
         self._ability_slots = Slots(8)
         self._item_slots = Slots(8)
 
+        self.default_abilities = []
         if 'abilities' in self.p:
-            default_abilities = [str2ability(a) for a in self.p['abilities'].split(', ')]
-            self.set_abilities(default_abilities)
+            self.default_abilities = [str2ability(a) for a in self.p['abilities'].split(', ')]
 
         logger.info(f'Created unit: {name} with data: {self._raw_data}')
 
@@ -168,22 +166,38 @@ class Unit(BaseUnit):
     def add_item(self, iid):
         self._item_slots.add_slotted(iid)
         item = ITEMS[iid]
-        if item.ability:
-            self.cooldown_aids[item.ability.off_cooldown_aid].add(item.aid)
+        if item.aid:
+            self.load_ability(item.aid)
 
     def remove_item(self, iid):
         self._item_slots.remove(iid)
         item = ITEMS[iid]
-        if item.ability:
-            self.cooldown_aids[item.ability.off_cooldown_aid].remove(item.aid)
+        if item.aid:
+            self.unload_ability(item.aid)
+
+    def load_ability(self, aid):
+        ability = self.api.abilities[aid]
+        self.cooldown_aids[ability.off_cooldown_aid].add(aid)
+        ability.load_on_unit(self.engine, self.uid)
+
+    def unload_ability(self, aid):
+        ability = self.api.abilities[aid]
+        self.cooldown_aids[ability.off_cooldown_aid].remove(aid)
+        ability.unload_from_unit(self.engine, self.uid)
 
     def set_abilities(self, abilities):
-        self._ability_slots.clear()
-        self._ability_slots.add(abilities)
-        self.passive_aids = defaultdict(set)
         for aid in self.abilities:
-            paid = self.api.abilities[aid].off_cooldown_aid
-            self.passive_aids[paid].add(aid)
+            self.unload_ability(aid)
+        self._ability_slots.clear()
+        self.cooldown_aids = defaultdict(set)
+        for i, aid in enumerate(abilities):
+            if aid is None:
+                continue
+            if self.empty_item_slots > 0:
+                self._ability_slots.add_slotted(aid, i)
+            else:
+                self._ability_slots.add(aid)
+            self.load_ability(aid)
 
     @property
     def items(self):
@@ -259,6 +273,7 @@ class Unit(BaseUnit):
     def setup(self):
         self._respawn_location = self.engine.get_position(self.uid)
         self._respawn_gold = self.engine.get_stats(self.uid, STAT.GOLD)
+        self.set_abilities(self.default_abilities)
         self._setup()
 
     def passive_phase(self):
@@ -268,7 +283,7 @@ class Unit(BaseUnit):
             ITEMS[iid].passive(self.engine, self.uid, self.engine.AGENCY_PHASE_COUNT)
 
     def off_cooldown(self, aid):
-        for paid in self.passive_aids[aid]:
+        for paid in self.cooldown_aids[aid]:
             self.api.abilities[paid].off_cooldown(self.engine, self.uid)
 
     @property
@@ -322,12 +337,12 @@ class Unit(BaseUnit):
 
     @property
     def debug_str(self):
-        s = []
+        s = ['__ Unit Cache:']
         for k, v in self.cache.items():
             if is_iterable(v):
                 if len(v) > 20:
-                    v = str(np.flatnonzero(v)[:10])
-            s.append(f'{k}: {v}')
+                    v = np.flatnonzero(v)
+            s.append(f'{k}: {str(v)}')
         return '\n'.join(s)
 
     def __repr__(self):
@@ -336,21 +351,11 @@ class Unit(BaseUnit):
 
 class Player(Unit):
     say = 'Let\'s defeat the boss!'
-    _max_hp_delta_interval = 1000
 
     def _setup(self):
         self._respawn_timer = 500
         self._respawn_timer_scaling = 100
-        self._max_hp_delta = float(self.p['max_hp_delta']) * self._max_hp_delta_interval if 'max_hp_delta' in self.p else 0
-        self._next_max_hp_delta = self._max_hp_delta_interval
         Assets.play_sfx('ability', 'player-respawn', volume='feedback')
-
-    def passive_phase(self, *a, **k):
-        if self.engine.tick >= self._next_max_hp_delta:
-            self.engine.set_stats(self.uid, STAT.HP, self._max_hp_delta, value_name=VALUE.MAX, additive=True)
-            self.engine.set_stats(self.uid, STAT.HP, self._max_hp_delta, additive=True)
-            self._next_max_hp_delta = self._next_max_hp_delta + self._max_hp_delta_interval
-        super().passive_phase(*a, **k)
 
     def hp_zero(self):
         logger.info(f'Player {self.name} {self.uid} died.')
@@ -473,7 +478,7 @@ class Treasure(Unit):
 class Shopkeeper(Unit):
     say = 'Looking for wares?'
     def _setup(self):
-        self.set_abilities(ABILITY.SHOPKEEPER)
+        self.set_abilities([ABILITY.SHOPKEEPER])
         category = 'BASIC' if 'category' not in self.p else self.p['category'].upper()
         for icat in ICAT:
             if category == icat.name:

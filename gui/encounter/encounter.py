@@ -145,13 +145,14 @@ class Encounter(widgets.RelativeLayout):
                 lambda action_name_: self.api.user_hotkey(action_name_, self.mouse_real_pos)
             ))
         # Abilities
+        alt_mod = Settings.get_setting('alt_modifier', 'Hotkeys')
         for i, key in enumerate(Settings.get_setting('abilities', 'Hotkeys')):
             hotkeys.append((
                 f'ability {key.upper()}', key,
                 lambda *a, x=i: self.api.quickcast(x, self.mouse_real_pos)
             ))
             hotkeys.append((
-                f'ability alt {key.upper()}', f'! {key}',
+                f'ability alt {key.upper()}', f'{alt_mod} {key}',
                 lambda *a, x=i: self.api.quickcast(x, self.mouse_real_pos, alt=1)
             ))
         # Items
