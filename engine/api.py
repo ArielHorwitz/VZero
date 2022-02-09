@@ -100,6 +100,14 @@ class EncounterAPI:
 
     # Display settings
     @property
+    def player_position(self):
+        return self.engine.get_position(0)
+
+    @property
+    def fog_radius(self):
+        return self.player_los + self.engine.get_stats(0, STAT.HITBOX)
+
+    @property
     def view_center(self):
         if self.map_mode:
             return self.map_size / 2

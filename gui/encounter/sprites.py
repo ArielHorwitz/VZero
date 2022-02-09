@@ -1,14 +1,16 @@
 import logging
 logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 import math, copy
 import numpy as np
+from nutil.vars import modify_color
 from nutil.time import ratecounter
 from nutil.kex import widgets
-from gui import cc_int, center_position
+from gui import cc_int, center_position, center_sprite
 from gui.encounter import EncounterViewComponent
 from data.assets import Assets
+from data.settings import Settings
 from engine.common import *
 
 
@@ -19,6 +21,8 @@ class Sprites(widgets.RelativeLayout, EncounterViewComponent):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.drawn_count = 0
+        self.fog_size = Settings.get_setting('fog', 'UI')
+        self.fog_color = str2color(Settings.get_setting('fog_color', 'UI'))
         self.redraw()
 
     def redraw(self):
@@ -31,8 +35,20 @@ class Sprites(widgets.RelativeLayout, EncounterViewComponent):
             s.bar1.fg, s.bar2.fg = self.api.sprite_bar_color(unit.uid)
             s.bar2.bg = (0, 0, 0, 0)
             self.sprites.append(s)
+        if self.fog_size:
+            with self.canvas.after:
+                self.fog = widgets.Image(
+                    source=Assets.get_sprite('ui', 'fog'),
+                    color=self.fog_color,
+                    allow_stretch=True,
+                )
 
     def update(self):
+        if self.fog_size:
+            s = int(self.fog_size * 20 * self.api.fog_radius / self.enc.upp)
+            self.fog.size = (s, s)
+            player_pos = self.enc.real2pix(self.api.player_position)
+            self.fog.pos = center_sprite(player_pos, self.fog.size)
         visibles = self.api.sprite_visible_mask()
         newly_visible = np.logical_and(visibles == True, np.invert(self.last_visible))
         newly_invisible = np.logical_and(visibles == False, self.last_visible)

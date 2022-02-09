@@ -27,6 +27,8 @@ class Settings:
                 'hud_scale': 1,
                 'decorations': 0.75,
                 'feedback_sfx_cooldown': 350,
+                'fog': 1,
+                'fog_color': '0, 0, 0, 0.5',
             },
         },
         'Audio': {
