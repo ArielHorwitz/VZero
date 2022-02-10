@@ -59,8 +59,6 @@ mana.delta: 0.04
 === Buckler
 category: basic
 cost: 130
---- stats
-reflect: 40
 
 
 
@@ -95,9 +93,6 @@ water: 15
 === Iron Boots
 category: basic
 cost: 250
---- stats
-earth: 8
-armor: 15
 === Sophist Hat
 category: basic
 cost: 300
@@ -172,6 +167,7 @@ category: basic
 cost: 1200
 --- stats
 lifesteal: 15
+darkness: 25
 === Plated Armor
 category: basic
 cost: 1600

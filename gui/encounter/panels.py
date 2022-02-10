@@ -31,6 +31,14 @@ BAR_WIDTH = HUD_WIDTH * 2 + MIDDLE_HUD
 TOTAL_HUD_HEIGHT = HUD_PORTRAIT = HUD_HEIGHT + BAR_HEIGHT
 TOTAL_HUD_WIDTH = BAR_WIDTH + HUD_PORTRAIT
 
+RESUME_TEXT = 'Resume'
+RESTART_TEXT = 'Restart'
+RESTART_CONFIRM_TEXT = 'We can do better!'
+LEAVE_TEXT = 'Leave'
+LEAVE_CONFIRM_TEXT = 'Leave to menu?'
+QUIT_TEXT = 'Quit'
+QUIT_CONFIRM_TEXT = 'Quit to desktop?'
+
 
 class LogicLabel(widgets.AnchorLayout, EncounterViewComponent):
     overlay_height = 50
@@ -277,45 +285,49 @@ class Menu(widgets.AnchorLayout, EncounterViewComponent):
         self.frame = widgets.BoxLayout(orientation='vertical')
         self.label = self.frame.add(widgets.Label(text='Paused', halign='center', valign='middle')).set_size(hy=1.5)
 
-        self.frame.add(widgets.Button(text='Resume', on_release=lambda *a: self.api.user_hotkey('control0', None)))
+        self.frame.add(widgets.Button(text=RESUME_TEXT, on_release=lambda *a: self.api.user_hotkey('control0', None)))
         self.frame.set_size(x=200, y=200)
         self.frame.make_bg((0,0,0,1))
 
-        self.restart_btn = self.frame.add(widgets.Button(text='Restart', on_release=lambda *a: self.click_restart()))
+        self.restart_btn = self.frame.add(widgets.Button(on_release=lambda *a: self.click_restart()))
         self.confirm_restart = False
-        self.leave_btn = self.frame.add(widgets.Button(text='Leave', on_release=lambda *a: self.click_leave()))
+        self.leave_btn = self.frame.add(widgets.Button(on_release=lambda *a: self.click_leave()))
         self.confirm_leave = False
-        self.quit_btn = self.frame.add(widgets.Button(text='Ragequit', on_release=lambda *a: self.click_quit()))
+        self.quit_btn = self.frame.add(widgets.Button(on_release=lambda *a: self.click_quit()))
         self.confirm_quit = False
+        self.unconfirm()
 
     def unconfirm(self):
         self.confirm_restart = False
-        self.restart_btn.text = 'Restart'
+        self.restart_btn.text = RESTART_TEXT
         self.confirm_leave = False
-        self.leave_btn.text = 'Leave'
+        self.leave_btn.text = LEAVE_TEXT
         self.confirm_quit = False
-        self.quit_btn.text = 'Ragequit'
+        self.quit_btn.text = QUIT_TEXT
 
     def click_restart(self):
         if self.confirm_restart:
             self.app.game.restart_encounter()
         else:
+            self.unconfirm()
             self.confirm_restart = True
-            self.restart_btn.text = 'We can do better!'
+            self.restart_btn.text = RESTART_CONFIRM_TEXT
 
     def click_leave(self):
         if self.confirm_leave:
             self.app.game.leave_encounter()
         else:
+            self.unconfirm()
             self.confirm_leave = True
-            self.leave_btn.text = 'Yeah, that was meh..'
+            self.leave_btn.text = LEAVE_CONFIRM_TEXT
 
     def click_quit(self):
         if self.confirm_quit:
             self.app.stop()
         else:
+            self.unconfirm()
             self.confirm_quit = True
-            self.quit_btn.text = 'Yeah, I see why...'
+            self.quit_btn.text = QUIT_CONFIRM_TEXT
 
     def consume_touch(self, w, m):
         return True

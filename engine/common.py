@@ -58,6 +58,7 @@ def ticks2s(t=1):
 
 
 AID_LIST = list(ABILITY)
+STAT2STATUS = {s: str2status(s.name) for s in STAT if hasattr(STATUS, s.name)}
 
 
 class CorruptedDataError(Exception):

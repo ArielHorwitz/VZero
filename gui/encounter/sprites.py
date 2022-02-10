@@ -45,7 +45,7 @@ class Sprites(widgets.RelativeLayout, EncounterViewComponent):
 
     def update(self):
         if self.fog_size:
-            s = int(self.fog_size * 20 * self.api.fog_radius / self.enc.upp)
+            s = int(self.fog_size * 40 * self.api.fog_radius / self.enc.upp)
             self.fog.size = (s, s)
             player_pos = self.enc.real2pix(self.api.player_position)
             self.fog.pos = center_sprite(player_pos, self.fog.size)

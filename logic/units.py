@@ -3,7 +3,6 @@ logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
 from collections import defaultdict
-import itertools
 import math
 import numpy as np
 import copy, random
@@ -104,7 +103,8 @@ class Unit(BaseUnit):
         table[(STAT.POS_X, STAT.POS_Y), VALUE.MIN] = -LARGE_ENOUGH
         table[STAT.WEIGHT, VALUE.MIN] = -1
         table[STAT.HITBOX, VALUE.CURRENT] = 100
-        table[STAT.MOVESPEED, VALUE.CURRENT] = 100
+        table[STAT.MOVESPEED, VALUE.CURRENT] = 10
+        table[STAT.LOS, VALUE.CURRENT] = 1000
         table[STAT.HP, VALUE.CURRENT] = LARGE_ENOUGH
         table[STAT.HP, VALUE.TARGET] = 0
         table[STAT.MANA, VALUE.CURRENT] = LARGE_ENOUGH
@@ -283,6 +283,8 @@ class Unit(BaseUnit):
             ITEMS[iid].passive(self.engine, self.uid, self.engine.AGENCY_PHASE_COUNT)
 
     def off_cooldown(self, aid):
+        if not self.is_alive:
+            return
         for paid in self.cooldown_aids[aid]:
             self.api.abilities[paid].off_cooldown(self.engine, self.uid)
 
@@ -303,6 +305,13 @@ class Unit(BaseUnit):
     def empty_item_slots(self):
         return self.item_slots.count(None)
 
+    @property
+    def view_distance(self):
+        los = Mechanics.get_status(self.engine, self.uid, STAT.LOS)
+        raw_darkness = Mechanics.get_status(self.engine, self.uid, STAT.DARKNESS)
+        darkness = Mechanics.scaling(raw_darkness)
+        return round(los * darkness)
+
     def _setup(self):
         pass
 
@@ -320,7 +329,8 @@ class Unit(BaseUnit):
         self.engine.set_stats(self.uid, STAT.HP, max_hp)
         max_mana = self.engine.get_stats(self.uid, STAT.MANA, VALUE.MAX)
         self.engine.set_stats(self.uid, STAT.MANA, max_mana)
-        self.engine.set_position(self.uid, self._respawn_location, halt=True)
+        self.engine.set_position(self.uid, self._respawn_location)
+        self.engine.set_position(self.uid, self._respawn_location, value_name=VALUE.TARGET)
         if reset_gold:
             self.engine.set_stats(self.uid, STAT.GOLD, self._respawn_gold)
 
@@ -496,14 +506,15 @@ class Shopkeeper(Unit):
 class Fountain(Unit):
     say = 'Bestowing life is a great pleasure'
     def _setup(self):
-        self.set_abilities([ABILITY.FOUNTAIN_HP, ABILITY.FOUNTAIN_MANA])
+        self.set_abilities([ABILITY.FOUNTAIN_AURA])
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
 
 
 class Fort(Fountain):
     say = 'If I fall, it is all for naught'
     def _setup(self):
-        super()._setup()
+        self.set_abilities([ABILITY.FORT_AURA])
+        self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
         self.lose_on_death = True
 
 
@@ -512,6 +523,9 @@ class DPSMeter(Unit):
         self.engine.set_stats(self.uid, STAT.HP, 10**12, value_name=VALUE.MAX)
         self.engine.set_stats(self.uid, STAT.HP, 10**12)
         self.engine.set_stats(self.uid, STAT.HP, 0, value_name=VALUE.DELTA)
+        self.engine.set_stats(self.uid, STAT.MANA, 10**12, value_name=VALUE.MAX)
+        self.engine.set_stats(self.uid, STAT.MANA, 10**12)
+        self.engine.set_stats(self.uid, STAT.MANA, 0, value_name=VALUE.DELTA)
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
         self.__started = False
         self.__sample_size = 10

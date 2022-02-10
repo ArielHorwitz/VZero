@@ -198,6 +198,10 @@ class Encounter:
         return self.stats.get_velocity
 
     @property
+    def set_move(self):
+        return self.stats.set_move
+
+    @property
     def get_distances(self):
         return self.stats.get_distances
 

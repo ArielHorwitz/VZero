@@ -21,6 +21,8 @@ STATS = [
     'AIR',
     'WATER',
     # Mechanics
+    'LOS',
+    'DARKNESS',
     'MOVESPEED',
     'BOUNDED',
     'SLOW',
@@ -40,6 +42,8 @@ STATUSES = [
     'SHOP',
     'MAP_EDITOR',
     # Mechanics
+    'LOS',
+    'DARKNESS',
     'MOVESPEED',
     'BOUNDED',
     'SLOW',

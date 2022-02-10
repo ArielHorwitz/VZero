@@ -55,6 +55,7 @@ class BaseAbility:
     def _setup(self):
         self.cooldown_aid = self.off_cooldown_aid = str2ability(self.__shared_cooldown_name)
         self.setup()
+        self.color = (0,0,0)
 
     def setup(self):
         pass

@@ -32,6 +32,11 @@ class VFX(widgets.RelativeLayout, EncounterViewComponent):
                     color = (1, 0, 0, 0.15)
                     if 'color' in effect.params:
                         color = effect.params['color']
+                    if 'fade' in effect.params:
+                        if len(color) == 4: a = color[3]
+                        else: a = 1
+                        a *= 1-(max(0.0001, effect.elapsed_ticks) / effect.params['fade'])
+                        color = (*color[:3], a)
                     with self.canvas:
                         self.__cached_vfx.append(widgets.kvColor(*color))
                         self.__cached_vfx.append(widgets.kvRectangle(pos=self.to_local(*self.pos), size=self.size))

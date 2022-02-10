@@ -1,6 +1,6 @@
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.DEBUG)
 
 
 import math
@@ -10,18 +10,20 @@ from nutil.vars import normalize, modify_color
 from engine.common import *
 
 
+
+MAX_MOVESPEED = 500
+
+
 class Mechanics:
-    STATUSES = {str2stat(n): str2status(n) for n in [
-        'slow',
-        'bounded',
-        'cuts',
-        'vanity',
-        'armor',
-        'reflect',
-        'spikes',
-        'lifesteal',
-        'sensitivity',
-    ]}
+    @classmethod
+    def get_movespeed(cls, api, mask):
+        if not isinstance(mask, np.ndarray):
+            mask = cls.mask(api, mask)
+        speed = MAX_MOVESPEED * cls.scaling(cls.get_status(api, mask, STAT.MOVESPEED), ascending=True)
+        speed *= ticks2s()
+        slow = cls.get_status(api, mask, STAT.SLOW)
+        speed[slow > 0] *= cls.scaling(slow[slow > 0])
+        return speed
 
     @classmethod
     def apply_loot(cls, api, uid, target, range):
@@ -40,39 +42,35 @@ class Mechanics:
         return looted_gold, loot_target
 
     @classmethod
-    def apply_teleport(cls, api, uid, target):
+    def apply_teleport(cls, api, uid, target, reset_target=False):
         bounded = cls.get_status(api, uid, STAT.BOUNDED)
         if bounded > 0:
             target = api.get_position(uid)
         api.set_position(uid, target)
-        api.set_position(uid, target, VALUE.TARGET)
+        if reset_target:
+            api.set_position(uid, target, VALUE.TARGET)
+        else:
+            api.stats.align_to_target(uid)
 
     @classmethod
-    def apply_walk(cls, api, uid, target):
-        bounded = cls.get_status(api, uid, STAT.BOUNDED)
-        if bounded > 0:
-            logger.debug(f'Tried applying walk on {uid} but bounded.')
+    def apply_walk(cls, api, mask, target=None):
+        bounded = cls.get_status(api, slice(None), STAT.BOUNDED) > 0
+        skip_move = mask & bounded
+        if skip_move.sum() > 0:
+            logger.debug(f'Tried applying walk on {np.flatnonzero(mask)}, {np.flatnonzero(skip_move)} is bounded.')
+            mask = mask & np.invert(bounded)
+        if mask.sum() == 0:
             return
-        speed = cls.get_status(api, uid, STAT.MOVESPEED)
-        slow = cls.get_status(api, uid, STAT.SLOW)
-        if slow > 0:
-            speed *= cls.scaling(slow)
-        target_vector = target - api.get_position(uid)
-        delta = normalize(target_vector, move_speed)
-        api.set_position(uid, delta, value_name=VALUE.DELTA)
-        api.set_position(uid, target, value_name=VALUE.TARGET)
+        if target is None:
+            target = api.stats.get_positions(mask, value_name=VALUE.TARGET)
+        speed = cls.get_movespeed(api, mask)
+        api.set_move(mask, target, speed)
 
     @classmethod
-    def apply_push(cls, api, uid, target, speed):
-        bounded = cls.get_status(api, uid, STAT.BOUNDED)
-        if bounded > 0:
-            logger.debug(f'Tried applying push on {uid} but bounded.')
-            return
-        slow = cls.get_status(api, uid, STAT.SLOW)
-        target_vector = target - api.get_position(uid)
-        delta = normalize(target_vector, speed)
-        api.set_position(uid, delta, value_name=VALUE.DELTA)
-        api.set_position(uid, target, value_name=VALUE.TARGET)
+    def halt_move(cls, api, mask):
+        pos = api.stats.get_positions(mask)
+        api.stats.set_positions(mask, 0, value_name=VALUE.DELTA)
+        api.stats.set_positions(mask, pos, value_name=VALUE.TARGET)
 
     @classmethod
     def apply_move(cls, api, uid, target=None, move_speed=None):
@@ -83,7 +81,7 @@ class Mechanics:
             move_speed = api.get_velocity(uid)
         slow = cls.get_status(api, uid, STAT.SLOW)
         if slow > 0:
-            move_speed *= max(0, cls.rp2reduction(slow))
+            move_speed *= max(0, cls.scaling(slow))
         if target is None:
             target = api.get_position(uid, value_name=VALUE.TARGET)
         current_pos = api.get_position(uid)
@@ -91,6 +89,7 @@ class Mechanics:
         delta = normalize(target_vector, move_speed)
         api.set_position(uid, delta, value_name=VALUE.DELTA)
         api.set_position(uid, target, value_name=VALUE.TARGET)
+        # api.set_move(uid, target, move_speed)
 
     @classmethod
     def apply_debuff(cls, api, targets, status, duration, stacks, caster=None, reset_move=True):
@@ -102,18 +101,16 @@ class Mechanics:
             sensitivity = cls.get_status(api, targets, STAT.SENSITIVITY)
             if caster is not None:
                 sensitivity += cls.get_status(api, caster, STAT.SENSITIVITY)
-            sensitivity = cls.scaling(sensitivity, 100, ascending=True)
+            sensitivity = cls.scaling(sensitivity, ascending=True)
             if status is STATUS.BOUNDED:
                 duration *= 1 + sensitivity
             else:
                 stacks *= 1 + sensitivity
         api.set_status(targets, status, duration, stacks)
-        if status in {STATUS.SLOW, STATUS.BOUNDED} and reset_move:
-            if isinstance(targets, np.ndarray):
-                for tuid in np.flatnonzero(targets):
-                    cls.apply_move(api, tuid)
-            else:
-                cls.apply_move(api, targets)
+        if status is STATUS.BOUNDED and reset_move:
+            cls.halt_move(api, cls.mask(api, targets))
+        if status is STATUS.SLOW and reset_move:
+            cls.apply_walk(api, cls.mask(api, targets))
 
     @classmethod
     def apply_regen(cls, api, targets, stat, duration, delta):
@@ -133,7 +130,7 @@ class Mechanics:
 
         # Armor reduction
         armor = cls.get_status(api, targets_mask, STAT.ARMOR)
-        all_damage[targets_mask] *= cls.rp2reduction(armor)
+        all_damage[targets_mask] *= cls.scaling(armor)
 
         # Converted pure damage
         cls.do_pure_damage(api, all_damage)
@@ -187,9 +184,10 @@ class Mechanics:
 
     # Utilities
     @classmethod
-    def mask(cls, api, targets):
+    def mask(cls, api, targets=None):
         a = np.zeros(api.unit_count, dtype=np.bool)
-        a[targets] = True
+        if targets is not None:
+            a[targets] = True
         return a
 
     @staticmethod
@@ -199,14 +197,21 @@ class Mechanics:
     @staticmethod
     def scaling(sp, curve=50, ascending=False):
         if not ascending:
-            return curve / (curve + sp)
-        return 1 - (curve / (curve + sp))
+            return np.array(curve) / (np.array(curve) + sp)
+        return np.array(1) - (np.array(curve) / (np.array(curve) + sp))
 
     @classmethod
     def get_status(cls, api, uid, stat):
         base = api.get_stats(uid, stat)
-        from_status = api.get_status(uid, str2status(stat.name))
+        from_status = api.get_status(uid, STAT2STATUS[stat])
         return base + from_status
+
+    @classmethod
+    def get_stats(cls, api, uid, stat):
+        base = api.get_stats(uid, stat)
+        if stat in STAT2STATUS:
+            base += api.get_status(uid, STAT2STATUS[stat])
+        return base
 
 
 class Rect:
@@ -232,7 +237,6 @@ class Rect:
             [-width/2, height/2],  # tl
         ])
         self.__rotated_points = self.rotated_points(rotation)
-        # logger.debug(f'Creating rect from: {width}x{height} {rotation} {center}\n{self.__rotated_points}')
 
     def check_colliding_circles(self, p, circle_radius):
         rx, ry = self.center

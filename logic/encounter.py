@@ -32,7 +32,7 @@ RNG = np.random.default_rng()
 STAT_SPRITES = tuple([Assets.get_sprite('ability', s) for s in (
     'physical', 'fire', 'earth',
     'air', 'water', 'gold',
-    'respawn', 'walk')]+[Assets.get_sprite('ui', 'crosshair3')])
+    'respawn')]+[Assets.get_sprite('ui', s) for s in ('crosshair3', 'distance')])
 SHOP_STATE_KEY = defaultdict(lambda: 0.7, {
     True: 1,
     FAIL_RESULT.MISSING_COST: 0.45,
@@ -81,14 +81,19 @@ class EncounterAPI(BaseEncounterAPI):
     def ouch(self, uids):
         if not (set(uids) & self.ouch_feedback_uids):
             return
-        sfx, color = ('ouch', COLOR.RED) if (0 in uids) else ('ouch2', COLOR.BLUE)
+        sfx, color = ('ouch', COLOR.RED) if 0 in uids else ('ouch2', COLOR.BLUE)
 
         Assets.play_sfx('ui', sfx, volume='feedback')
-        self.engine.add_visual_effect(VFX.BACKGROUND, 40, params={
-            'color': modify_color(color, a=0.15)
+        self.engine.add_visual_effect(VFX.BACKGROUND, 60, params={
+            'color': modify_color(color, a=0.3),
+            'fade': 60,
         })
 
     # GUI handlers
+    @property
+    def player_los(self):
+        return self.units[0].view_distance
+
     @property
     def menu_text(self):
         if self.enc_over:
@@ -272,7 +277,7 @@ class EncounterAPI(BaseEncounterAPI):
             shop = list(ITEM_CATEGORIES)[round(shop)-1].name.lower().capitalize()
             icons.append(Assets.get_sprite('unit', 'basic-shop'))
 
-        for status in [*Mechanics.STATUSES.values()]:
+        for status in [*STAT2STATUS.values()]:
             d = self.engine.get_status(uid, status, STATUS_VALUE.DURATION)
             if d > 0:
                 name = status.name.lower().capitalize()
@@ -314,6 +319,7 @@ class EncounterAPI(BaseEncounterAPI):
 
     def hud_middle(self):
         uid = self.selected_unit
+
         current = self.engine.get_stats(uid, [
             STAT.PHYSICAL, STAT.FIRE, STAT.EARTH,
             STAT.AIR, STAT.WATER, STAT.GOLD,
@@ -322,20 +328,16 @@ class EncounterAPI(BaseEncounterAPI):
         current = [f'{math.floor(c)}' for c in current]
         current.extend([
             f'{round(self.units[uid]._respawn_timer/100)}s',
-            f'{round(s2ticks(self.engine.get_velocity(uid)))}',
             f'{round(self.engine.get_stats(uid, STAT.HITBOX))}',
+            f'{round(self.engine.unit_distance(0, uid))}',
         ])
         return tuple(SpriteLabel(
             STAT_SPRITES[i], current[i],
             None) for i in range(9))
 
     def hud_statuses(self):
-        def get(s):
-            return Mechanics.get_status(self.engine, uid, s)
         def format_time(t):
             return math.ceil(ticks2s(t))
-        def format_rp(v):
-            return round((1-Mechanics.rp2reduction(v))*100)
 
         uid = self.selected_unit
         self.__last_hud_statuses = []
@@ -366,8 +368,8 @@ class EncounterAPI(BaseEncounterAPI):
             ))
             self.__last_hud_statuses.append(STATUS.SHOP)
 
-        for stat, status in Mechanics.STATUSES.items():
-            v = get(stat)
+        for stat, status in STAT2STATUS.items():
+            v = Mechanics.get_status(self.engine, uid, stat)
             if v > 0:
                 name = stat.name.lower().capitalize()
                 duration = self.engine.get_status(uid, status, STATUS_VALUE.DURATION)
@@ -441,13 +443,13 @@ class EncounterAPI(BaseEncounterAPI):
                     title = f'{stat.name.lower().capitalize()}'
                 elif index == 6:
                     title = f'Respawn timer'
-                    s = 'New respawn time in seconds'
+                    s = 'Next respawn time in seconds'
                 elif index == 7:
-                    title = f'Movement Speed'
-                    s = 'Current movement speed'
-                elif index == 8:
                     title = 'Hitbox radius'
                     s = 'Radius of hitbox'
+                elif index == 8:
+                    title = f'Distance'
+                    s = f'Unit\'s distance from me'
                 else:
                     return None
                 return SpriteTitleLabel(STAT_SPRITES[index], title, f'{s}', None)
@@ -459,8 +461,8 @@ class EncounterAPI(BaseEncounterAPI):
 
     def hud_portrait_click(self):
         return SpriteTitleLabel(
-            str(Assets.FALLBACK_SPRITE), 'RP Table',
-            '\n'.join([f'{_}: {(1-Mechanics.rp2reduction(_))*100:.1f}% [b]/[/b] {Mechanics.rp2reduction(_)*100:.1f}%' for _ in (5,10,15,20,25,30,40,50,60,70,85,100,150,200,400)]),
+            str(Assets.FALLBACK_SPRITE), 'Scaling Table',
+            SCALING_TABLE,
             None)
 
     def hud_status_tooltip(self, index):
@@ -483,26 +485,35 @@ class EncounterAPI(BaseEncounterAPI):
             sprite = Assets.get_sprite('ability', status.name)
             title = status.name.lower().capitalize()
             v = Mechanics.get_status(self.engine, self.selected_unit, status)
-            sp = Mechanics.rp2reduction(v)
-            if status is STAT.SLOW:
-                label = f'Slowed by {int((1-sp)*100)}%'
-            if status is STAT.SPIKES:
-                label = f'Returns {round(v)} pure damage when hit by normal damage'
-            if status is STAT.ARMOR:
-                label = f'Reducing normal damage by {int((1-sp)*100)}%'
-            if status is STAT.LIFESTEAL:
-                label = f'Lifestealing {int(v)}% of outgoing normal damage'
-            if status is STAT.BOUNDED:
-                label = f'Prevented from moving or teleporting'
-            if status is STAT.CUTS:
-                label = f'Taking extra {round(v)} normal damage per hit'
-            if status is STAT.VANITY:
-                label = f'Incoming blast damage amplified by {int(v)}%'
-            if status is STAT.REFLECT:
-                label = f'Reflecting {int(v)}% of incoming blast damage as pure damage'
-            if status is STAT.SENSITIVITY:
-                sp = int(100 * Mechanics.scaling(v, 100, ascending=True))
-                label = f'Amplifying incoming and outgoing status effects by {sp}%'
+            sp = Mechanics.scaling(v)
+            sp_asc = Mechanics.scaling(v, ascending=True)
+            if status is STAT.LOS:
+                view_distance = self.units[self.selected_unit].view_distance
+                label = f'Base view distance (obscured by [i]darkness[/i]).\nActual view distance: [b]{view_distance}[/b]'
+            elif status is STAT.DARKNESS:
+                view_distance = self.units[self.selected_unit].view_distance
+                label = f'Reducing view distance by [b]{int(100*sp_asc)}%[/b].\nActual view distance: [b]{view_distance}[/b]'
+            elif status is STAT.MOVESPEED:
+                speed = s2ticks(Mechanics.get_movespeed(self.engine, self.selected_unit)[0])
+                label = f'Base movespeed, encumbered by [i]slow[/i].\nActual movement speed: [b]{round(speed)}[/b]'
+            elif status is STAT.SLOW:
+                label = f'Slowed by [b]{round(sp_asc*100)}%[/b]'
+            elif status is STAT.SPIKES:
+                label = f'Returns [b]{round(v)}[/b] [i]pure damage[/i] when hit by [i]normal damage[/i]'
+            elif status is STAT.ARMOR:
+                label = f'Reducing incoming [i]normal damage[/i] by [b]{round(sp_asc*100)}%[/b]'
+            elif status is STAT.LIFESTEAL:
+                label = f'Lifestealing [b]{round(v)}%[/b] of outgoing [i]normal damage[/i]'
+            elif status is STAT.BOUNDED:
+                label = f'Prevented from [i]moving[/i] or [i]teleporting[/i]'
+            elif status is STAT.CUTS:
+                label = f'Taking extra [b]{round(v)}[/b] [i]normal damage[/i] per hit'
+            elif status is STAT.VANITY:
+                label = f'Incoming [i]blast damage[/i] amplified by [b]{int(v)}%[/b]'
+            elif status is STAT.REFLECT:
+                label = f'Reflecting [b]{round(v)}%[/b] of incoming [i]blast damage[/i] as pure damage'
+            elif status is STAT.SENSITIVITY:
+                label = f'Amplifying incoming and outgoing [i]status effects[/i] by [b]{int(100*sp_asc)}%[/b]'
         elif status == 'fountain':
             sprite = Assets.get_sprite('unit', 'fort')
             title = 'Fountain healing'
@@ -524,16 +535,16 @@ class EncounterAPI(BaseEncounterAPI):
             main_text = '\n'.join([
                 f'Welcome to the {shop_name}',
                 f'',
-                f'{warning}',
-                f'You have: {gold_count} gold',
+                f'You have: [b]{gold_count}[/b] gold',
+                f'[u][b]{warning}[/b][/u]',
                 f'',
-                f'Legend:',
+                f'[u]Legend:[/u]',
                 f'White: for sale',
                 f'Grey: missing gold/slots',
                 f'Black: already owned',
                 f'Color: for sale at another shop',
                 f'',
-                f'Refund policy:',
+                f'[u]Refund policy:[/u]',
                 f'80% refund on used items',
                 f'100% refund on new items (<10 seconds)',
             ])
@@ -600,9 +611,9 @@ class EncounterAPI(BaseEncounterAPI):
         if stats is None:
             stats = STAT
         stat_table = self.engine.stats.table
-        velocity = self.engine.get_velocity(uid)
+        target = self.engine.get_position(uid, value_name=VALUE.TARGET)
         s = [
-            f'Speed: {s2ticks(velocity):.2f}/s ({velocity:.2f}/t)',
+            f'Target XY: {tuple(round(_, 2) for _ in target)}',
         ]
         for stat in stats:
             current = stat_table[uid, stat, VALUE.CURRENT]
@@ -652,8 +663,10 @@ class EncounterAPI(BaseEncounterAPI):
             '200 rp = 80 %',
         ])
 
+        velocity = self.engine.get_velocity(uid)
         text_unit1 = '\n'.join([
             make_title(f'Unit debug', length=30),
+            f'Speed: {s2ticks(velocity):.2f}/s ({velocity:.2f}/t)',
             f'Action phase: {unit.uid % self.engine.AGENCY_PHASE_COUNT}',
             f'Agency: {self.engine.timers["agency"][unit.uid].mean_elapsed_ms:.3f} ms',
             f'Distance to player: {self.engine.unit_distance(0, uid):.1f}',
@@ -754,3 +767,23 @@ FAIL_SFX = {
     FAIL_RESULT.ON_COOLDOWN: 'cooldown',
     FAIL_RESULT.MISSING_COST: 'cost',
 }
+
+SCALING_TABLE_CURVES = (25, 50, 75, 100, 200)
+SCALING_TABLE_VALUES = (5,10,15,20,25,30,40,50,60,70,80,90,100,125,150,200,250,300,400)
+
+def __value_repr(value):
+    return " | ".join([__value_curve_repr(value, curve) for curve in SCALING_TABLE_CURVES])
+def __value_curve_repr(value, curve):
+    if curve == 50:
+        r = f'[b]{Mechanics.scaling(value, curve=curve, ascending=True)*100:.1f}[/b]%'
+    else:
+        r = f'{Mechanics.scaling(value, curve=curve, ascending=True)*100:.1f}%'
+    return f'{r:_>5}'
+def __curve_markdown(curve):
+    if curve == 50:
+        return f'[b]§{curve}[/b]'
+    return f'§{curve}'
+SCALING_TABLE = '\n'.join([
+    'Curve: ' + "  /  ".join([__curve_markdown(curve) for curve in SCALING_TABLE_CURVES]),
+    *[f'[u][b]{value:_>3}[/b] : {__value_repr(value)}[/u]' for value in SCALING_TABLE_VALUES],
+])

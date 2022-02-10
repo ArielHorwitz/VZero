@@ -11,6 +11,8 @@ from engine.common import *
 DMOD_CACHE_SIZE = 10_000
 COLLISION_PASSES = 1
 COLLISION_DEFAULT = True
+assert STAT.POS_Y == STAT.POS_X + 1
+POS = (STAT.POS_X, STAT.POS_Y)
 
 
 class UnitStats:
@@ -60,45 +62,84 @@ class UnitStats:
         self.cooldowns[index, ability] = value
 
     # SPECIAL VALUES
+    def get_positions(self, index=None, value_name=None):
+        if value_name is None:
+            value_name = VALUE.CURRENT
+        if index is None:
+            return self.table[slice(None), POS, value_name]
+        elif isinstance(index, np.ndarray):
+            if index.dtype == np.bool:
+                index = np.flatnonzero(index)
+            index = index[:, None]
+        return self.table[index, POS, value_name]
+
+    def set_positions(self, index, pos, value_name=None):
+        if value_name is None:
+            value_name = VALUE.CURRENT
+        if index is None:
+            self.table[slice(None), POS, value_name] = pos
+        elif isinstance(index, np.ndarray):
+            if index.dtype == np.bool:
+                index = np.flatnonzero(index)
+            index = index[:, None]
+        self.table[index, POS, value_name] = pos
+
     def get_position(self, index=None, value_name=None):
         if index is None:
             index = slice(None)
         if value_name is None:
             value_name = VALUE.CURRENT
-        if isinstance(index, np.ndarray):
-            return np.column_stack(self.table[index, a, VALUE.CURRENT] for a in (STAT.POS_X, STAT.POS_Y))
         return self.table[index, (STAT.POS_X, STAT.POS_Y), value_name]
 
-    def set_position(self, index, pos, value_name=None,
-        reset_delta_target=False, halt=False,
-    ):
+    def set_position(self, index, pos, value_name=None):
         if value_name is None:
             value_name = VALUE.CURRENT
         self.table[index, (STAT.POS_X, STAT.POS_Y), value_name] = pos
-        if halt is True:
-            self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.TARGET] = pos
-        if reset_delta_target is True:
-            self._reset_delta_target(index)
-
-    def _reset_delta_target(self, index, velocity=None):
-        # Find vector
-        pos = self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.CURRENT]
-        target = self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.TARGET]
-        vector = target - pos
-        if velocity is None:
-            velocity = np.linalg.norm(self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.DELTA], axis=-1)
-        vsize = np.linalg.norm(vector, axis=-1)
-        vscale = velocity
-        vscale[vsize != 0] /= vsize[vsize != 0]
-        vector *= vscale[:, np.newaxis]
-        new_delta = vector
-        self.table[index, (STAT.POS_X, STAT.POS_Y), VALUE.DELTA] = new_delta
 
     def get_velocity(self, index=None):
         if index is None:
             index = slice(None)
-        v = self.get_position(index, value_name=VALUE.DELTA)
+        v = self.get_positions(index, value_name=VALUE.DELTA)
         return np.linalg.norm(v)
+
+    def set_move(self, index, target, speed):
+        assert isinstance(speed, np.ndarray) if isinstance(target, np.ndarray) else not isinstance(speed, np.ndarray)
+        if not isinstance(index, np.ndarray):
+            mask = np.full(len(self.table), False)
+            mask[index] = True
+        else:
+            mask = index
+        if mask.sum() == 0:
+            return
+        pos = np.atleast_2d(self.get_positions(mask))
+        target_vector = target - pos
+        v_size = np.linalg.norm(target_vector, axis=-1)
+        do_move = v_size > 0
+        if do_move.sum() == 0:
+            return
+        delta = speed[do_move, None] * target_vector[do_move] / v_size[do_move, None]
+        self.set_positions(mask, delta, value_name=VALUE.DELTA)
+        self.set_positions(mask, target, value_name=VALUE.TARGET)
+
+    def align_to_target(self, index):
+        if not isinstance(index, np.ndarray):
+            mask = np.full(len(self.table), False)
+            mask[index] = True
+        else:
+            mask = index
+        if mask.sum() == 0:
+            return
+        targets = np.atleast_2d(self.get_positions(mask, value_name=VALUE.TARGET))
+        deltas = np.atleast_2d(self.get_positions(mask, value_name=VALUE.DELTA))
+        speeds = np.linalg.norm(deltas, axis=-1)
+        pos = np.atleast_2d(self.get_positions(mask))
+        target_vectors = targets - pos
+        v_size = np.linalg.norm(target_vectors, axis=-1)
+        do_move = v_size > 0
+        if do_move.sum() == 0:
+            return
+        delta = speeds[do_move, None] * target_vectors[do_move] / v_size[do_move, None]
+        self.set_positions(np.flatnonzero(mask)[do_move], delta, value_name=VALUE.DELTA)
 
     def get_distances(self, point, index=None, include_hitbox=True):
         if isinstance(index, int) or isinstance(index, np.int):
@@ -160,7 +201,9 @@ class UnitStats:
         return len(self.table) - 1
 
     def add_dmod(self, ticks, units, stat, delta):
-        logger.debug(f'Adding dmod. ticks: {ticks}, stat: {stat.name}, delta: {delta}, units: {units.nonzero()[0]}')
+        if units.sum() == 0:
+            return
+        logger.debug(f'Adding dmod. ticks: {ticks}, stat: {stat.name}, delta: {delta}, units: {np.flatnonzero(units)}')
         i = self._dmod_index % DMOD_CACHE_SIZE
         self._dmod_effects_add[i, stat] = delta
         self._dmod_ticks[i] = ticks
@@ -295,11 +338,15 @@ class UnitStats:
         # Update positions
         positions = self.get_position(pushed.reshape(len(pushed), 1))
         new_positions = positions + final_push_vectors
-        self.set_position(
-            pushed.reshape(len(pushed), 1), new_positions,
-            reset_delta_target=True)
+        self.set_positions(pushed, new_positions)
+        self.align_to_target(self.mask(pushed))
 
     # INTERNAL
+    def mask(self, index):
+        a = np.full(len(self.table), False, dtype=np.bool)
+        a[index] = True
+        return a
+
     def __init__(self):
         self.tick = 0
         # Base stats table, containing all stats and all values.

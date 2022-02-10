@@ -7,19 +7,14 @@ allegiance: 0
 gold: 30
 gold.delta: 0.01
 hp.max: 100
-hp.delta: 0.02
+hp.delta: 0.01
 mana.max: 100
-mana.delta: 0.02
+mana.delta: 0.01
 physical: 1
-physical.delta: 0.0001666
 fire: 1
-fire.delta: 0.0001666
 earth: 1
-earth.delta: 0.0001666
 air: 1
-air.delta: 0.0001666
 water: 1
-water.delta: 0.0001666
 
 
 
@@ -467,7 +462,7 @@ reflect: 30
 
 ====== Barkshroom
 type: boss
-abilities: jog, snipe, dunder beam
+abilities: run, snipe, dunder beam
 aggro_range: 800
 deaggro_range: 1000
 reaggro_range: 500
