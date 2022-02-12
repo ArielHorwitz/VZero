@@ -22,6 +22,7 @@ from engine.common import *
 from engine.api import EncounterAPI as BaseEncounterAPI
 from engine.encounter import Encounter as EncounterEngine
 
+from logic import MECHANICS_NAMES
 from logic.data import ABILITIES, METAGAME_BALANCE_SHORT
 from logic.mechanics import Mechanics
 from logic.mapgen import MapGenerator
@@ -32,7 +33,7 @@ RNG = np.random.default_rng()
 STAT_SPRITES = tuple([Assets.get_sprite('ability', s) for s in (
     'physical', 'fire', 'earth',
     'air', 'water', 'gold',
-    'respawn')]+[Assets.get_sprite('ui', s) for s in ('crosshair3', 'distance')])
+    'respawn')]+[Assets.get_sprite('ui', s) for s in ('crosshair-select', 'distance')])
 SHOP_STATE_KEY = defaultdict(lambda: 0.7, {
     True: 1,
     FAIL_RESULT.MISSING_COST: 0.45,
@@ -43,6 +44,7 @@ SHOP_STATE_KEY = defaultdict(lambda: 0.7, {
 
 
 FAIL_SFX_INTERVAL = Settings.get_setting('feedback_sfx_cooldown', 'UI')
+HUD_STATUSES = {str2stat(s): str2status(s) for s in MECHANICS_NAMES if s is not 'SHOP'}
 
 
 class EncounterAPI(BaseEncounterAPI):
@@ -53,10 +55,10 @@ class EncounterAPI(BaseEncounterAPI):
     # Logic handlers
     def hp_zero(self, uid):
         unit = self.engine.units[uid]
-        logger.debug(f'Unit {unit.name} died')
         if unit.lose_on_death or unit.win_on_death:
             self.enc_over = True
             self.win = unit.win_on_death
+            logger.info(f'Encounter over! Win: {self.win}')
             self.toggle_play(set_to=False)
             self.raise_gui_flag('menu')
         else:
@@ -65,7 +67,6 @@ class EncounterAPI(BaseEncounterAPI):
     def status_zero(self, uid, status):
         unit = self.engine.units[uid]
         status = list(STATUS)[status]
-        logger.debug(f'Unit {unit.name} lost status {status.name}')
         self.engine.units[uid].status_zero(status)
 
     sfx_feedback_uids = miss_feedback_uids = {0}  # Assuming player is created first
@@ -149,10 +150,9 @@ class EncounterAPI(BaseEncounterAPI):
         if r is not FAIL_RESULT.INACTIVE:
             self.engine.add_visual_effect(VFX.SPRITE, 15, {
                 'point': target,
+                'source': self.quickcast_sprite,
                 'fade': 30,
-                'category': 'ui',
-                'source': 'crosshair',
-                'size': (40, 40),
+                'size': (60, 60),
                 'color': ability.color,
             })
 
@@ -172,8 +172,8 @@ class EncounterAPI(BaseEncounterAPI):
                 'point': target,
                 'fade': 30,
                 'category': 'ui',
-                'source': 'crosshair',
-                'size': (40, 40),
+                'source': self.quickcast_sprite,
+                'size': (60, 60),
                 'color': color,
             })
 
@@ -206,14 +206,17 @@ class EncounterAPI(BaseEncounterAPI):
             self.view_offset = None
             self.set_zoom()
         elif hotkey == 'dev1':
-            self.debug(dev_mode=None, test=True)
-            self.map.refresh()
-        elif hotkey == 'dev2':
             self.show_debug = not self.show_debug
+            logger.info(f'Toggle show_debug, now: {self.show_debug}')
+        elif hotkey == 'dev2':
+            self.engine._do_ticks(1)
         elif hotkey == 'dev3':
-            self.debug(tick=1)
+            logger.info(f'Dev doing 3000 ticks...')
+            self.engine._do_ticks(3000)
         elif hotkey == 'dev4':
-            self.engine.set_auto_tick()
+            self.dev_mode = not self.dev_mode
+            logger.info(f'Toggle dev_mode, now: {self.dev_mode}')
+            self.map.refresh()
         elif 'control' in hotkey:
             control = int(hotkey[-1])
             if control == 0:
@@ -277,7 +280,7 @@ class EncounterAPI(BaseEncounterAPI):
             shop = list(ITEM_CATEGORIES)[round(shop)-1].name.lower().capitalize()
             icons.append(Assets.get_sprite('unit', 'basic-shop'))
 
-        for status in [*STAT2STATUS.values()]:
+        for status in HUD_STATUSES.values():
             d = self.engine.get_status(uid, status, STATUS_VALUE.DURATION)
             if d > 0:
                 name = status.name.lower().capitalize()
@@ -311,11 +314,7 @@ class EncounterAPI(BaseEncounterAPI):
         return sls
 
     def hud_middle_label(self):
-        uid = self.selected_unit
-        if self.dev_mode:
-            return self.units[uid].debug_str
-        else:
-            return self.units[uid].say
+        return self.units[self.selected_unit].say
 
     def hud_middle(self):
         uid = self.selected_unit
@@ -359,16 +358,16 @@ class EncounterAPI(BaseEncounterAPI):
             ))
             self.__last_hud_statuses.append('fountain')
 
-        shop_status = self.engine.get_status(uid, STATUS.SHOP)
-        if shop_status > 0:
-            shop_name, shop_color = Item.item_category_gui(shop_status)
+        shop_status = Mechanics.get_status(self.engine, uid, STAT.SHOP)
+        shop_name, shop_color = Item.item_category_gui(shop_status)
+        if shop_name is not None:
             strs.append(SpriteBox(
-                Assets.get_sprite('unit', f'{shop_name}-shop'), f'{shop_name}',
+                Assets.get_sprite('unit', f'{shop_name}-shop'), f'{shop_name.capitalize()}',
                 (0,0,0,0), (0,0,0,0),
             ))
             self.__last_hud_statuses.append(STATUS.SHOP)
 
-        for stat, status in STAT2STATUS.items():
+        for stat, status in HUD_STATUSES.items():
             v = Mechanics.get_status(self.engine, uid, stat)
             if v > 0:
                 name = stat.name.lower().capitalize()
@@ -384,14 +383,15 @@ class EncounterAPI(BaseEncounterAPI):
 
     def hud_bars(self):
         uid = self.selected_unit
+        unit = self.units[uid]
         hp = self.engine.get_stats(uid, STAT.HP)
-        max_hp = self.engine.get_stats(uid, STAT.HP, value_name=VALUE.MAX)
-        delta_hp = self.engine.get_stats(uid, STAT.HP, value_name=VALUE.DELTA)
-        delta_hp = f'{nsign_str(round(s2ticks(delta_hp), 1))} /s'
         mana = self.engine.get_stats(uid, STAT.MANA)
+        max_hp = self.engine.get_stats(uid, STAT.HP, value_name=VALUE.MAX)
         max_mana = self.engine.get_stats(uid, STAT.MANA, value_name=VALUE.MAX)
-        delta_mana = self.engine.get_stats(uid, STAT.MANA, value_name=VALUE.DELTA)
-        delta_mana = f'{nsign_str(round(s2ticks(delta_mana), 1))} /s'
+        unit.regen_trackers[STAT.HP].push(self.engine.get_delta_total(uid, STAT.HP))
+        unit.regen_trackers[STAT.MANA].push(self.engine.get_delta_total(uid, STAT.MANA))
+        delta_hp = f'{nsign_str(round(s2ticks(unit.regen_trackers[STAT.HP].mean), 1))} /s'
+        delta_mana = f'{nsign_str(round(s2ticks(unit.regen_trackers[STAT.MANA].mean), 1))} /s'
         bar_colors = self.sprite_bar_color(uid)
         return [
             ProgressBar(hp/max_hp, f'HP: {hp:.1f}/{max_hp:.1f} {delta_hp}', bar_colors[0]),
@@ -476,9 +476,11 @@ class EncounterAPI(BaseEncounterAPI):
             label = 'Respawn time in seconds'
         if status is STATUS.SHOP:
             shop_name, shop_color = Item.item_category_gui(self.engine.get_status(self.selected_unit, STATUS.SHOP))
+            if shop_name is None:
+                shop_name = 'no'
             sprite = Assets.get_sprite('unit', f'{shop_name}-shop')
-            title = f'{shop_name} shop'
-            label = f'Near {shop_name.lower()} shop'
+            title = f'{shop_name.capitalize()} Shop'
+            label = f'Near {shop_name} shop'
             self.raise_gui_flag('browse')
             return None
         elif isinstance(status, STAT):
@@ -495,7 +497,7 @@ class EncounterAPI(BaseEncounterAPI):
                 label = f'Reducing view distance by [b]{int(100*sp_asc)}%[/b].\nActual view distance: [b]{view_distance}[/b]'
             elif status is STAT.MOVESPEED:
                 speed = s2ticks(Mechanics.get_movespeed(self.engine, self.selected_unit)[0])
-                label = f'Base movespeed, encumbered by [i]slow[/i].\nActual movement speed: [b]{round(speed)}[/b]'
+                label = f'Base movespeed, encumbered by [i]slow[/i].\nActual movement speed: [b]{round(speed)}/s[/b]'
             elif status is STAT.SLOW:
                 label = f'Slowed by [b]{round(sp_asc*100)}%[/b]'
             elif status is STAT.SPIKES:
@@ -522,19 +524,16 @@ class EncounterAPI(BaseEncounterAPI):
 
     # Browse
     def browse_main(self):
-        shop_status = self.engine.get_status(0, STATUS.SHOP)
-        if shop_status != 0:
-            shop_name, shop_color = Item.item_category_gui(shop_status)
-            shop_name = f'{shop_name} Shop'
+        shop_status = Mechanics.get_status(self.engine, 0, STAT.SHOP)
+        shop_name, shop_color = Item.item_category_gui(shop_status)
+        if shop_name is not None:
+            title = f'{shop_name.capitalize()} Shop'
             gold_count = int(self.engine.get_stats(0, STAT.GOLD))
+            warning = ''
             if self.units[0].empty_item_slots == 0:
                 shop_color = (0,0,0,1)
                 warning = 'Missing slots!'
-            else:
-                warning = ''
             main_text = '\n'.join([
-                f'Welcome to the {shop_name}',
-                f'',
                 f'You have: [b]{gold_count}[/b] gold',
                 f'[u][b]{warning}[/b][/u]',
                 f'',
@@ -549,7 +548,7 @@ class EncounterAPI(BaseEncounterAPI):
                 f'100% refund on new items (<10 seconds)',
             ])
         else:
-            shop_name = 'Out of shop range'
+            title = 'Out of shop range'
             shop_color = (0.25,0.25,0.25,1)
             map_hotkey = Settings.get_setting('toggle_map', 'Hotkeys')
             main_text = '\n'.join([
@@ -558,7 +557,7 @@ class EncounterAPI(BaseEncounterAPI):
             ])
         return SpriteTitleLabel(
             Assets.get_sprite('unit', f'{shop_name}-shop'),
-            shop_name, main_text,
+            title, main_text,
             modify_color(shop_color, v=0.5)
         )
 
@@ -594,6 +593,12 @@ class EncounterAPI(BaseEncounterAPI):
     # Misc
     abilities = ABILITIES
 
+    def select_unit(self, uid):
+        self.selected_unit = uid
+        logger.info(f'Selected unit: {self.units[uid].name}')
+        for stat, tracker in self.units[uid].regen_trackers.items():
+            tracker.reset(self.engine.get_delta_total(uid, stat))
+
     def update(self, *a, **k):
         super().update(*a, **k)
         if not self.enc_over:
@@ -613,15 +618,15 @@ class EncounterAPI(BaseEncounterAPI):
         stat_table = self.engine.stats.table
         target = self.engine.get_position(uid, value_name=VALUE.TARGET)
         s = [
-            f'Target XY: {tuple(round(_, 2) for _ in target)}',
+            f'Target XY: {tuple(round(_, 3) for _ in target)}',
         ]
         for stat in stats:
             current = stat_table[uid, stat, VALUE.CURRENT]
             delta = s2ticks()*stat_table[uid, stat, VALUE.DELTA]
-            d_str = f' + {delta:.2f}' if delta != 0 else ''
+            d_str = f' + {delta:.3f}' if delta != 0 else ''
             max_value = stat_table[uid, stat, VALUE.MAX]
-            mv_str = f' / {max_value:.2f}' if max_value < 100_000 else ''
-            s.append(f'{stat.name.lower().capitalize()}: {current:3.2f}{d_str}{mv_str}')
+            mv_str = f' / {max_value:.3f}' if max_value < 100_000 else ''
+            s.append(f'{stat.name.lower().capitalize()}: {current:3.3f}{d_str}{mv_str}')
         return njoin(s)
 
     def pretty_statuses(self, uid):
@@ -629,89 +634,73 @@ class EncounterAPI(BaseEncounterAPI):
         for status in STATUS:
             d = self.engine.get_status(uid, status, value_name=STATUS_VALUE.DURATION)
             s = self.engine.get_status(uid, status, value_name=STATUS_VALUE.STACKS)
-            if d > 0:
+            if d > 0 or self.dev_mode:
                 name_ = status.name.lower().capitalize()
-                t.append(f'{name_}: {ticks2s(d):.2f} × {s:.2f}')
+                t.append(f'{name_}: {s:.3f} × {round(ticks2s(d), 2)}')
         return njoin(t) if len(t) > 0 else 'No statuses'
 
     def pretty_cooldowns(self, uid):
+        unit = self.units[uid]
         s = []
-        for ability in ABILITY:
-            v = self.engine.get_cooldown(uid, ability)
-            if v > 0:
-                name_ = ability.name.lower().capitalize()
-                s.append(f'{name_}: {ticks2s(v):.2f} ({round(v)})')
-        return njoin(s) if len(s) > 0 else 'No cooldowns'
+        for aid in unit.abilities | unit.item_abilities:
+            v = self.engine.get_cooldown(uid, aid)
+            if v > 0 or ABILITIES[aid].debug or self.dev_mode:
+                name_ = aid.name.lower().capitalize()
+                s.append(f'{name_}: {ticks2s(v):.2f} ({v:.1f})')
+        return njoin(s) if len(s) > 0 else f'No cooldowns'
 
     def debug_panel_labels(self):
+        bold = {'logic_total', 'logic_stats'}
+        timer_strs = []
+        for tname, timer in self.engine.timers.items():
+            if isinstance(timer, RateCounter):
+                if tname in bold:
+                    timer_strs.append(f'[b]{tname}: {timer.mean_elapsed_ms:.3f} ms[/b]')
+                else:
+                    timer_strs.append(f'{tname}: {timer.mean_elapsed_ms:.3f} ms')
+        logic_performance = '\n'.join([
+            make_title('Logic Performance', length=30),
+            *timer_strs,
+        ])
+
+        logic_overview = njoin([
+            make_title(f'Logic Overview', length=30),
+            f'Game time: {self.time_str}',
+            f'Tick: {self.engine.tick} +{TPS} t/s',
+            f'Map size: {self.map_size}',
+            f'Agency phase: {self.engine.tick % self.engine.AGENCY_PHASE_COUNT}',
+            make_title(f'Stats Engine Debug', length=30),
+            f'{self.engine.stats.debug_str(verbose=self.dev_mode)}',
+        ])
+
         uid = self.selected_unit
         unit = self.engine.units[uid]
-
-        rp_table = njoin([
-            make_title('Score', length=30),
-            f'Draft cost: {self.draft_cost}',
-            f'Score: {self.score}',
-            make_title('Reduction Points (RP) Table', length=30),
-            '5 rp =  9 %',
-            '10 rp = 17 %',
-            '20 rp = 30 %',
-            '30 rp = 38 %',
-            '40 rp = 44 %',
-            '50 rp = 50 %',
-            '100 rp = 67 %',
-            '150 rp = 75 %',
-            '200 rp = 80 %',
-        ])
-
-        velocity = self.engine.get_velocity(uid)
         text_unit1 = '\n'.join([
-            make_title(f'Unit debug', length=30),
-            f'Speed: {s2ticks(velocity):.2f}/s ({velocity:.2f}/t)',
-            f'Action phase: {unit.uid % self.engine.AGENCY_PHASE_COUNT}',
-            f'Agency: {self.engine.timers["agency"][unit.uid].mean_elapsed_ms:.3f} ms',
-            f'Distance to player: {self.engine.unit_distance(0, uid):.1f}',
-            f'{unit.debug_str}',
+            make_title(f'{unit.name} (#{unit.uid}) debug', length=30),
+            f'\n{unit.debug_str(verbose=self.dev_mode)}',
         ])
-
         text_unit2 = '\n'.join([
-            make_title(f'{unit.name} (#{unit.uid})', length=30),
-            make_title(f'Stat', length=30),
+            make_title(f'Stats', length=30),
             f'{self.pretty_stats(uid)}',
-            make_title(f'Status', length=30),
+            make_title(f'Statuses', length=30),
             f'{self.pretty_statuses(uid)}',
+        ])
+        text_unit3 = '\n'.join([
+            make_title(f'Abilities', length=30),
+            *(repr(_) for _ in unit.ability_slots),
+            make_title(f'Items', length=30),
+            *(repr(_) for _ in unit.item_slots),
+            make_title(f'Unslotted', length=30),
+            *(repr(_) for _ in unit.unslotted_abilities),
             make_title(f'Cooldown', length=30),
             f'{self.pretty_cooldowns(uid)}',
         ])
 
-        text_unit3 = '\n'.join([
-            make_title(f'{unit.name} (#{unit.uid})', length=30),
-            make_title(f'Abilities', length=30),
-            *(str(_) for _ in unit.ability_slots),
-            f'Unslotted:',
-            *(str(_) for _ in (unit.abilities - set(unit.ability_slots))),
-            make_title(f'Items', length=30),
-            *(str(_) for _ in unit.item_slots),
-        ])
 
-        timer_strs = []
-        for tname, timer in self.engine.timers.items():
-            if isinstance(timer, RateCounter):
-                timer_strs.append(f'- {tname}: {timer.mean_elapsed_ms:.3f} ms')
-        text_performance = njoin([
-            make_title('Logic Performance', length=30),
-            f'Game time: {self.time_str}',
-            f'Tick: {self.engine.tick} +{s2ticks()} t/s',
-            *timer_strs,
-            f'Map size: {self.map_size}',
-            f'Agency phase: {self.engine.tick % self.engine.AGENCY_PHASE_COUNT}',
-        ])
-
-        logic_overview = '\n\n'.join([text_performance, rp_table])
-
-        return text_unit1, text_unit2, text_unit3, logic_overview
+        return logic_performance, logic_overview, text_unit1, text_unit2, text_unit3
 
     def __init__(self, game, player_abilities, draft_cost):
-        self.dev_mode = Settings.get_setting('dev_build', 'General')
+        self.dev_mode = False
         self.show_debug = False
         self.game = game
         self.engine = EncounterEngine(self)
@@ -741,18 +730,8 @@ class EncounterAPI(BaseEncounterAPI):
             score = self.game.calc_score(self.draft_cost, elapsed_minutes)
         return score
 
-    def debug(self, *args, dev_mode=-1, tick=None, tps=None, test=None, **kwargs):
-        logger.debug(f'Logic Debug called (extra args: {args} {kwargs})')
-        self.engine.set_tps(tps)
-        if dev_mode == -1:
-            dev_mode = self.dev_mode
-        elif dev_mode == None:
-            dev_mode = not self.dev_mode
-        self.dev_mode = dev_mode
-        if tick is not None:
-            self.engine._do_ticks(tick)
-        if test is not None:
-            pass
+    def debug(self, *args, dev_mode=-1, tick=None, **kwargs):
+        logger.info(f'Logic Debug called (extra args: {args} {kwargs})')
 
 
 FAIL_SFX = {
@@ -768,8 +747,8 @@ FAIL_SFX = {
     FAIL_RESULT.MISSING_COST: 'cost',
 }
 
-SCALING_TABLE_CURVES = (25, 50, 75, 100, 200)
-SCALING_TABLE_VALUES = (5,10,15,20,25,30,40,50,60,70,80,90,100,125,150,200,250,300,400)
+SCALING_TABLE_CURVES = (25, 50, 75, 100, 150, 200)
+SCALING_TABLE_VALUES = (5,10,15,20,25,30,40,50,60,70,80,90,100,125,150,175,200,250,300,400,500,600)
 
 def __value_repr(value):
     return " | ".join([__value_curve_repr(value, curve) for curve in SCALING_TABLE_CURVES])
@@ -784,6 +763,6 @@ def __curve_markdown(curve):
         return f'[b]§{curve}[/b]'
     return f'§{curve}'
 SCALING_TABLE = '\n'.join([
-    'Curve: ' + "  /  ".join([__curve_markdown(curve) for curve in SCALING_TABLE_CURVES]),
+    '[u][b]Curve  ' + " /  ".join([__curve_markdown(curve) for curve in SCALING_TABLE_CURVES]) + '[/b][/u]',
     *[f'[u][b]{value:_>3}[/b] : {__value_repr(value)}[/u]' for value in SCALING_TABLE_VALUES],
 ])

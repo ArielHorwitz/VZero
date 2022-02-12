@@ -2,6 +2,7 @@ import logging
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
+import math
 from collections import defaultdict
 from enum import IntEnum
 from data.load import RDF
@@ -10,20 +11,23 @@ from data.settings import Settings
 from nutil.vars import AutoIntEnum, nsign_str
 from engine.common import *
 from logic.data import ABILITIES
+from logic.mechanics import Mechanics
 
 
-ICAT = ITEM_CATEGORIES = IntEnum('ITEM_CATEGORIES', [
+ITEM_CATEGORIES = IntEnum('ITEM_CATEGORIES', [
     'BASIC',
     'HERBAL',
-    # 'POTION',
     'ORNAMENT',
+    # 'POTION',
 ])
+logger.debug(f'Set Item Categories: {tuple(f"{_.name} {_.value}" for _ in ITEM_CATEGORIES)}')
 CATEGORY_COLORS = {
-    ICAT.BASIC: (0.5, 0.5, 0),
-    ICAT.HERBAL: (0.1, 0.7, 0.05),
-    # ICAT.POTION: (0.7, 0, 0.4),
-    ICAT.ORNAMENT: (0, 0.5, 0.5),
+    ITEM_CATEGORIES.BASIC: (0.5, 0.5, 0),
+    ITEM_CATEGORIES.HERBAL: (0.1, 0.7, 0.05),
+    ITEM_CATEGORIES.ORNAMENT: (0, 0.5, 0.5),
+    # ITEM_CATEGORIES.POTION: (0.7, 0, 0.4),
 }
+assert all([icat in CATEGORY_COLORS for icat in ITEM_CATEGORIES])
 SELL_MULTIPLIER = 0.8
 QUICK_RESELL_WINDOW = 1000
 
@@ -40,7 +44,7 @@ class Item:
         self.iid = iid
         self.name = name
         self.sprite = Assets.get_sprite('ability', raw_data.default['sprite'] if 'sprite' in raw_data.default else self.name)
-        self.category = getattr(ICAT, raw_data.default['category'].upper())
+        self.category = getattr(ITEM_CATEGORIES, raw_data.default['category'].upper())
         self.color = CATEGORY_COLORS[self.category]
         self.cost = raw_data.default['cost']
         self.sell_multi = SELL_MULTIPLIER
@@ -77,30 +81,21 @@ class Item:
             f'\n{self.ability.name}: {self.ability.description(engine, uid)}' if self.ability is not None else '',
         ])
 
-    def check_shop(self, engine, uid):
-        logger.warning(f'Item.check_shop() will be deprecated.')
-        unit = engine.units[uid]
-        icat = round(engine.get_status(uid, STATUS.SHOP))
-        if icat < self.category.value or unit.empty_item_slots == 0:
-            return False
-        return True
-
     def check_buy(self, engine, uid):
         unit = engine.units[uid]
-
+        # Check duplicates
         if self.iid in unit.item_slots:
             return FAIL_RESULT.ON_COOLDOWN
-
-        icat = round(engine.get_status(uid, STATUS.SHOP))
+        # Check shop stat
+        icat = round(Mechanics.get_status(engine, uid, STAT.SHOP))
         if icat < self.category.value:
             return FAIL_RESULT.OUT_OF_RANGE
-
+        # Check slots
         if unit.empty_item_slots == 0:
             return FAIL_RESULT.MISSING_TARGET
-
+        # Check cost
         if not engine.get_stats(uid, STAT.GOLD) >= self.cost:
             return FAIL_RESULT.MISSING_COST
-
         return True
 
     def gui_state(self, api, uid, target=None):
@@ -141,8 +136,8 @@ class Item:
         unit = engine.units[uid]
         assert self.iid in unit.items
 
-        icat = round(engine.get_status(uid, STATUS.SHOP))
-        if icat == 0:
+        icat = round(Mechanics.get_status(engine, uid, STAT.SHOP))
+        if icat < 1:
             logger.debug(f'{unit.name} missing shop status to sell')
             return FAIL_RESULT.MISSING_TARGET
 
@@ -163,16 +158,19 @@ class Item:
     def __repr__(self):
         return f'<Item {self.iid} {self.name}>'
 
-    @staticmethod
-    def item_category_gui(icat):
-        icat = round(icat)
-        if 0 < icat <= len(ITEM_CATEGORIES):
-            icat = list(ITEM_CATEGORIES)[icat-1]
-            shop_name = icat.name.lower().capitalize()
-            shop_color = CATEGORY_COLORS[icat]
-            return shop_name, shop_color
+    @classmethod
+    def item_category_gui(cls, stat):
+        icat = cls.stat2category(stat)
+        if icat is not None:
+            return icat.name.lower(), CATEGORY_COLORS[icat]
         return None, None
 
+    @staticmethod
+    def stat2category(stat):
+        if stat < 1:
+            return None
+        catindex = min(math.floor(stat), len(ITEM_CATEGORIES)) - 1
+        return list(ITEM_CATEGORIES)[catindex]
 
 def _load_raw_stats(raw_stats):
     stats = defaultdict(lambda: {})

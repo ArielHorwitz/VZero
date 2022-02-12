@@ -4,6 +4,28 @@ import numpy as np
 import enum
 
 
+class FIFO:
+    def __init__(self, stack_size):
+        self.__stack_index = 0
+        self.__stack_size = stack_size
+        self.stack = np.zeros(stack_size, dtype=np.float64)
+
+    def reset(self, value=0):
+        self.stack[:] = value
+
+    def push(self, value):
+        self.__stack_index = (self.__stack_index + 1) % self.__stack_size
+        self.stack[self.__stack_index] = value
+
+    @property
+    def mean(self):
+        return np.sum(self.stack) / self.__stack_size
+
+    @property
+    def sum(self):
+        return np.sum(self.stack)
+
+
 class Dict:
     @staticmethod
     def crawl_dict_path(d, path):

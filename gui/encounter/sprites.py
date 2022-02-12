@@ -4,7 +4,7 @@ logger.setLevel(logging.DEBUG)
 
 import math, copy
 import numpy as np
-from nutil.vars import modify_color
+from nutil.vars import modify_color, minmax
 from nutil.time import ratecounter
 from nutil.kex import widgets
 from gui import cc_int, center_position, center_sprite
@@ -163,7 +163,7 @@ class Bar(widgets.kvInstructionGroup):
     def size(self, size):
         self._size = size[0], size[1]
         self._bg_rect.size = self._size[0]+(self.padding*2), self._size[1]+(self.padding*2)
-        self._fg_rect.size = self._size[0]*self._progress, self._size[1]
+        self._fg_rect.size = self._size[0]*minmax(0, 1, self._progress), self._size[1]
 
     @property
     def progress(self):
@@ -172,7 +172,7 @@ class Bar(widgets.kvInstructionGroup):
     @progress.setter
     def progress(self, x):
         self._progress = x
-        self._fg_rect.size = self._size[0]*self._progress, self._size[1]
+        self._fg_rect.size = self._size[0]*minmax(0, 1, self._progress), self._size[1]
 
     @property
     def fg(self):

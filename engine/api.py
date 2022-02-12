@@ -85,6 +85,8 @@ class EncounterAPI:
     show_hud = True
     map_mode = False
     map_size = np.array([10_000, 10_000])
+    selection_sprite = Assets.get_sprite('ui', 'crosshair-select')
+    quickcast_sprite = Assets.get_sprite('ui', 'crosshair-cast')
 
     def raise_gui_flag(self, flag):
         self.gui_flags[flag] = True
@@ -102,6 +104,10 @@ class EncounterAPI:
     @property
     def player_position(self):
         return self.engine.get_position(0)
+
+    @property
+    def move_crosshair_size(self):
+        return (50, 50)
 
     @property
     def fog_radius(self):
@@ -165,7 +171,7 @@ class EncounterAPI:
         return humanize_ms(self.engine.ticktime * self.engine.tick, show_hours=False)
 
     @property
-    def target_crosshair(self):
+    def move_crosshair_pos(self):
         return self.engine.get_position(0, value_name=VALUE.TARGET)
 
     # Logic handlers
@@ -228,8 +234,7 @@ class EncounterAPI:
         self.engine.add_visual_effect(VFX.SPRITE, 60, {
             'uid': uid,
             'fade': 100,
-            'category': 'ui',
-            'source': 'crosshair2',
+            'source': self.selection_sprite,
             'size': (hb*2.1, hb*2.1),
             'color': (0, 0, 0),
         })

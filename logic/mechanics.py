@@ -10,20 +10,13 @@ from nutil.vars import normalize, modify_color
 from engine.common import *
 
 
-
 MAX_MOVESPEED = 500
 
 
 class Mechanics:
-    @classmethod
-    def get_movespeed(cls, api, mask):
-        if not isinstance(mask, np.ndarray):
-            mask = cls.mask(api, mask)
-        speed = MAX_MOVESPEED * cls.scaling(cls.get_status(api, mask, STAT.MOVESPEED), ascending=True)
-        speed *= ticks2s()
-        slow = cls.get_status(api, mask, STAT.SLOW)
-        speed[slow > 0] *= cls.scaling(slow[slow > 0])
-        return speed
+    STATUS_SKIP_LOGGING = {STATUS.SHOP, STATUS.FOUNTAIN}
+    STATUS_SKIP_SENSITIVITY = {STATUS.SHOP, STATUS.SENSITIVITY}
+    STATUS_DURATION_SENSITIVITY = {STATUS.BOUNDED}
 
     @classmethod
     def apply_loot(cls, api, uid, target, range):
@@ -38,7 +31,7 @@ class Mechanics:
         looted_gold = api.get_stats(loot_target, STAT.GOLD)
         api.set_stats(loot_target, STAT.GOLD, 0)
         api.set_stats(loot_target, (STAT.POS_X, STAT.POS_Y), (-1_000_000, -1_000_000))
-        logger.debug(f'{api.units[uid]} removed {looted_gold} gold from {api.units[loot_target]}')
+        logger.debug(f'{api.units[uid]} removed {looted_gold} gold from {api.units[loot_target]}.')
         return looted_gold, loot_target
 
     @classmethod
@@ -50,71 +43,73 @@ class Mechanics:
         if reset_target:
             api.set_position(uid, target, VALUE.TARGET)
         else:
-            api.stats.align_to_target(uid)
+            api.align_to_target(uid)
 
     @classmethod
     def apply_walk(cls, api, mask, target=None):
-        bounded = cls.get_status(api, slice(None), STAT.BOUNDED) > 0
-        skip_move = mask & bounded
-        if skip_move.sum() > 0:
-            logger.debug(f'Tried applying walk on {np.flatnonzero(mask)}, {np.flatnonzero(skip_move)} is bounded.')
-            mask = mask & np.invert(bounded)
+        mask = mask & cls.moveable(api)
         if mask.sum() == 0:
             return
         if target is None:
-            target = api.stats.get_positions(mask, value_name=VALUE.TARGET)
+            target = api.get_positions(mask, value_name=VALUE.TARGET)
         speed = cls.get_movespeed(api, mask)
         api.set_move(mask, target, speed)
 
     @classmethod
     def halt_move(cls, api, mask):
-        pos = api.stats.get_positions(mask)
-        api.stats.set_positions(mask, 0, value_name=VALUE.DELTA)
-        api.stats.set_positions(mask, pos, value_name=VALUE.TARGET)
+        pos = api.get_positions(mask)
+        api.set_positions(mask, 0, value_name=VALUE.DELTA)
+        api.set_positions(mask, pos, value_name=VALUE.TARGET)
 
     @classmethod
-    def apply_move(cls, api, uid, target=None, move_speed=None):
-        bounded = cls.get_status(api, uid, STAT.BOUNDED)
-        if bounded > 0:
-            target = api.get_position(uid)
-        if move_speed is None:
-            move_speed = api.get_velocity(uid)
-        slow = cls.get_status(api, uid, STAT.SLOW)
-        if slow > 0:
-            move_speed *= max(0, cls.scaling(slow))
-        if target is None:
-            target = api.get_position(uid, value_name=VALUE.TARGET)
-        current_pos = api.get_position(uid)
-        target_vector = target - current_pos
-        delta = normalize(target_vector, move_speed)
-        api.set_position(uid, delta, value_name=VALUE.DELTA)
-        api.set_position(uid, target, value_name=VALUE.TARGET)
-        # api.set_move(uid, target, move_speed)
-
-    @classmethod
-    def apply_debuff(cls, api, targets, status, duration, stacks, caster=None, reset_move=True):
+    def apply_debuff(cls, api, targets, status,
+        duration=None, stacks=None, duration_add=0, stacks_add=0,
+        caster=None, reset_move=True, apply_sensitivity=True):
         if targets.sum() == 0:
             return
-        if status not in {STATUS.SHOP}:
-            logger.debug(f'Applying status {status.name} {duration} × {stacks} to targets: {np.flatnonzero(targets)}')
-        if status not in {STATUS.SHOP, STATUS.SENSITIVITY}:
-            sensitivity = cls.get_status(api, targets, STAT.SENSITIVITY)
-            if caster is not None:
-                sensitivity += cls.get_status(api, caster, STAT.SENSITIVITY)
-            sensitivity = cls.scaling(sensitivity, ascending=True)
-            if status is STATUS.BOUNDED:
-                duration *= 1 + sensitivity
+
+        dur_sens = stacks_sens = 1
+        if status not in cls.STATUS_SKIP_SENSITIVITY:
+            if status in cls.STATUS_DURATION_SENSITIVITY:
+                dur_sens = cls._combined_sensitivity(api, caster, targets)
             else:
-                stacks *= 1 + sensitivity
+                stacks_sens = cls._combined_sensitivity(api, caster, targets)
+
+        if duration is None:
+            duration = api.get_status(targets, status, value_name=STATUS_VALUE.DURATION)
+            duration = np.atleast_1d(duration)
+            duration[duration < 0] = 0
+        else:
+            duration *= dur_sens
+        if stacks is None:
+            stacks = api.get_status(targets, status)
+        else:
+            stacks *= stacks_sens
+
+        duration += duration_add * dur_sens
+        stacks += stacks_add * stacks_sens
+
+        if status not in cls.STATUS_SKIP_LOGGING:
+            logger.debug(f'Applying status {status.name} {duration} × {stacks} to targets: {np.flatnonzero(targets)}.')
+
         api.set_status(targets, status, duration, stacks)
+
         if status is STATUS.BOUNDED and reset_move:
             cls.halt_move(api, cls.mask(api, targets))
         if status is STATUS.SLOW and reset_move:
             cls.apply_walk(api, cls.mask(api, targets))
 
     @classmethod
+    def _combined_sensitivity(cls, api, caster, targets):
+        sensitivity = cls.get_status(api, targets, STAT.SENSITIVITY)
+        if caster is not None:
+            sensitivity += cls.get_status(api, caster, STAT.SENSITIVITY)
+        sensitivity = cls.scaling(sensitivity, ascending=True)
+        return 1 + sensitivity
+
+    @classmethod
     def apply_regen(cls, api, targets, stat, duration, delta):
-        logger.debug(f'Applying {delta} {stat.name} regen for {duration} ticks to {np.flatnonzero(targets)}')
+        # logger.debug(f'Applying {delta} {stat.name} regen for {duration} ticks to {np.flatnonzero(targets)}')
         api.add_dmod(duration, targets, stat, delta)
 
     @classmethod
@@ -122,7 +117,7 @@ class Mechanics:
         # Stop if no targets
         if targets_mask.sum() == 0:
             return
-        logger.debug(f'{source_uid} applying {damage:.2f} normal damage to {np.flatnonzero(targets_mask)}')
+        logger.debug(f'{source_uid} applying {damage:.2f} normal damage to {np.flatnonzero(targets_mask)}.')
         all_damage = targets_mask * damage
 
         # Cuts add flat damage
@@ -148,7 +143,7 @@ class Mechanics:
         # Stop if no targets
         if targets_mask.sum() == 0:
             return
-        logger.debug(f'{source_uid} applying {damage:.2f} blast damage to {np.flatnonzero(targets_mask)}')
+        logger.debug(f'{source_uid} applying {damage:.2f} blast damage to {np.flatnonzero(targets_mask)}.')
         all_damage = targets_mask * damage
 
         # Vanity amplification
@@ -180,9 +175,29 @@ class Mechanics:
         elif heal < 0:
             heal = 0
         api.set_stats(targets_mask, STAT.HP, heal, additive=True)
-        logger.debug(f'{targets_mask.nonzero()[0]} healed by {heal}.')
+        logger.debug(f'{targets_mask.nonzero()[0]} received {heal} healing.')
 
     # Utilities
+    @classmethod
+    def moveable(cls, api):
+        unbounded = cls.get_status(api, slice(None), STAT.BOUNDED) == 0
+        normal_weight = api.get_stats(slice(None), STAT.WEIGHT) >= 0
+        return unbounded & normal_weight
+
+    @classmethod
+    def unmoveable(cls, api):
+        return np.invert(cls.moveable(api))
+
+    @classmethod
+    def get_movespeed(cls, api, mask):
+        if not isinstance(mask, np.ndarray):
+            mask = cls.mask(api, mask)
+        speed = MAX_MOVESPEED * cls.scaling(cls.get_status(api, mask, STAT.MOVESPEED), ascending=True)
+        speed *= ticks2s()
+        slow = cls.get_status(api, mask, STAT.SLOW)
+        speed[slow > 0] *= cls.scaling(slow[slow > 0])
+        return speed
+
     @classmethod
     def mask(cls, api, targets=None):
         a = np.zeros(api.unit_count, dtype=np.bool)
@@ -212,6 +227,15 @@ class Mechanics:
         if stat in STAT2STATUS:
             base += api.get_status(uid, STAT2STATUS[stat])
         return base
+
+    @staticmethod
+    def bound_to_map(api, point):
+        point = np.array(point)
+        map_size = np.array(api.map_size)
+        point[point < 0] = 0
+        over = point > map_size
+        point[over] = map_size[over]
+        return point
 
 
 class Rect:

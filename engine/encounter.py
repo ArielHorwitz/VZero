@@ -24,13 +24,13 @@ class Encounter:
         self.timers = defaultdict(RateCounter)
         self.timers['agency'] = defaultdict(lambda: RateCounter(sample_size=10))
         self.auto_tick = True
-        self.__tps = Settings.get_setting('tps', 'General')
-        self.ticktime = 1000 / self.__tps
+        self.ticktime = 1000 / TPS
         self.__t0 = self.__last_tick = ping()
         self.stats = UnitStats()
         self.units = []
         self.__active_uids = np.array([])
         self._visual_effects = []
+        logger.info(f'Initialized Encounter Engine {self}')
 
     # TIME MANAGEMENT
     def update(self, active_uids):
@@ -131,13 +131,6 @@ class Encounter:
         logger.info(f'Set auto tick: {self.auto_tick}')
         return self.auto_tick
 
-    def set_tps(self, tps=None):
-        if tps is None:
-            tps = Settings.get_setting('tps', 'General')
-        self.__tps = tps
-        self.ticktime = 1000 / self.__tps
-        logger.debug(f'set tps {self.__tps}')
-
     # UNIT MANAGEMENT
     @property
     def next_uid(self):
@@ -154,7 +147,6 @@ class Encounter:
 
     # UTILITY
     def add_visual_effect(self, *args, **kwargs):
-        # logger.debug(f'Adding visual effect with: {args} {kwargs}')
         self._visual_effects.append(VisualEffect(*args, **kwargs))
 
     def get_visual_effects(self):
@@ -168,6 +160,22 @@ class Encounter:
     @property
     def set_stats(self):
         return self.stats.set_stats
+
+    @property
+    def get_delta_total(self):
+        return self.stats.get_delta_total
+
+    @property
+    def get_dmod(self):
+        return self.stats.get_dmod
+
+    @property
+    def kill_statuses(self):
+        return self.stats.kill_statuses
+
+    @property
+    def kill_dmods(self):
+        return self.stats.kill_dmods
 
     @property
     def get_status(self):
@@ -192,6 +200,18 @@ class Encounter:
     @property
     def set_position(self):
         return self.stats.set_position
+
+    @property
+    def get_positions(self):
+        return self.stats.get_positions
+
+    @property
+    def set_positions(self):
+        return self.stats.set_positions
+
+    @property
+    def align_to_target(self):
+        return self.stats.align_to_target
 
     @property
     def get_velocity(self):

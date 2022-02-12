@@ -10,17 +10,9 @@ rely on those enumerators in runtime.
 from data.load import RDF
 
 
-# Builtin stats: POS_X, POS_Y, WEIGHT, HITBOX, HP
-STATS = [
-    'ALLEGIANCE',
-    'MANA',
-    'GOLD',
-    'PHYSICAL',
-    'FIRE',
-    'EARTH',
-    'AIR',
-    'WATER',
-    # Mechanics
+
+MECHANICS_NAMES = [
+    'SHOP',
     'LOS',
     'DARKNESS',
     'MOVESPEED',
@@ -35,25 +27,24 @@ STATS = [
     'SENSITIVITY',
 ]
 
+# Builtin stats: POS_X, POS_Y, WEIGHT, HITBOX, HP
+STATS = [
+    'ALLEGIANCE',
+    'MANA',
+    'GOLD',
+    'PHYSICAL',
+    'FIRE',
+    'EARTH',
+    'AIR',
+    'WATER',
+    *MECHANICS_NAMES,
+]
+
 STATUSES = [
-    # Meta
     'RESPAWN',
     'FOUNTAIN',
-    'SHOP',
     'MAP_EDITOR',
-    # Mechanics
-    'LOS',
-    'DARKNESS',
-    'MOVESPEED',
-    'BOUNDED',
-    'SLOW',
-    'CUTS',
-    'ARMOR',
-    'SPIKES',
-    'LIFESTEAL',
-    'VANITY',
-    'REFLECT',
-    'SENSITIVITY',
+    *MECHANICS_NAMES,
 ]
 
 ABILITIES = [*RDF(RDF.CONFIG_DIR / 'abilities.rdf').keys()]

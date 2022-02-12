@@ -1,4 +1,4 @@
-from data import TPS, resource_name
+from data import FPS, TPS, resource_name
 from engine import ABILITY
 from engine import STAT
 from engine import VALUE
@@ -57,8 +57,9 @@ def ticks2s(t=1):
     return t / TPS
 
 
-AID_LIST = list(ABILITY)
+STAT_LIST = list(STAT)
 STAT2STATUS = {s: str2status(s.name) for s in STAT if hasattr(STATUS, s.name)}
+AID_LIST = list(ABILITY)
 
 
 class CorruptedDataError(Exception):

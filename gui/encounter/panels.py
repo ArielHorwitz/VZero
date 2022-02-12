@@ -357,7 +357,7 @@ class DebugPanel(widgets.AnchorLayout, EncounterViewComponent):
         # self.main_panel.set_size(x=1400, y=800)
         self.main_panel.make_bg(v=0, a=0.75)
 
-        self.panels = [self.main_panel.add(widgets.Label(valign='top', halign='left')
+        self.panels = [self.main_panel.add(widgets.Label(valign='top', halign='left', markup=True)
             ) for _ in range(10)]
         for panel in self.panels:
             panel.set_size(x=0)
@@ -367,6 +367,7 @@ class DebugPanel(widgets.AnchorLayout, EncounterViewComponent):
             self.pos = self.enc.OUT_OF_DRAW_ZONE
             return
         self.pos = 0, 0
+        bold = {'draw/idle', 'frame_total', 'graphics_total', 'graph_hud', 'graph_debug', 'graph_vfx'}
 
         perf_strs = [
             make_title('GUI Performance', length=30),
@@ -378,9 +379,14 @@ class DebugPanel(widgets.AnchorLayout, EncounterViewComponent):
         ]
         for tname, timer in self.enc.timers.items():
             if isinstance(timer, RateCounter):
-                perf_strs.append(f'- {tname}: {timer.mean_elapsed_ms:.3f} ms')
+                if tname in bold:
+                    perf_strs.append(f'[b]{tname}: {timer.mean_elapsed_ms:.3f} ms[/b]')
+                else:
+                    perf_strs.append(f'{tname}: {timer.mean_elapsed_ms:.3f} ms')
         perf_text = '\n'.join(perf_strs)
-        texts = [*self.api.debug_panel_labels(), perf_text]
+        texts = [*self.api.debug_panel_labels()]
+        texts[0] = '\n'.join((perf_text, texts[0]))
+
         for i, text in enumerate(texts):
             panel = self.panels[i]
             panel.text = text

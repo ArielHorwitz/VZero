@@ -42,7 +42,7 @@ class VFX(widgets.RelativeLayout, EncounterViewComponent):
                         self.__cached_vfx.append(widgets.kvRectangle(pos=self.to_local(*self.pos), size=self.size))
 
                 # Draw line
-                if effect.eid is effect.VFX.LINE:
+                elif effect.eid is effect.VFX.LINE:
                     width = 2
                     if 'width' in effect.params:
                         width = effect.params['width']
@@ -56,7 +56,7 @@ class VFX(widgets.RelativeLayout, EncounterViewComponent):
                         self.__cached_vfx.append(widgets.kvLine(points=points, width=width))
 
                 # Draw circle
-                if effect.eid is effect.VFX.CIRCLE:
+                elif effect.eid is effect.VFX.CIRCLE:
                     color = (0, 0, 0)
                     if 'color' in effect.params:
                         color = effect.params['color']
@@ -79,7 +79,7 @@ class VFX(widgets.RelativeLayout, EncounterViewComponent):
                         self.__cached_vfx.append(widgets.kvEllipse(pos=cc_int(pos), size=cc_int(size)))
 
                 # Draw quad
-                if effect.eid is effect.VFX.QUAD:
+                elif effect.eid is effect.VFX.QUAD:
                     color = (0, 0, 0)
                     if 'color' in effect.params:
                         color = effect.params['color']
@@ -96,12 +96,11 @@ class VFX(widgets.RelativeLayout, EncounterViewComponent):
                         self.__cached_vfx.append(widgets.kvQuad(points=points))
 
                 # Draw Sprite
-                if effect.eid is effect.VFX.SPRITE:
+                elif effect.eid is effect.VFX.SPRITE:
                     with ratecounter(self.enc.timers['vfx_sprite_single']):
                         size = np.array([100, 100]) / self.enc.upp
                         color = (1, 1, 1)
-                        sprite_category = effect.params['category'] if 'category' in effect.params else 'ability'
-                        sprite_source = Assets.get_sprite(sprite_category, effect.params['source'])
+                        sprite_source = effect.params['source']
 
                         if 'size' in effect.params:
                             size = np.array(effect.params['size']) / self.enc.upp
@@ -134,3 +133,5 @@ class VFX(widgets.RelativeLayout, EncounterViewComponent):
                                 allow_strech=True,
                             )
                             self.__cached_vfx.append(sprite)
+
+                self.__cached_vfx.append(widgets.kvColor(1,1,1,1))

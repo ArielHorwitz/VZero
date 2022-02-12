@@ -23,6 +23,7 @@ from engine.common import *
 
 class Encounter(widgets.RelativeLayout):
     OUT_OF_DRAW_ZONE = (-1_000_000, -1_000_000)
+    MIN_CROSSHAIR_SIZE = (25, 25)
     DEFAULT_UPP = 2
 
     def __init__(self, api, **kwargs):
@@ -30,7 +31,8 @@ class Encounter(widgets.RelativeLayout):
         self.api = api
         self.timers = defaultdict(RateCounter)
         self.__units_per_pixel = self.DEFAULT_UPP
-        self.__cached_target = None
+        self.__holding_mouse = False
+        self.__enable_hold_mouse = Settings.get_setting('enable_hold_mouse', 'Hotkeys') == 1
         self.__last_redraw = -1
 
         # Setting the order of timers
@@ -41,12 +43,9 @@ class Encounter(widgets.RelativeLayout):
         self.draw()
         # Create a widget to handle mouse input for the bottom layer
         # such that other widgets may take priority and consume the
-        # mouse event.
-        self.canvas_mouse_input = self.add(widgets.Widget())
-        self.canvas_mouse_input.bind(
-            on_touch_down=self.canvas_click,
-            on_touch_move=self.canvas_move,
-        )
+        # mouse event (but mouse release should always be caught).
+        self.canvas_mouse_input_bottom = self.add(widgets.Widget())
+        self.canvas_mouse_input_bottom.bind(on_touch_down=self.canvas_click)
         self.overlays = {
             'sprites': self.add(Sprites(enc=self)),
             'vfx': self.add(VFXLayer(enc=self)),
@@ -63,6 +62,8 @@ class Encounter(widgets.RelativeLayout):
             'menu': self.add(Menu(enc=self)),
             'debug': self.add(DebugPanel(enc=self)),
         }
+        self.canvas_mouse_input_top = self.add(widgets.Widget())
+        self.canvas_mouse_input_top.bind(on_touch_up=self.canvas_release)
 
         self.make_hotkeys()
 
@@ -80,10 +81,11 @@ class Encounter(widgets.RelativeLayout):
 
         # Move target indicator
         with self.canvas:
+            widgets.kvColor(0, 0, 0)
+            self.move_crosshair = widgets.kvRectangle(
+                source=Assets.get_sprite('ui', 'crosshair-move'),
+                allow_stretch=True, size=self.MIN_CROSSHAIR_SIZE)
             widgets.kvColor(1, 1, 1)
-            self.target_crosshair = widgets.kvRectangle(
-                source=Assets.get_sprite('ui', 'crosshair3'),
-                allow_stretch=True, size=(15, 15))
 
     def update(self):
         self.timers['draw/idle'].pong()
@@ -102,9 +104,8 @@ class Encounter(widgets.RelativeLayout):
         self.timers['draw/idle'].ping()
 
     def _update(self):
-        if self.__cached_target is not None:
-            self.api.user_click(self.__cached_target, button='right')
-            self.__cached_target = None
+        if self.__holding_mouse:
+            self.api.user_click(self.mouse_real_pos, button='right')
         self.__view_center = self.api.view_center
         self.__pix_center_offset = np.array([0, (self.overlays['hud'].overlay_height - self.overlays['logic_label'].overlay_height)/2])
         self.__pix_center = (np.array(self.size) / 2) + self.__pix_center_offset
@@ -112,22 +113,26 @@ class Encounter(widgets.RelativeLayout):
         self.tilemap.pos = cc_int(self.real2pix(np.zeros(2)))
         self.tilemap.size = cc_int(np.array(self.api.map_size) / self.upp)
 
-        self.target_crosshair.pos = center_position(self.real2pix(
-            self.api.target_crosshair), self.target_crosshair.size)
+        self.move_crosshair.size = cc_int(np.min(np.array(
+            [self.api.move_crosshair_size, self.MIN_CROSSHAIR_SIZE]), axis=0))
+        self.move_crosshair.pos = center_position(self.real2pix(
+            self.api.move_crosshair_pos), self.move_crosshair.size)
 
         if self.api.request_redraw != self.__last_redraw:
             self.__last_redraw = self.api.request_redraw
             self.redraw_map()
 
     # User Input
-    def canvas_move(self, w, m):
-        if m.button == 'right' and Settings.get_setting('enable_hold_mouse', 'Hotkeys') == 1:
-            self.__cached_target = self.mouse_real_pos
-
     def canvas_click(self, w, m):
         if not self.collide_point(*m.pos):
             return False
         self.api.user_click(self.pix2real(m.pos), m.button)
+        if m.button == 'right' and self.__enable_hold_mouse:
+            self.__holding_mouse = True
+
+    def canvas_release(self, w, m):
+        if m.button == 'right':
+            self.__holding_mouse = False
 
     def make_hotkeys(self):
         hotkeys = []
@@ -162,7 +167,7 @@ class Encounter(widgets.RelativeLayout):
                 lambda *a, x=i: self.api.itemcast(x, self.mouse_real_pos)
             ))
             hotkeys.append((
-                f'item alt {key.upper()}', f'! {key}',
+                f'item alt {key.upper()}', f'{alt_mod} {key}',
                 lambda *a, x=i: self.api.itemcast(x, self.mouse_real_pos, alt=1)
             ))
         # View control

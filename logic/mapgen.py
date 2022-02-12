@@ -136,7 +136,7 @@ class MapGenerator:
             default='brick',
             tilemap=tilemap,
         )
-        self.request_redraw = self.engine.tick
+        self.request_redraw = self.engine.tick - 1
 
     def export_biomes(self):
         biomes = defaultdict(lambda: list())

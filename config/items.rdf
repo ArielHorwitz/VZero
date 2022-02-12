@@ -29,7 +29,7 @@ category: basic
 cost: 30
 --- stats
 water: 5
-mana.delta: 0.02
+mana.delta: 0.01
 
 
 === Scroll
@@ -54,8 +54,8 @@ spikes: 12
 category: basic
 cost: 100
 --- stats
-mana.max: 30
-mana.delta: 0.04
+mana.max: 40
+mana.delta: 0.02
 === Buckler
 category: basic
 cost: 130
@@ -96,25 +96,15 @@ cost: 250
 === Sophist Hat
 category: basic
 cost: 300
---- stats
-hp.max: 30
-mana.delta: 0.08
 === Deck
 category: basic
 cost: 400
 === Gloves
 category: basic
 cost: 400
---- stats
-armor: 15
-reflect: 30
-spikes: 20
 === Silk Vest
 category: basic
 cost: 500
---- stats
-vanity: 15
-mana.max: 50
 
 
 

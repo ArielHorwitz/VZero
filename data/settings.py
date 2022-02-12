@@ -2,8 +2,6 @@ import logging
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
-from data import FPS
-from data import TPS
 from data.load import RDF
 
 
@@ -18,8 +16,6 @@ class Settings:
                 'full_resolution': '1920, 1080',
                 'window_resolution': '1024, 768',
                 'default_zoom': 40,
-                'fps': FPS,
-                'tps': TPS,
             }
         },
         'UI': {
@@ -53,7 +49,7 @@ class Settings:
                 'toggle_map': 'tab',
                 'right_click': 'q',
                 'abilities': 'qwerasdf',
-                'alt_modifier': '!',
+                'alt_modifier': '+',
                 'items': '1234zxcv',
                 'enable_hold_mouse': 1,
                 'enable_hold_key': 0,

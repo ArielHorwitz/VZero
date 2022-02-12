@@ -62,7 +62,7 @@ class Assets:
             return cls.SFX[category][sound_name]
         except KeyError:
             cls.missing_sfx.add(sound_name)
-            m = f'Failed to find sfx {sound_name} from category {category}'
+            m = f'Failed to find sfx \"{sound_name}\" from category \"{category}\" (categories: {list(cls.SFX.keys())})'
             if not allow_exception:
                 logger.warning(m)
                 return None
@@ -79,7 +79,7 @@ class Assets:
             volume = Settings.get_volume(category)
         elif isinstance(volume, str):
             volume = Settings.get_volume(volume)
-        logger.debug(f'Playing sfx {sound_name} from category {category}')
+        logger.debug(f'Playing sfx \"{sound_name}\" from category \"{category}\"')
         s.play(volume=volume, **kwargs)
 
     @classmethod
@@ -93,7 +93,7 @@ class Assets:
             return cls.SPRITES[category][image_name]
         except KeyError:
             if allow_exception:
-                m = f'Cannot find image name: {image_name} or category {category}'
+                m = f'Failed to find sprite name: \"{image_name}\" or category \"{category}\" (categories: {list(cls.SPRITES.keys())})'
                 logger.critical(m)
                 raise KeyError(m)
             else:
@@ -103,7 +103,7 @@ class Assets:
                     raise RuntimeError(m)
                 if image_name not in cls.missing_images:
                     cls.missing_images.add(image_name)
-                    logger.warning(f'Cannot find category {category} or image name {image_name}. Using fallback: {FALLBACK_SPRITE}')
+                    logger.warning(f'Failed to find sprite name \"{image_name}\" or category \"{category}\" (categories: {list(cls.SPRITES.keys())}). Using fallback: {FALLBACK_SPRITE}')
                 return FALLBACK_SPRITE
 
     SFX = {

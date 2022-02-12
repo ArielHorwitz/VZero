@@ -4,11 +4,12 @@ logger = logging.getLogger(__name__)
 
 import copy
 import numpy as np
+from nutil.vars import nsign_str
 from nutil.display import nprint
 from engine.common import *
 
 
-DMOD_CACHE_SIZE = 10_000
+DMOD_CACHE_SIZE = 1000
 COLLISION_PASSES = 1
 COLLISION_DEFAULT = True
 assert STAT.POS_Y == STAT.POS_X + 1
@@ -33,6 +34,18 @@ class UnitStats:
             stat_value *= cv
         self.table[index, stat, value_name] = stat_value
         self._cap_minmax_values()
+
+    def get_dmod(self, index, stat=None):
+        active_dmods = (self._dmod_ticks > 0) & (self._dmod_targets[:, index] > 0)
+        if active_dmods.sum() == 0:
+            return 0
+        if stat is None:
+            stat = slice(None)
+        active_effects = self._dmod_effects_add[active_dmods, stat]
+        return np.sum(active_effects, axis=0)
+
+    def get_delta_total(self, index, stat):
+        return self.get_stats(index, stat, value_name=VALUE.DELTA) + self.get_dmod(index, stat)
 
     def get_status(self, index, status, value_name=None):
         """
@@ -211,9 +224,12 @@ class UnitStats:
         self._dmod_index += 1
         return i
 
-    def kill_stats(self, index):
-        self.table[index, :, VALUE.DELTA] = 0
-        self.table[index, :, VALUE.TARGET] = 0
+    def kill_statuses(self, index):
+        actives = self.status_table[index, :, STATUS_VALUE.DURATION] > 0
+        self.status_table[index, actives, STATUS_VALUE.DURATION] = 0
+
+    def kill_dmods(self, index):
+        self._dmod_targets[:, index] = 0
 
     # TICK
     def do_tick(self, ticks):
@@ -383,9 +399,30 @@ class UnitStats:
             print(self.table.shape)
 
     def _dmod_repr(self, i):
-        return f'Dmod: {i}, Ticks: {self._dmod_ticks[i]}, ' \
-                f'Delta: {self._dmod_effects_add[i]}, ' \
-                f'Targets: {self._dmod_targets[i].nonzero()[0]}'
+        deltas = self._dmod_effects_add[i]
+        active_deltas = np.flatnonzero(deltas)
+        delta_str = []
+        for stat_index in active_deltas:
+            stat_name = STAT_LIST[stat_index].name.lower()
+            delta_str.append(f'{stat_name}: {nsign_str(round(deltas[stat_index], 4))}')
+        delta_str = ', '.join(delta_str)
+        return f'<{i}> T-{self._dmod_ticks[i]}, targets: {np.flatnonzero(self._dmod_targets[i])}; {delta_str}'
+
+    def debug_str(self, verbose=False):
+        active_dmods = np.flatnonzero(self._dmod_ticks > 0)
+        if verbose:
+            dmod_reprs = [self._dmod_repr(i) for i in active_dmods]
+        else:
+            dmod_reprs = []
+        return '\n'.join([
+            f'Main table: {self.table.shape}',
+            f'Status table: {self.status_table.shape}',
+            f'Cooldown table: {self.cooldowns.shape}',
+            f'No collision units: {np.flatnonzero(self._collision_flags == 0)}',
+            f'Dmods: {self._dmod_effects_add.shape}',
+            f'Active dmods: {len(active_dmods)}',
+            *dmod_reprs,
+        ])
 
 
 def _make_unit_stats(data_dict):

@@ -10,11 +10,6 @@ hp.max: 100
 hp.delta: 0.01
 mana.max: 100
 mana.delta: 0.01
-physical: 1
-fire: 1
-earth: 1
-air: 1
-water: 1
 
 
 
@@ -23,8 +18,9 @@ water: 1
 
 === Small creep
 type: creep
+abilities: walk, shoot
 wave: 300
-wave_offset: 250
+wave_offset: 270
 scaling: 1.15
 always_active
 always_visible
@@ -37,8 +33,9 @@ physical: 20
 
 === Huge creep
 type: creep
+abilities: walk, attack
 wave: 300
-wave_offset: 275
+wave_offset: 285
 scaling: 1.15
 always_active
 always_visible

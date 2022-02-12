@@ -81,7 +81,6 @@ class RateCounter:
 
     def __init__(self, sample_size=120, starting_elapsed=1000):
         super().__init__()
-        self.counter = 0
         self.last_count = ping()
         self.sample_size = sample_size
         self.sample = np.ones(self.sample_size, dtype=np.float64) * starting_elapsed

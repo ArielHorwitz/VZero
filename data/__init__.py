@@ -1,4 +1,4 @@
-VERSION = 0.014
+VERSION = 0.015
 
 NAME = f'VZero'
 

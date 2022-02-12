@@ -6,7 +6,8 @@ from collections import defaultdict
 import math
 import numpy as np
 import copy, random
-from nutil.vars import normalize, collide_point, is_iterable, List
+from nutil.vars import normalize, collide_point, is_iterable, List, nsign_str, FIFO
+from nutil.display import make_title
 from nutil.time import ratecounter
 from nutil.random import SEED
 from data.assets import Assets
@@ -14,8 +15,8 @@ from data.settings import Settings
 
 from engine.common import *
 from engine.unit import Unit as BaseUnit
-from logic.data import RAW_UNITS
-from logic.items import ITEMS, ITEM_CATEGORIES as ICAT
+from logic.data import RAW_UNITS, ABILITIES
+from logic.items import ITEMS, ITEM_CATEGORIES
 from logic.mechanics import Mechanics
 
 RNG = np.random.default_rng()
@@ -26,7 +27,7 @@ class Slots:
         self.max_slots = max_slots
         self.slots = [None for i in range(self.max_slots)]
         self.unslotted = set()
-        self.elements = set()
+        self.all_elements = set()
         self.empty_slot = 0
         self.clear()
 
@@ -41,15 +42,21 @@ class Slots:
         self.empty_slot = 0
 
     def refresh(self):
-        self.elements = set(e for e in self.slots) | self.unslotted
-        if None in self.elements:
-            self.elements.remove(None)
+        self.all_elements = set(self.slots) | self.unslotted
+        if None in self.all_elements:
+            self.all_elements.remove(None)
         for i, e in enumerate(self.slots):
             if e is None:
                 self.empty_slot = i
                 break
         else:
             self.empty_slot = None
+
+    def add_prefer_slot(self, e, slot):
+        if self.slots[slot] is None:
+            self.add_slotted(e, slot)
+        else:
+            self.add(e)
 
     def add(self, e):
         es = [e] if not is_iterable(e) else e
@@ -123,7 +130,7 @@ class Unit(BaseUnit):
             stat, value = str2statvalue(raw_key)
             stats[stat][value] = float(raw_value)
             modified_stats.append(f'{stat.name}.{value.name}: {raw_value}')
-        logger.debug(f'Loaded raw stats: {", ".join(modified_stats)}')
+        # logger.debug(f'Loaded raw stats: {", ".join(modified_stats)}')
         return stats
 
     @classmethod
@@ -150,6 +157,9 @@ class Unit(BaseUnit):
 
         self._ability_slots = Slots(8)
         self._item_slots = Slots(8)
+        self.__item_aids = set()
+
+        self.regen_trackers = defaultdict(lambda: FIFO(int(FPS*2)))
 
         self.default_abilities = []
         if 'abilities' in self.p:
@@ -167,41 +177,47 @@ class Unit(BaseUnit):
         self._item_slots.add_slotted(iid)
         item = ITEMS[iid]
         if item.aid:
-            self.load_ability(item.aid)
+            self.__item_aids.add(item.aid)
+            self._load_ability(item.aid)
 
     def remove_item(self, iid):
         self._item_slots.remove(iid)
         item = ITEMS[iid]
         if item.aid:
-            self.unload_ability(item.aid)
+            self.__item_aids.remove(item.aid)
+            self._unload_ability(item.aid)
 
-    def load_ability(self, aid):
+    def _load_ability(self, aid):
+        if aid is None:
+            return
         ability = self.api.abilities[aid]
         self.cooldown_aids[ability.off_cooldown_aid].add(aid)
         ability.load_on_unit(self.engine, self.uid)
 
-    def unload_ability(self, aid):
+    def _unload_ability(self, aid):
+        if aid is None:
+            return
         ability = self.api.abilities[aid]
         self.cooldown_aids[ability.off_cooldown_aid].remove(aid)
         ability.unload_from_unit(self.engine, self.uid)
 
     def set_abilities(self, abilities):
-        for aid in self.abilities:
-            self.unload_ability(aid)
-        self._ability_slots.clear()
-        self.cooldown_aids = defaultdict(set)
+        # TODO make move slotted to unslotted
         for i, aid in enumerate(abilities):
-            if aid is None:
-                continue
-            if self.empty_item_slots > 0:
-                self._ability_slots.add_slotted(aid, i)
-            else:
-                self._ability_slots.add(aid)
-            self.load_ability(aid)
+            self._ability_slots.add_prefer_slot(aid, i)
+            self._load_ability(aid)
+
+    @property
+    def unslotted_abilities(self):
+        return (self.abilities | self.item_abilities) - set(self.ability_slots) - set(self.item_slots)
+
+    @property
+    def item_abilities(self):
+        return self.__item_aids
 
     @property
     def items(self):
-        return self._item_slots.elements
+        return self._item_slots.all_elements
 
     @property
     def item_slots(self):
@@ -209,11 +225,15 @@ class Unit(BaseUnit):
 
     @property
     def abilities(self):
-        return self._ability_slots.elements
+        return self._ability_slots.all_elements
 
     @property
     def ability_slots(self):
         return self._ability_slots.slots
+
+    @property
+    def total_draft_cost(self):
+        return sum([ABILITIES[a].draft_cost for a in self.ability_slots if a is not None])
 
     def set_spawn_location(self, spawn):
         self.starting_stats[(STAT.POS_X, STAT.POS_Y), VALUE.CURRENT] = spawn
@@ -230,17 +250,18 @@ class Unit(BaseUnit):
 
     def use_item(self, iid, target, alt=0):
         with ratecounter(self.engine.timers['ability_single']):
+            if iid not in self.items:
+                logger.warning(f'{self} using item {repr(iid)} not in items: {self.items}')
+
             if not self.engine.auto_tick and not self.api.dev_mode:
-                logger.warning(f'Unit {self.uid} tried using item {iid.name} while paused')
+                logger.warning(f'{self} tried using item {iid.name} while paused')
                 return FAIL_RESULT.INACTIVE
 
             if not self.is_alive:
-                logger.warning(f'Unit {self.uid} is dead and requested item {iid.name}')
+                logger.warning(f'{self} is dead and requested item {iid.name}')
                 return FAIL_RESULT.MISSING_TARGET
 
-            target = np.array(target)
-            if (target > self.api.map_size).any() or (target < 0).any():
-                return FAIL_RESULT.OUT_OF_BOUNDS
+            target = Mechanics.bound_to_map(self.api, target)
 
             item = ITEMS[iid]
             r = item.active(self.api, self.uid, target, alt)
@@ -251,17 +272,16 @@ class Unit(BaseUnit):
 
     def use_ability(self, aid, target, alt=0):
         with ratecounter(self.engine.timers['ability_single']):
+            if aid not in self.abilities:
+                logger.warning(f'{self} using ability {repr(aid)} not in abilities: {self.abilities}')
+
             if not self.engine.auto_tick and not self.api.dev_mode:
-                logger.warning(f'Unit {self.uid} tried using ability {aid.name} while paused')
+                logger.warning(f'{self} tried using ability {aid.name} while paused')
                 return FAIL_RESULT.INACTIVE
 
             if not self.is_alive:
-                logger.warning(f'Unit {self.uid} is dead and requested ability {aid.name}')
+                logger.warning(f'{self} is dead and requested ability {aid.name}')
                 return FAIL_RESULT.MISSING_TARGET
-
-            target = np.array(target)
-            if (target > self.api.map_size).any() or (target < 0).any():
-                return FAIL_RESULT.OUT_OF_BOUNDS
 
             ability = self.api.abilities[aid]
             r = ability.active(self.engine, self.uid, target, alt)
@@ -316,21 +336,26 @@ class Unit(BaseUnit):
         pass
 
     def hp_zero(self):
+        logger.info(f'{self} died.')
         self._respawn_gold = self.engine.get_stats(self.uid, STAT.GOLD)
         self.engine.set_status(self.uid, STATUS.RESPAWN, self._respawn_timer, 1)
+        Assets.play_sfx('ui', 'unit-death', volume='feedback')
 
     def status_zero(self, status):
+        logger.debug(f'{self} lost status: {status.name}.')
         if status is STATUS.RESPAWN:
             self.respawn()
 
     def respawn(self, reset_gold=True):
-        logger.debug(f'{self.name} {self.uid} respawned')
+        logger.debug(f'{self} respawned.')
         max_hp = self.engine.get_stats(self.uid, STAT.HP, VALUE.MAX)
         self.engine.set_stats(self.uid, STAT.HP, max_hp)
         max_mana = self.engine.get_stats(self.uid, STAT.MANA, VALUE.MAX)
         self.engine.set_stats(self.uid, STAT.MANA, max_mana)
         self.engine.set_position(self.uid, self._respawn_location)
         self.engine.set_position(self.uid, self._respawn_location, value_name=VALUE.TARGET)
+        self.engine.kill_dmods(self.uid)
+        self.engine.kill_statuses(self.uid)
         if reset_gold:
             self.engine.set_stats(self.uid, STAT.GOLD, self._respawn_gold)
 
@@ -345,14 +370,29 @@ class Unit(BaseUnit):
             k = ''
         return f'Networth: Σ{nw}{k}'
 
-    @property
-    def debug_str(self):
-        s = ['__ Unit Cache:']
-        for k, v in self.cache.items():
-            if is_iterable(v):
-                if len(v) > 20:
-                    v = np.flatnonzero(v)
-            s.append(f'{k}: {str(v)}')
+    def debug_str(self, verbose=False):
+        velocity = self.engine.get_velocity(self.uid)
+        s = [
+            f'Draft cost: {self.total_draft_cost}',
+            f'Current velocity: {s2ticks(velocity):.2f}/s ({velocity:.2f}/t)',
+            f'Action phase: {self.uid % self.api.engine.AGENCY_PHASE_COUNT}',
+            f'Agency: {self.api.engine.timers["agency"][self.uid].mean_elapsed_ms:.3f} ms',
+            f'Distance to player: {self.api.engine.unit_distance(0, self.uid):.1f}',
+        ]
+        if verbose:
+            dmods = self.api.engine.get_dmod(self.uid)
+            dmod_str = ', '.join([f'{STAT_LIST[i].name.lower()}: ' \
+                f'{nsign_str(round(s2ticks(dmods[i]), 3))}' \
+                for i in np.flatnonzero(dmods)])
+            s.extend([
+                f'Delta mods: {dmod_str}',
+                make_title('Unit Cache:', length=30),
+            ])
+            for k, v in self.cache.items():
+                if is_iterable(v):
+                    if len(v) > 20:
+                        v = np.flatnonzero(v)
+                s.append(f'{k}: {str(v)}')
         return '\n'.join(s)
 
     def __repr__(self):
@@ -368,11 +408,9 @@ class Player(Unit):
         Assets.play_sfx('ability', 'player-respawn', volume='feedback')
 
     def hp_zero(self):
-        logger.info(f'Player {self.name} {self.uid} died.')
         super().hp_zero()
 
     def respawn(self):
-        logger.info(f'Player {self.name} {self.uid} respawned.')
         super().respawn(reset_gold=False)
         self._respawn_timer += self._respawn_timer_scaling
         Assets.play_sfx('ability', 'player-respawn', volume='feedback')
@@ -420,12 +458,14 @@ class Creep(Unit):
         return ticks_to_next_wave
 
     def action_phase(self):
-        self.use_ability(ABILITY.ATTACK, self.engine.get_position(self.uid))
-        self.use_ability(ABILITY.WALK, self.target)
+        self.use_ability(self.ability_slots[0], self.target)
+        for aid in self.ability_slots[1:]:
+            if aid is None:
+                continue
+            self.use_ability(aid, None)
 
-    @property
-    def debug_str(self):
-        return f'Spawned at: {self._respawn_location}\nNext wave: {self._respawn_timer}'
+    def debug_str(self, *a, **k):
+        return f'{super().debug_str(*a, **k)}\nSpawned at: {self._respawn_location}\nNext wave: {self._respawn_timer}'
 
 
 class Camper(Unit):
@@ -466,9 +506,8 @@ class Camper(Unit):
             self.__next_walk = self.engine.tick + SEED.r * 500
         return self.__walk_target
 
-    @property
-    def debug_str(self):
-        return f'Camping at: {self.camp}'
+    def debug_str(self, *a, **k):
+        return f'{super().debug_str(*a, **k)}\nCamping at: {self.camp}'
 
 
 class Boss(Camper):
@@ -489,18 +528,12 @@ class Shopkeeper(Unit):
     say = 'Looking for wares?'
     def _setup(self):
         self.set_abilities([ABILITY.SHOPKEEPER])
-        category = 'BASIC' if 'category' not in self.p else self.p['category'].upper()
-        for icat in ICAT:
-            if category == icat.name:
-                self.category = icat
-                break
-        else:
-            raise ValueError(f'Unknown item category: {category}')
-        self.name = f'{icat.name.lower().capitalize()} shop'
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
-
-    def action_phase(self):
-        self.engine.set_status(self.uid, STATUS.SHOP, duration=0, stacks=self.category.value)
+        category = 'BASIC' if 'category' not in self.p else self.p['category']
+        icat = getattr(ITEM_CATEGORIES, category.upper())
+        self.engine.set_stats(self.uid, STAT.SHOP, icat.value, value_name=VALUE.MIN)
+        self.engine.set_stats(self.uid, STAT.SHOP, icat.value, value_name=VALUE.MAX)
+        self.name = f'{category.lower().capitalize()} shop'
 
 
 class Fountain(Unit):
