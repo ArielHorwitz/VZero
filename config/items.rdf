@@ -5,7 +5,7 @@ category: basic
 cost: 30
 --- stats
 physical: 5
-lifesteal: 5
+lifesteal: 2.5
 === Mask
 category: basic
 cost: 30
@@ -17,7 +17,7 @@ category: basic
 cost: 30
 --- stats
 earth: 5
-armor: 5
+armor: 3
 === Rune
 category: basic
 cost: 30
@@ -97,11 +97,9 @@ cost: 250
 category: basic
 cost: 300
 --- stats
-hp.max: 50
+hp.max: 30
 mana.delta: 0.08
-fire: 7
-hitbox: 5
-=== Necklace
+=== Deck
 category: basic
 cost: 400
 === Gloves
@@ -150,37 +148,22 @@ water: 30
 
 === Fine Shield
 category: basic
-cost: 800
---- stats
-hp.max: 125
-reflect: 50
-armor: 15
-hitbox: 10
+cost: 650
 === Broadsword
 category: basic
-cost: 900
+cost: 800
 --- stats
 physical: 10
 water: 10
-=== Staff of the Deep
+=== Manuscript
 category: basic
-cost: 1200
---- stats
-lifesteal: 15
-darkness: 25
-=== Plated Armor
+cost: 900
+=== Clover
 category: basic
-cost: 1600
---- stats
-armor: 30
-spikes: 35
-=== Cold Staff
+cost: 1000
+=== Whip
 category: basic
-cost: 2000
-ability: dunder beam
---- stats
-water: 25
-mana.delta: 0.15
+cost: 1050
 
 
 
@@ -189,37 +172,84 @@ mana.delta: 0.15
 ---------------- TIER 4
 === Art of War
 category: basic
-cost: 1800
+cost: 1200
 --- stats
-physical: 40
+physical: 45
 === Principia Mathematica
 category: basic
-cost: 1800
+cost: 1200
 --- stats
-fire: 55
-cuts: 20
+fire: 45
 === On the Origin of Species
 category: basic
-cost: 1800
+cost: 1200
 --- stats
-earth: 50
-slow: 15
+earth: 45
 === Zur Elektrodynamik
 category: basic
-cost: 1800
+cost: 1200
 --- stats
 air: 45
 === On Computable Numbers
 category: basic
-cost: 1800
+cost: 1200
 --- stats
 water: 45
 
-=== Amulet
+
+
+=== Staff of the Deep
+category: basic
+cost: 1350
+--- stats
+lifesteal: 15
+darkness: 25
+=== Plated Armor
+category: basic
+cost: 1600
+=== Cold Staff
+category: basic
+cost: 2000
+=== Poison Lance
+category: basic
+cost: 2400
+=== Map
+category: basic
+cost: 2400
+
+
+---------------- TIER 5
+
+=== Obsidian
+category: basic
+cost: 2400
+--- stats
+physical: 60
+=== Jasper
+category: basic
+cost: 2400
+--- stats
+fire: 60
+=== Malachite
+category: basic
+cost: 2400
+--- stats
+earth: 60
+=== Tourmaline
+category: basic
+cost: 2400
+--- stats
+air: 60
+=== Topaz
+category: basic
+cost: 2400
+--- stats
+water: 60
+
+
+=== Blessed Shield
 category: basic
 cost: 2500
---- stats
-reflect: 150
 === Headpiece
 category: basic
 cost: 2700
@@ -228,109 +258,97 @@ armor: 50
 === Eye
 category: basic
 cost: 2800
---- stats
-mana.max: 450
-mana.delta: 0.25
 === Pulsar
 category: basic
 cost: 3000
---- stats
-hp.max: 400
-hp.delta: 0.15
-hitbox: 15
 === Book of Death
 category: basic
 cost: 3200
---- stats
-
-
-
 
 ---------------- HERBAL
 === Banana
 category: herbal
-cost: 2400
-ability: attack
+cost: 3600
 --- stats
-physical: 40
+physical: 80
 === Lemon
 category: herbal
-cost: 2400
-ability: vortex
+cost: 3600
 --- stats
-fire: 55
-hp.max: -20
+fire: 80
+hp.max: -40
 === Seed
 category: herbal
-cost: 2400
-ability: carapace
+cost: 3600
 --- stats
-earth: 50
-slow: 15
+earth: 80
+slow: 10
 === Leaf
 category: herbal
-cost: 2400
-ability: dunder beam
+cost: 3600
 --- stats
-air: 45
+air: 80
 === Pear
 category: herbal
-cost: 2400
-ability: waterwhip
+cost: 3600
 --- stats
-water: 45
+water: 80
 
 
 
 === Fizzy Solution
 category: herbal
-cost: 2500
+cost: 4000
 --- stats
 lifesteal: 22
+darkness: 10
 === Viscous Tar
 category: herbal
-cost: 2500
+cost: 4000
 --- stats
 spikes: 80
 === Acid Punch
 category: herbal
-cost: 2500
+cost: 4000
 --- stats
 armor: 50
+reflect: 100
 === Bottled Breeze
 category: herbal
-cost: 2500
+cost: 4000
 --- stats
-reflect: 150
+movespeed: 75
+los: 750
 === Distilled Essense
 category: herbal
-cost: 2500
+cost: 4000
 --- stats
-sensitivity: 50
+sensitivity: 100
 
 
 
 
 
 
----------------- TIER 5
+---------------- ORNAMENT
 === Golden Ring
 category: ornament
 cost: 5200
 --- stats
-physical: 90
-=== Tourmaline Ring
+physical: 100
+=== Sapphire Ring
 category: ornament
 cost: 5200
 --- stats
-fire: 125
-vanity: 25
+fire: 100
+cuts: 25
+vanity: 10
 === Silver Ring
 category: ornament
 cost: 5200
 --- stats
-earth: 125
-slow: 30
+earth: 100
+slow: 20
 === Wings
 category: ornament
 cost: 5200
@@ -345,35 +363,37 @@ water: 100
 
 === Wand
 category: ornament
-cost: 3400
+cost: 4400
 --- stats
 hp.max: 150
 mana.max: 300
-mana.delta: 0.2
+mana.delta: 0.3
 hitbox: 10
 === Green Egg
 category: ornament
-cost: 3600
+cost: 4600
 --- stats
-hp.max: 450
+hp.max: 650
+hp.delta: 0.2
 armor: 20
 reflect: 40
-hitbox: 20
+hitbox: 25
 === Spear
 category: ornament
-cost: 3900
+cost: 4900
 --- stats
 physical: 40
 lifesteal: 15
+darkness: 15
 === Ice Blade
 category: ornament
-cost: 4300
+cost: 5300
 --- stats
 water: 40
 reflect: 120
 === Ninja Star
 category: ornament
-cost: 4750
+cost: 5750
 --- stats
 fire: 20
 

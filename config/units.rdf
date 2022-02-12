@@ -29,11 +29,11 @@ scaling: 1.15
 always_active
 always_visible
 --- stats
+movespeed: 20
 hitbox: 75
 gold: 50
 hp.max: 100
 physical: 20
-air: 8
 
 === Huge creep
 type: creep
@@ -43,6 +43,7 @@ scaling: 1.15
 always_active
 always_visible
 --- stats
+movespeed: 20
 hitbox: 150
 gold: 150
 hp.max: 300
@@ -150,7 +151,7 @@ hp.delta: 0.001
 mana.max: 40
 mana.delta: 0.001
 physical: 5
-air: 35
+air: 20
 
 ====== Blood Imp
 type: camper
@@ -162,11 +163,11 @@ camp_spread: 300
 --- stats
 hitbox: 60
 gold: 24
-hp.max: 25
+hp.max: 20
 hp.delta: 0.005
 mana.max: 40
 mana.delta: 0.015
-fire: 20
+fire: 10
 air: 20
 
 
@@ -188,7 +189,7 @@ hp.max: 95
 hp.delta: 0.005
 mana.max: 100
 mana.delta: 0.01
-fire: 40
+fire: 15
 air: 30
 
 ====== Infester
@@ -210,7 +211,7 @@ air: 45
 
 ====== Crab
 type: camper
-abilities: walk, attack, bash
+abilities: walk, attack, dark touch
 aggro_range: 400
 deaggro_range: 800
 reaggro_range: 600
@@ -219,6 +220,7 @@ camp_spread: 350
 hitbox: 80
 gold: 70
 hp.max: 150
+mana.delta: 0.005
 hp.delta: 0.005
 physical: 35
 air: 30
@@ -262,19 +264,18 @@ air: 15
 ====== Phaser
 type: camper
 abilities: walk, attack, nuke
-aggro_range: 600
-deaggro_range: 1000
-reaggro_range: 600
+aggro_range: 450
+deaggro_range: 800
+reaggro_range: 400
 camp_spread: 100
 --- stats
 hitbox: 100
 gold: 100
 hp.max: 170
 hp.delta: 0.05
-fire: 15
+fire: 10
 physical: 20
 air: 12
-lifesteal: 20
 
 
 
@@ -300,7 +301,7 @@ air: 45
 
 ====== Boo
 type: camper
-abilities: run, blink, hex, grab, compliment, slash, dunder beam
+abilities: run, hex, grab, dark touch, slash, dunder beam
 aggro_range: 600
 deaggro_range: 800
 reaggro_range: 200
@@ -412,11 +413,11 @@ camp_spread: 350
 --- stats
 hitbox: 160
 gold: 440
-hp.max: 480
+hp.max: 420
 hp.delta: 0.005
 mana.max: 250
 mana.delta: 0.15
-fire: 145
+fire: 150
 air: 35
 water: 35
 
