@@ -19,6 +19,7 @@ from logic.data import RAW_UNITS, ABILITIES
 from logic.items import ITEMS, ITEM_CATEGORIES
 from logic.mechanics import Mechanics
 
+
 RNG = np.random.default_rng()
 
 
@@ -30,6 +31,9 @@ class Slots:
         self.all_elements = set()
         self.empty_slot = 0
         self.clear()
+
+    def __repr__(self):
+        return f'<Slots {self.slots} | {self.unslotted}>'
 
     def swap_slots(self, i1, i2):
         List.swap(self.slots, i1, i2)
@@ -110,7 +114,7 @@ class Unit(BaseUnit):
         table[(STAT.POS_X, STAT.POS_Y), VALUE.MIN] = -LARGE_ENOUGH
         table[STAT.WEIGHT, VALUE.MIN] = -1
         table[STAT.HITBOX, VALUE.CURRENT] = 100
-        table[STAT.MOVESPEED, VALUE.CURRENT] = 10
+        table[STAT.MOVESPEED, VALUE.CURRENT] = 20
         table[STAT.LOS, VALUE.CURRENT] = 1000
         table[STAT.HP, VALUE.CURRENT] = LARGE_ENOUGH
         table[STAT.HP, VALUE.TARGET] = 0
@@ -153,14 +157,14 @@ class Unit(BaseUnit):
         self.api = api
         self.engine = api.engine
         self.name = self.__start_name = raw_data.default['name'] if 'name' in raw_data.default else name
-        self.cooldown_aids = defaultdict(set)
-
+        self.regen_trackers = defaultdict(lambda: FIFO(int(FPS*2)))
+        # Abilities
         self._ability_slots = Slots(8)
         self._item_slots = Slots(8)
         self.__item_aids = set()
-
-        self.regen_trackers = defaultdict(lambda: FIFO(int(FPS*2)))
-
+        self.off_cooldown_aids = defaultdict(set)
+        self.builtin_walk = str2ability('Builtin Walk')
+        self.builtin_loot = str2ability('Builtin Loot')
         self.default_abilities = []
         if 'abilities' in self.p:
             self.default_abilities = [str2ability(a) for a in self.p['abilities'].split(', ')]
@@ -191,14 +195,14 @@ class Unit(BaseUnit):
         if aid is None:
             return
         ability = self.api.abilities[aid]
-        self.cooldown_aids[ability.off_cooldown_aid].add(aid)
+        self.off_cooldown_aids[ability.off_cooldown_aid].add(aid)
         ability.load_on_unit(self.engine, self.uid)
 
     def _unload_ability(self, aid):
         if aid is None:
             return
         ability = self.api.abilities[aid]
-        self.cooldown_aids[ability.off_cooldown_aid].remove(aid)
+        self.off_cooldown_aids[ability.off_cooldown_aid].remove(aid)
         ability.unload_from_unit(self.engine, self.uid)
 
     def set_abilities(self, abilities):
@@ -248,64 +252,69 @@ class Unit(BaseUnit):
             nw += ITEMS[iid].cost
         return nw
 
+    def use_item_slot(self, index, target, alt=0):
+        iid = self.item_slots[index]
+        if iid is not None:
+            self.use_item(iid, target, alt)
+
     def use_item(self, iid, target, alt=0):
         with ratecounter(self.engine.timers['ability_single']):
             if iid not in self.items:
                 logger.warning(f'{self} using item {repr(iid)} not in items: {self.items}')
-
             if not self.engine.auto_tick and not self.api.dev_mode:
                 logger.warning(f'{self} tried using item {iid.name} while paused')
                 return FAIL_RESULT.INACTIVE
-
             if not self.is_alive:
                 logger.warning(f'{self} is dead and requested item {iid.name}')
                 return FAIL_RESULT.MISSING_TARGET
 
-            target = Mechanics.bound_to_map(self.api, target)
-
             item = ITEMS[iid]
-            r = item.active(self.api, self.uid, target, alt)
-            if r is None:
-                m = f'Item {item} ability {item.ability.__class__}.active() method returned None. Must return FAIL_RESULT on fail or aid on success.'
-                logger.warning(m)
-            return r
+            item.active(self.api, self.uid, target, alt)
+
+    def use_ability_slot(self, index, target, alt=0):
+        aid = self.ability_slots[index]
+        if aid is not None:
+            self.use_ability(aid, target, alt)
 
     def use_ability(self, aid, target, alt=0):
         with ratecounter(self.engine.timers['ability_single']):
             if aid not in self.abilities:
                 logger.warning(f'{self} using ability {repr(aid)} not in abilities: {self.abilities}')
-
             if not self.engine.auto_tick and not self.api.dev_mode:
                 logger.warning(f'{self} tried using ability {aid.name} while paused')
                 return FAIL_RESULT.INACTIVE
-
             if not self.is_alive:
                 logger.warning(f'{self} is dead and requested ability {aid.name}')
                 return FAIL_RESULT.MISSING_TARGET
 
             ability = self.api.abilities[aid]
-            r = ability.active(self.engine, self.uid, target, alt)
-            if r is None:
-                m = f'Ability {ability.__class__}.active() method returned None. Must return FAIL_RESULT on fail or aid on success.'
-                logger.warning(m)
-            return r
+            ability.active(self.engine, self.uid, target, alt)
+
+    def use_walk(self, target):
+        self.use_ability(self.builtin_walk, target)
+
+    def use_loot(self, target):
+        self.use_ability(self.builtin_loot, target)
 
     def setup(self):
         self._respawn_location = self.engine.get_position(self.uid)
         self._respawn_gold = self.engine.get_stats(self.uid, STAT.GOLD)
         self.set_abilities(self.default_abilities)
+        self._ability_slots.add_unslotted(self.builtin_walk)
+        self._load_ability(self.builtin_walk)
+        self._ability_slots.add_unslotted(self.builtin_loot)
+        self._load_ability(self.builtin_loot)
         self._setup()
 
     def passive_phase(self):
-        for aid in self.abilities:
-            self.api.abilities[aid].passive(self.engine, self.uid, self.engine.AGENCY_PHASE_COUNT)
-        for iid in self.items:
-            ITEMS[iid].passive(self.engine, self.uid, self.engine.AGENCY_PHASE_COUNT)
+        paids = set(self.abilities) | set(ITEMS[iid].aid for iid in self.items) - {None}
+        for paid in paids:
+            ABILITIES[paid].passive(self.engine, self.uid, self.engine.AGENCY_PHASE_COUNT)
 
     def off_cooldown(self, aid):
         if not self.is_alive:
             return
-        for paid in self.cooldown_aids[aid]:
+        for paid in self.off_cooldown_aids[aid]:
             self.api.abilities[paid].off_cooldown(self.engine, self.uid)
 
     @property
@@ -339,6 +348,8 @@ class Unit(BaseUnit):
         logger.info(f'{self} died.')
         self._respawn_gold = self.engine.get_stats(self.uid, STAT.GOLD)
         self.engine.set_status(self.uid, STATUS.RESPAWN, self._respawn_timer, 1)
+
+    def death_sfx(self):
         Assets.play_sfx('ui', 'unit-death', volume='feedback')
 
     def status_zero(self, status):
@@ -347,7 +358,7 @@ class Unit(BaseUnit):
             self.respawn()
 
     def respawn(self, reset_gold=True):
-        logger.debug(f'{self} respawned.')
+        logger.info(f'{self} respawned.')
         max_hp = self.engine.get_stats(self.uid, STAT.HP, VALUE.MAX)
         self.engine.set_stats(self.uid, STAT.HP, max_hp)
         max_mana = self.engine.get_stats(self.uid, STAT.MANA, VALUE.MAX)
@@ -407,6 +418,9 @@ class Player(Unit):
         self._respawn_timer_scaling = 100
         Assets.play_sfx('ability', 'player-respawn', volume='feedback')
 
+    def death_sfx(self):
+        Assets.play_sfx('ui', 'player-death', volume='feedback')
+
     def hp_zero(self):
         super().hp_zero()
 
@@ -440,7 +454,7 @@ class Creep(Unit):
         if self.first_wave is False:
             self.scale_power()
         self.first_wave = False
-        self.use_ability(ABILITY.WALK, self.target)
+        self.use_walk(self.target)
         Assets.play_sfx('ability', 'wave-respawn', volume='feedback', replay=False)
 
     def scale_power(self):
@@ -458,8 +472,8 @@ class Creep(Unit):
         return ticks_to_next_wave
 
     def action_phase(self):
-        self.use_ability(self.ability_slots[0], self.target)
-        for aid in self.ability_slots[1:]:
+        self.use_walk(self.target)
+        for aid in self.ability_slots:
             if aid is None:
                 continue
             self.use_ability(aid, None)
@@ -472,10 +486,11 @@ class Camper(Unit):
     say = '"Personal space... I need my personal space..."'
     def _setup(self):
         self.color = (1, 0, 0)
-        if len(self.abilities) == 0:
-            self.set_abilities([ABILITY.WALK, ABILITY.ATTACK])
+        if len(self.default_abilities) == 0:
+            self.set_abilities([ABILITY.ATTACK])
         self.camp = self.engine.get_position(self.uid)
         self.__aggro_range = float(self.p['aggro_range'])
+        self.__aggro_range_camp = float(self.p['aggro_range_camp']) if 'aggro_range_camp' in self.p else self.__aggro_range
         self.__deaggro_range = float(self.p['deaggro_range'])
         self.__reaggro_range = float(self.p['reaggro_range'])
         self.__camp_spread = float(self.p['camp_spread'])
@@ -484,20 +499,28 @@ class Camper(Unit):
         self.__next_walk = self.engine.tick
 
     def action_phase(self):
-        player_pos = self.engine.get_position(0)
-        camp_dist = self.engine.get_distances(self.camp, self.uid)
-        in_aggro_range = self.engine.unit_distance(self.uid, 0) < self.__aggro_range
-        if in_aggro_range and not self.__deaggro and self.engine.units[0].is_alive:
-            for aid in self.ability_slots:
-                if aid is None:
-                    continue
-                self.use_ability(aid, player_pos)
-            if camp_dist > self.__deaggro_range:
-                self.__deaggro = True
-        else:
-            if self.__deaggro is True and camp_dist < self.__reaggro_range:
+        distance_from_me = self.engine.unit_distance(self.uid, 0)
+        visible_to_me = distance_from_me <= self.view_distance
+        if visible_to_me:
+            my_camp_dist = self.engine.get_distances(self.camp, self.uid)
+            in_aggro_range_self = distance_from_me < self.__aggro_range
+            in_aggro_range_camp = self.engine.get_distances(self.camp, 0)[0] < self.__aggro_range_camp
+            in_aggro_range = in_aggro_range_self or in_aggro_range_camp
+            if in_aggro_range and not self.__deaggro and self.engine.units[0].is_alive:
+                player_pos = self.engine.get_position(0)
+                self.use_walk(player_pos)
+                for aid in self.ability_slots:
+                    if aid is None:
+                        continue
+                    self.use_ability(aid, player_pos)
+                if my_camp_dist > self.__deaggro_range:
+                    self.__deaggro = True
+            else:
+                if self.__deaggro is True and my_camp_dist < self.__reaggro_range:
                     self.__deaggro = False
-            self.use_ability(self.ability_slots[0], self.walk_target)
+                self.use_walk(self.walk_target)
+        else:
+            self.use_walk(self.walk_target)
 
     @property
     def walk_target(self):
@@ -507,7 +530,17 @@ class Camper(Unit):
         return self.__walk_target
 
     def debug_str(self, *a, **k):
-        return f'{super().debug_str(*a, **k)}\nCamping at: {self.camp}'
+        return '\n'.join([
+            f'{super().debug_str(*a, **k)}',
+            f'Camping at: {self.camp}',
+            f'Camp spread: {self.__camp_spread}',
+            f'Next walk: {self.__next_walk}',
+            f'Walk target: {self.__walk_target}',
+            f'Aggro range: {self.__aggro_range}',
+            f'Deaggro range: {self.__deaggro_range}',
+            f'Reaggro range: {self.__reaggro_range}',
+            f'Deaggro\'d: {self.__deaggro}',
+        ])
 
 
 class Boss(Camper):

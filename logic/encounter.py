@@ -136,46 +136,17 @@ class EncounterAPI(BaseEncounterAPI):
             self.selected_unit = 0
             self.raise_gui_flag('browse_toggle')
 
+    def walkcast(self, target):
+        self.units[0].use_walk(target)
+
+    def lootcast(self, target):
+        self.units[0].use_loot(target)
+
     def quickcast(self, ability_index, target, alt=0):
-        # Ability from player input (requires handling user feedback)
-        aid = self.units[0].ability_slots[ability_index]
-        if aid is None:
-            return
-        ability = self.abilities[aid]
-        r = self.units[0].use_ability(aid, target, alt)
-        if isinstance(r, FAIL_RESULT) and r in FAIL_SFX:
-            if pong(self.__last_fail_sfx_ping) > FAIL_SFX_INTERVAL:
-                Assets.play_sfx('ui', FAIL_SFX[r], volume='feedback')
-                self.__last_fail_sfx_ping = ping()
-        if r is not FAIL_RESULT.INACTIVE:
-            self.engine.add_visual_effect(VFX.SPRITE, 15, {
-                'point': target,
-                'source': self.quickcast_sprite,
-                'fade': 30,
-                'size': (60, 60),
-                'color': ability.color,
-            })
+        self.units[0].use_ability_slot(ability_index, target, alt)
 
     def itemcast(self, item_index, target, alt=0):
-        iid = self.units[0].item_slots[item_index]
-        if iid is None:
-            return
-        r = self.units[0].use_item(iid, target, alt)
-        if isinstance(r, FAIL_RESULT) and r in FAIL_SFX:
-            if pong(self.__last_fail_sfx_ping) > FAIL_SFX_INTERVAL:
-                Assets.play_sfx('ui', FAIL_SFX[r], volume='feedback')
-                self.__last_fail_sfx_ping = ping()
-        if r not in (FAIL_RESULT.INACTIVE, FAIL_RESULT.MISSING_ACTIVE):
-            a = ITEMS[iid].ability
-            color = (1,1,1,1) if a is None else a.color
-            self.engine.add_visual_effect(VFX.SPRITE, 15, {
-                'point': target,
-                'fade': 30,
-                'category': 'ui',
-                'source': self.quickcast_sprite,
-                'size': (60, 60),
-                'color': color,
-            })
+        self.units[0].use_item_slot(item_index, target, alt)
 
     def itemsell(self, item_index, target):
         iid = self.units[0].item_slots[item_index]
@@ -491,7 +462,7 @@ class EncounterAPI(BaseEncounterAPI):
             sp_asc = Mechanics.scaling(v, ascending=True)
             if status is STAT.LOS:
                 view_distance = self.units[self.selected_unit].view_distance
-                label = f'Base view distance (obscured by [i]darkness[/i]).\nActual view distance: [b]{view_distance}[/b]'
+                label = f'Base view distance, obscured by [i]darkness[/i].\nActual view distance: [b]{view_distance}[/b]'
             elif status is STAT.DARKNESS:
                 view_distance = self.units[self.selected_unit].view_distance
                 label = f'Reducing view distance by [b]{int(100*sp_asc)}%[/b].\nActual view distance: [b]{view_distance}[/b]'
@@ -602,8 +573,8 @@ class EncounterAPI(BaseEncounterAPI):
     def update(self, *a, **k):
         super().update(*a, **k)
         if not self.enc_over:
-            PLAYER_ACTION_RADIUS = 3000
-            in_action_radius = self.engine.get_distances(self.engine.get_position(0)) < PLAYER_ACTION_RADIUS
+            player_action_radius = min(self.units[0].view_distance+1000, 3000)
+            in_action_radius = self.engine.get_distances(self.engine.get_position(0)) < player_action_radius
             active_uids = self.always_active | in_action_radius
             self.engine.update(active_uids)
 
@@ -748,7 +719,8 @@ FAIL_SFX = {
 }
 
 SCALING_TABLE_CURVES = (25, 50, 75, 100, 150, 200)
-SCALING_TABLE_VALUES = (5,10,15,20,25,30,40,50,60,70,80,90,100,125,150,175,200,250,300,400,500,600)
+# SCALING_TABLE_VALUES = (5,10,15,20,25,30,40,50,60,70,80,90,100,125,150,175,200,250,300,400,500,600)
+SCALING_TABLE_VALUES = (5,10,15,20,25,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200,250,300)
 
 def __value_repr(value):
     return " | ".join([__value_curve_repr(value, curve) for curve in SCALING_TABLE_CURVES])

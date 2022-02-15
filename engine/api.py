@@ -16,10 +16,6 @@ from engine.encounter import Encounter as EncounterEngine
 from engine.common import *
 
 
-ABILITY_HOTKEYS = Settings.get_setting('abilities', 'Hotkeys')
-RIGHT_CLICK_ABILITY = Settings.get_setting('right_click', 'Hotkeys')
-
-
 class GameAPI:
     encounter_api = None
     button_names = []
@@ -203,8 +199,7 @@ class EncounterAPI:
 
     def user_click(self, target, button):
         if button == 'right':
-            aindex = ABILITY_HOTKEYS.index(RIGHT_CLICK_ABILITY)
-            self.quickcast(aindex, target)
+            self.walkcast(target)
         elif button == 'left':
             self.user_select(target)
         elif button == 'scrollup':

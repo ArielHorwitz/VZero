@@ -47,7 +47,7 @@ class Settings:
                 'control3': 'f3',
                 'control4': 'f4',
                 'toggle_map': 'tab',
-                'right_click': 'q',
+                'loot': '^ lctrl',
                 'abilities': 'qwerasdf',
                 'alt_modifier': '+',
                 'items': '1234zxcv',

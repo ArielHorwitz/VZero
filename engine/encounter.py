@@ -89,7 +89,7 @@ class Encounter:
         # find which uids are in action based on phase
         alive = self.stats.get_stats(slice(None), STAT.HP, VALUE.CURRENT) > 0
         in_phase = alive & self._find_units_in_phase(ticks)
-        in_action_uids = (in_phase & self.__active_uids).nonzero()[0]
+        in_action_uids = np.flatnonzero(in_phase & self.__active_uids)
         if len(in_action_uids) == 0: return
         for uid in in_action_uids:
             with ratecounter(self.timers['agency'][uid]):

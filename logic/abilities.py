@@ -1,6 +1,6 @@
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.DEBUG)
 
 
 import enum
@@ -119,9 +119,18 @@ class BaseAbility:
 
     def load_on_unit(self, api, uid):
         unit = api.units[uid]
+        if unit.cache[f'{self}-loadcount'] is not None:
+            unit.cache[f'{self}-loadcount'] += 1
+            return
+        unit.cache[f'{self}-loadcount'] = 1
         unit.cache[f'{self}-stats'] = [[s, v, 0] for s,v,f in self.stats]
 
     def unload_from_unit(self, api, uid):
+        unit = api.units[uid]
+        loadcount = unit.cache[f'{self}-loadcount']
+        if loadcount == 0:
+            logger.warning(f'{self} requested to unload but found loadcount 0')
+        unit.cache[f'{self}-loadcount'] = None if loadcount <= 1 else loadcount - 1
         self.remove_stats(api, uid)
 
     def _setup(self):
@@ -151,17 +160,17 @@ class BaseAbility:
         strs = ['[u]Passive stat bonus:[/u]']
         for s, v, f in self.stats:
             name = stat_name = s.name.lower().capitalize()
-            name = f'[b]{stat_name}[/b]'
+            name = f'{stat_name}'
             value = f.value_repr(au)
             if v is VALUE.MAX:
-                name = f'[b]Max {stat_name}[/b]'
+                name = f'Max {stat_name}'
             elif v is VALUE.MIN:
-                name = f'[b]Min {stat_name}[/b]'
+                name = f'Min {stat_name}'
             elif v is VALUE.DELTA:
-                name = f'[b]{stat_name}[/b] /s'
+                name = f'{stat_name} /s'
             elif v is VALUE.TARGET:
-                name = f'[b]Target {stat_name}[/b]'
-            strs.append(f'{name}: {value}')
+                name = f'Target {stat_name}'
+            strs.append(f'[b]{name}:[/b] {value}')
         if len(strs) > 1:
             return strs
         return []
@@ -170,6 +179,7 @@ class BaseAbility:
         s = [
             self.info,
             self.shared_cooldown_repr,
+            '',
         ]
         if self.stats:
             s.extend(self.stats_str(au))
@@ -283,7 +293,7 @@ class Phase:
         }
 
         if self.debug:
-            logger.debug(f'Logging {self.ability} {self.phase_name} debug')
+            logger.info(f'Logging {self.ability} {self.phase_name} debug')
 
     def __repr__(self):
         return f'<{self.ability.name} {self.ability.aid} {self.phase_name} phase>'
@@ -307,7 +317,7 @@ class Phase:
                 'selected:', np.flatnonzero(targets.selected),
             ])
             target_str = f'point{"*" if self.targeting_point else ""}: {self.point} target{"" if self.targeting_point else "*"}: {self.target} '
-            logger.debug(f'Tick: {api.tick}, {self} found: {target_str} {d}')
+            logger.info(f'Tick: {api.tick}, {self} found: {target_str} {d}')
         # Unconditional effects
         for effect in self.effects[CONDITION.UNCONDITIONAL]:
             effect.apply(api, uid, targets)
@@ -590,11 +600,14 @@ class Formula:
 
     @property
     def repr(self):
-        return str(self.__raw_param)
+        return f'[b]{self.__raw_param}[/b]'
 
-    def value_repr(self, au=None, rounding=1):
+    def value_repr(self, au=None, rounding=1, bold=True):
         if au and self.name != 'base':
-            return f'{round(self.get_value(*au), rounding)} ({self.repr})'
+            if bold:
+                return f'[b]{round(self.get_value(*au), rounding)}[/b] ({self.repr})'
+            else:
+                return f'{round(self.get_value(*au), rounding)} ({self.repr})'
         return self.repr
 
     @property
@@ -660,8 +673,8 @@ class ScaleFormula(Formula):
     @property
     def repr(self):
         if self.ascending_scale:
-            return f'{self._min} < [b]{self.stat_name}[/b] §{self._curve} < {self._max}'
-        return f'{self._max} > [b]{self.stat_name}[/b] §{self._curve} > {self._min}'
+            return f'{self._min} < [b]{self.stat_name}[/b]§{self._curve} < {self._max}'
+        return f'{self._max} > [b]{self.stat_name}[/b]§{self._curve} > {self._min}'
 
     def get_value(self, api, uid):
         stat = self.get_stat(api, uid)
@@ -847,32 +860,22 @@ class EffectPull(EffectPush):
 
 class EffectLoot(Effect):
     def __init__(self, phase, raw_data):
-        self.loot_multi = resolve_formula('loot_multi', raw_data)
         self.range = resolve_formula('range', raw_data)
-        self.sfx = raw_data['sfx'] if 'sfx' in raw_data else phase.ability.sfx
-        self.category = raw_data['category'] if 'category' in raw_data else 'ability'
 
     def repr(self, au):
         if au:
-            loot_multi = self.loot_multi.get_value(*au)
             range = self.range.get_value(*au)
         else:
-            loot_multi = self.loot_multi.base_value
             range = self.range.base_value
         if range < 10**6:
             range_str = f' in [b]{int(range)} range[/b]'
         else:
             range_str = ''
-        return f'[u][b]Loot[/b] for [b]{round(loot_multi, 1)}%[/b] gold{range_str}[/u]{self.loot_multi.full_str("Loot multi: ")}{self.range.full_str("Range: ")}'
+        return f'[u][b]Loot[/b] {range_str}[/u]{self.range.full_str("Range: ")}'
 
     def apply(self, api, uid, targets):
         range = self.range.get_value(api, uid)
-        loot_result, loot_target = Mechanics.apply_loot(api, uid, api.get_position(uid), range)
-        if not isinstance(loot_result, FAIL_RESULT):
-            loot_multi = self.loot_multi.get_value(api, uid) / 100
-            looted_gold = loot_result * loot_multi
-            api.set_stats(uid, STAT.GOLD, looted_gold, additive=True)
-            Assets.play_sfx(self.category, self.sfx, volume='sfx')
+        Mechanics.apply_loot(api, uid, api.get_position(uid), range)
 
 
 class EffectTeleport(Effect):
@@ -1217,7 +1220,7 @@ class EffectMapEditor(Effect):
         self.positional = raw_data.positional
 
     def repr(self, au):
-        return str(self.positional)
+        return f'Map editor {self.positional}'
 
     def apply(self, api, uid, targets):
         target_point = self.resolve_target_point(api, uid, self.target, targets)

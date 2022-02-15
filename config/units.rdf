@@ -13,12 +13,11 @@ mana.delta: 0.01
 
 
 
-
 ------------------------------------- Creep waves
 
 === Small creep
 type: creep
-abilities: walk, shoot
+abilities: shoot
 wave: 300
 wave_offset: 270
 scaling: 1.15
@@ -33,7 +32,7 @@ physical: 20
 
 === Huge creep
 type: creep
-abilities: walk, attack
+abilities: attack
 wave: 300
 wave_offset: 285
 scaling: 1.15
@@ -69,7 +68,7 @@ spikes: 20
 
 ====== Penguin
 type: camper
-abilities: walk, shoot
+abilities: shoot
 aggro_range: 400
 deaggro_range: 700
 reaggro_range: 500
@@ -85,7 +84,7 @@ air: 5
 
 ====== Glob
 type: camper
-abilities: walk, attack, dunder beam, compliment
+abilities: attack, dunder beam, compliment
 aggro_range: 400
 deaggro_range: 700
 reaggro_range: 500
@@ -101,7 +100,7 @@ air: 25
 
 ====== Jackal
 type: camper
-abilities: walk, grab, attack
+abilities: grab, attack
 aggro_range: 400
 deaggro_range: 500
 reaggro_range: 150
@@ -118,7 +117,7 @@ air: 55
 
 ====== Slank
 type: camper
-abilities: walk, attack, hex
+abilities: attack, hex
 aggro_range: 400
 deaggro_range: 500
 reaggro_range: 150
@@ -135,7 +134,7 @@ air: 35
 
 ====== Ratzan
 type: camper
-abilities: walk, slash, attack
+abilities: slash, attack
 aggro_range: 400
 deaggro_range: 500
 reaggro_range: 150
@@ -152,7 +151,7 @@ air: 20
 
 ====== Blood Imp
 type: camper
-abilities: walk, attack, fireblast
+abilities: attack, fireblast
 aggro_range: 550
 deaggro_range: 650
 reaggro_range: 100
@@ -174,7 +173,7 @@ air: 20
 
 ====== Folphin
 type: camper
-abilities: walk, attack, compliment, fireblast
+abilities: attack, compliment, fireblast
 aggro_range: 400
 deaggro_range: 800
 reaggro_range: 600
@@ -191,7 +190,7 @@ air: 30
 
 ====== Infester
 type: camper
-abilities: walk, blink, attack
+abilities: blink, attack
 aggro_range: 400
 deaggro_range: 800
 reaggro_range: 600
@@ -208,7 +207,7 @@ air: 45
 
 ====== Crab
 type: camper
-abilities: walk, attack, dark touch
+abilities: attack, dark touch
 aggro_range: 400
 deaggro_range: 800
 reaggro_range: 600
@@ -225,7 +224,7 @@ air: 30
 
 ====== Gnome
 type: camper
-abilities: walk, lich fog
+abilities: lich fog
 aggro_range: 0
 deaggro_range: 0
 reaggro_range: 0
@@ -260,7 +259,7 @@ air: 15
 
 ====== Phaser
 type: camper
-abilities: walk, attack, nuke
+abilities: attack, nuke
 aggro_range: 450
 deaggro_range: 800
 reaggro_range: 400
@@ -281,7 +280,7 @@ air: 12
 
 ====== Fire Troll
 type: camper
-abilities: walk, monster vortex
+abilities: monster vortex
 aggro_range: 600
 deaggro_range: 1000
 reaggro_range: 600
@@ -298,7 +297,7 @@ air: 45
 
 ====== Boo
 type: camper
-abilities: run, hex, grab, dark touch, slash, dunder beam
+abilities: hex, grab, dark touch, slash, dunder beam
 aggro_range: 600
 deaggro_range: 800
 reaggro_range: 200
@@ -316,7 +315,7 @@ air: 50
 
 ====== Harpy
 type: camper
-abilities: run, blink, attack
+abilities: blink, attack
 aggro_range: 600
 deaggro_range: 1000
 reaggro_range: 600
@@ -347,7 +346,7 @@ air: 8
 
 ====== Repteye
 type: camper
-abilities: walk, monster shoot
+abilities: monster shoot
 aggro_range: 700
 deaggro_range: 800
 reaggro_range: 450
@@ -384,7 +383,7 @@ spikes: 50
 
 ====== Golden Dragon
 type: camper
-abilities: walk, monster shoot
+abilities: monster shoot
 aggro_range: 700
 deaggro_range: 1200
 reaggro_range: 900
@@ -402,7 +401,7 @@ air: 80
 
 ====== Fire Elemental
 type: camper
-abilities: walk, fireblast, monster vortex
+abilities: fireblast, monster vortex
 aggro_range: 700
 deaggro_range: 800
 reaggro_range: 450
@@ -420,7 +419,7 @@ water: 35
 
 ====== Skull
 type: camper
-abilities: walk, attack, root
+abilities: attack, root
 aggro_range: 700
 deaggro_range: 1200
 reaggro_range: 900
@@ -437,7 +436,7 @@ water: 40
 
 ====== Lich
 type: camper
-abilities: walk, lich fog
+abilities: lich fog
 aggro_range: 0
 deaggro_range: 0
 reaggro_range: 0
@@ -460,7 +459,7 @@ reflect: 30
 
 ====== Barkshroom
 type: boss
-abilities: run, snipe, dunder beam
+abilities: snipe, dunder beam
 aggro_range: 800
 deaggro_range: 1000
 reaggro_range: 500

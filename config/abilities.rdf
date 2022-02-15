@@ -1,169 +1,3 @@
-=== Loot
-type: base
-sfx: loot
-info: Loot the dead.
--- stats
-physical:
--- ACTIVE
-point_target
-no_sfx
---- active.unconditional.loot
-range: 300
-loot_multi: 100
-
-
-=== Appraise
-type: base
-sfx: loot
-info: Loot the dead.
--- ACTIVE
-cooldown: 100
-point_target
-no_sfx
-no_fail_sfx
---- active.upcast.loot
-range: 300
-loot_multi=scale: 75, water, 300, 100
-sfx: appraise
---- active.downcast.loot
-range: 300
-loot_multi: 75
-sfx: loot
-
-
-
-=== Run
-type: base
-draft_cost: 30
---- stats
-movespeed: 30
---- ACTIVE
-status_block: bounded
---- active.upcast.move
-
-=== Walk
-type: base
-sprite: walk
-draft_cost: 60
---- stats
-movespeed=bonus: 5, air, 0.3
-los: 200
---- ACTIVE
-status_block: bounded
---- active.upcast.move
-
-=== Flametrail
-type: base
-sprite: walk
-draft_cost: 60
---- stats
-movespeed=bonus: 0, fire, 0.1
---- ACTIVE
-status_block: bounded
---- active.upcast.move
-
-=== Hike
-type: base
-sprite: walk
-draft_cost: 60
---- stats
-movespeed=bonus: 0, earth, 0.08
---- ACTIVE
-status_block: bounded
---- active.upcast.move
-
-=== Flow
-type: base
-sprite: walk
-draft_cost: 60
---- stats
-movespeed=bonus: 0, water, 0.1
---- ACTIVE
-status_block: bounded
---- active.upcast.move
-
-
-=== Mesmerise
-type: base
-color: purple
-draft_cost: 60
--- ACTIVE
-target: other
-mana_cost: 15
-cooldown=reduc: 8, water, 2, 50
-range: 600
--- active.upcast.vfx-line
-p1: point
--- active.upcast.push
-target: single
-duration=scale: 2, air, 4, 100
-distance: 500
--- ALT
-target: other
-mana_cost: 15
-cooldown=reduc: 8, water, 2, 50
-range: 600
--- alt.upcast.vfx-line
-p1: point
--- alt.upcast.pull
-target: single
-duration=scale: 2, air, 4, 100
-distance: 500
-
-
-=== Mudslide
-type: base
-color: purple
-draft_cost: 60
-info: Pull duration: 2s < [b]water[/b] §100 < 6s
---- stats
-los=scale: 200, time, 600, 25
--- ACTIVE
-point_target
-target: enemy
-area: circle
-radius=scale: 300, air, 800, 150
-mana_cost: 50
-cooldown: 15
-range: 600
--- active.upcast.vfx-sprite
-center: point
-size=scale: 600, air, 1400, 150
-color: 1, 1, 1, 0.5
-duration=scale: 2, water, 6, 100
-fade=scale: 2, water, 6, 100
--- active.upcast.pull
-target: area
-duration=scale: 2, water, 6, 100
-
-
-
-=== Ominous Bond
-type: base
-draft_cost: 25
-color: black
---- PASSIVE
-target: enemy
-selection_distance=scale: 500, water, 2000, 50
-range=scale: 500, water, 2000, 50
---- passive.upcast.vfx-line
-p2: single
-duration: 0.25
-color: 0, 0, 0, 0.5
---- passive.upcast.select
---- passive.upcast.show_select
-no_sfx
---- ACTIVE
-target: enemy
-range=scale: 500, water, 10_000, 150
---- active.upcast.vfx-line
-p2: single
-color: 0, 0, 0, 0.5
---- active.upcast.select
---- active.upcast.show_select
-show_range=scale: 500, water, 10_000, 150
-no_sfx
-
 
 === Attack
 type: base
@@ -414,6 +248,89 @@ cooldown: 2.5
 damage=scale: 15, earth, 400, 150
 
 
+
+
+
+=== Mesmerise
+type: base
+color: purple
+draft_cost: 60
+-- ACTIVE
+target: other
+mana_cost: 15
+cooldown=reduc: 8, water, 2, 50
+range: 600
+-- active.upcast.vfx-line
+p1: point
+-- active.upcast.push
+target: single
+duration=scale: 2, air, 4, 100
+distance: 500
+-- ALT
+target: other
+mana_cost: 15
+cooldown=reduc: 8, water, 2, 50
+range: 600
+-- alt.upcast.vfx-line
+p1: point
+-- alt.upcast.pull
+target: single
+duration=scale: 2, air, 4, 100
+distance: 500
+
+
+=== Mudslide
+type: base
+color: purple
+draft_cost: 60
+info: Pull duration: 2s < [b]water[/b] §100 < 6s
+--- stats
+los=scale: 200, time, 600, 25
+-- ACTIVE
+point_target
+target: enemy
+area: circle
+radius=scale: 300, air, 800, 150
+mana_cost: 50
+cooldown: 15
+range: 600
+-- active.upcast.vfx-sprite
+center: point
+size=scale: 600, air, 1400, 150
+color: 1, 1, 1, 0.5
+duration=scale: 2, water, 6, 100
+fade=scale: 2, water, 6, 100
+-- active.upcast.pull
+target: area
+duration=scale: 2, water, 6, 100
+
+
+
+=== Ominous Bond
+type: base
+draft_cost: 25
+color: black
+--- PASSIVE
+target: enemy
+selection_distance=scale: 500, water, 2000, 50
+range=scale: 500, water, 2000, 50
+--- passive.upcast.vfx-line
+p2: single
+duration: 0.25
+color: 0, 0, 0, 0.5
+--- passive.upcast.select
+--- passive.upcast.show_select
+no_sfx
+--- ACTIVE
+target: enemy
+range=scale: 500, water, 10_000, 150
+--- active.upcast.vfx-line
+p2: single
+color: 0, 0, 0, 0.5
+--- active.upcast.select
+--- active.upcast.show_select
+show_range=scale: 500, water, 10_000, 150
+no_sfx
 
 
 
@@ -955,7 +872,7 @@ include_hitbox
 --- passive.upcast.degen
 target: area
 stat: hp
-delta=scale: 3, fire, 300, 100
+delta=scale: 3, fire, 300, 200
 
 
 === Lich Fog
@@ -1025,6 +942,37 @@ water=scale: 20, time, 100, 25
 
 
 
+=== Run
+type: base
+draft_cost: 30
+--- stats
+movespeed: 25
+=== Walk
+type: base
+sprite: walk
+draft_cost: 60
+--- stats
+movespeed=scale: 5, air, 60, 25
+los: 200
+=== Flametrail
+type: base
+sprite: walk
+draft_cost: 60
+--- stats
+movespeed=scale: 5, fire, 60, 50
+=== Hike
+type: base
+sprite: walk
+draft_cost: 60
+--- stats
+movespeed=scale: 5, earth, 60, 50
+=== Flow
+type: base
+sprite: walk
+draft_cost: 60
+--- stats
+movespeed=scale: 5, water, 60, 50
+
 
 
 
@@ -1066,8 +1014,8 @@ hidden
 type: base
 sfx: shield
 --- stats
-armor=scale: 8, earth, 30, 50
-reflect=scale: 8, physical, 30, 50
+armor=scale: 5, earth, 20, 100
+reflect=scale: 10, physical, 35, 100
 
 
 
@@ -1075,8 +1023,8 @@ reflect=scale: 8, physical, 30, 50
 hidden
 type: base
 -- stats
-movespeed=scale: 25, air, 100, 100
-hp.max=scale: 20, earth, 100, 100
+movespeed=scale: 8, air, 20, 100
+hp.max=scale: 20, earth, 60, 100
 
 
 === Sophist Hat
@@ -1084,7 +1032,7 @@ hidden
 type: base
 --- stats
 mana.delta=scale: 3, water, 8, 50
-hp.max: 30
+mana.max=scale: 20, fire, 60, 100
 
 
 === Deck
@@ -1093,8 +1041,6 @@ type: base
 -- stats
 hp.max=scale: 10, earth, 100, 100
 hp.delta: 5
-mana.delta: 6
-los: 250
 
 
 === Gloves
@@ -1112,6 +1058,7 @@ type: base
 sfx: bloodlust
 --- stats
 vanity: 15
+los: 250
 --- ACTIVE
 mana_cost: 5
 cooldown: 18
@@ -1158,6 +1105,7 @@ stacks=scale: 20, fire, 80, 50
 === Manuscript
 hidden
 type: base
+sfx: scroll
 cooldown: base scroll
 off_cooldown: passive
 info: Gain access to higher tier shop. Passively remove [i]bounded[/i].
@@ -1288,6 +1236,7 @@ fade: 0.5
 === Map
 hidden
 type: base
+sfx: scroll
 cooldown: base scroll
 info: Always have access to all shops. Gain LOS and movespeed.
 --- stats
@@ -1462,63 +1411,6 @@ stacks: 1
 
 ------------------------------ -
 
-
-
-=== Dev Stone
-hidden
-type: base
-sfx: blink
--- stats
-hp.delta: 10000
-hp.max: 10000
-mana.delta: 10000
-mana.max: 10000
-shop: 3
--- ACTIVE
-status_block: bounded
--- active.upcast.vfx-line
--- active.upcast.teleport
-
--- ALT
-no_sfx
--- alt.unconditional.stat
-target: self
-stat: gold
-delta: 25000
--- alt.unconditional.sfx
-sfx: loot
-
-
-=== Dev Blast
-hidden
-type: base
-sfx: fireblast
-sprite: fireblast
---- ACTIVE
-point_target
-target: enemy
-area: circle
-radius: 500
---- active.upcast.blast
-damage: 10_000
---- active.upcast.vfx-circle
-center: point
-radius: 500
-color: 1, 0, 0, 0.5
-duration: 1
-fade: 1
-
-
-=== Base Attack
-hidden
-type: base
-
-
-=== Base Scroll
-hidden
-type: base
-
-
 === Map Editor Eraser
 hidden
 type: base
@@ -1546,4 +1438,141 @@ add
 
 
 
+
+
+=== Dev Stone
+hidden
+type: base
+sfx: blink
+-- stats
+hp.delta: 10000
+hp.max: 10000
+mana.delta: 10000
+mana.max: 10000
+shop: 3
+-- ACTIVE
+status_block: bounded
+-- active.upcast.vfx-line
+-- active.upcast.teleport
+
+-- ALT
+no_sfx
+-- alt.unconditional.stat
+target: self
+stat: gold
+delta: 25000
+-- alt.unconditional.sfx
+category: ui
+sfx: loot
+
+
+=== Dev Stats
+hidden
+type: base
+--- ACTIVE
+target: self
+--- active.unconditional.stat
+stat: physical
+delta: 25
+--- active.unconditional.stat
+stat: fire
+delta: 25
+--- active.unconditional.stat
+stat: earth
+delta: 25
+--- active.unconditional.stat
+stat: air
+delta: 25
+--- active.unconditional.stat
+stat: water
+delta: 25
+--- ALT
+target: self
+--- alt.unconditional.stat
+stat: physical
+delta: -25
+--- alt.unconditional.stat
+stat: fire
+delta: -25
+--- alt.unconditional.stat
+stat: earth
+delta: -25
+--- alt.unconditional.stat
+stat: air
+delta: -25
+--- alt.unconditional.stat
+stat: water
+delta: -25
+
+
+=== Dev Blast
+hidden
+type: base
+sfx: fireblast
+sprite: fireblast
+--- ACTIVE
+point_target
+target: enemy
+area: circle
+radius: 500
+--- active.upcast.blast
+damage: 10_000
+--- active.upcast.vfx-circle
+center: point
+radius: 500
+color: 1, 0, 0, 0.5
+duration: 1
+fade: 1
+
+
+=== Dev Debuff
+hidden
+type: base
+sprite: dark touch
+--- ACTIVE
+target: enemy
+--- active.upcast.status
+status: darkness
+status: darkness
+stacks_add: 25
+duration: 5
+--- active.upcast.vfx-line
+
+
+
+
+
 ------------------------------ -
+
+=== Builtin Walk
+hidden
+type: base
+sprite: walk
+--- ACTIVE
+status_block: bounded
+--- active.upcast.move
+
+=== Builtin Loot
+hidden
+type: base
+sprite: loot
+-- ACTIVE
+point_target
+no_sfx
+--- active.upcast.loot
+range: 300
+
+
+
+=== Base Attack
+hidden
+type: base
+info: cooldown sharing
+sprite: attack
+
+
+=== Base Scroll
+hidden
+type: base
+info: cooldown sharing
+sprite: scroll

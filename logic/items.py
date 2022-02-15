@@ -78,7 +78,7 @@ class Item:
                 stat_str.append(f'{sname}: {value}')
         return '\n'.join([
             *stat_str,
-            f'\n{self.ability.name}: {self.ability.description(engine, uid)}' if self.ability is not None else '',
+            f'\n{self.ability.description(engine, uid)}' if self.ability is not None else '',
         ])
 
     def check_buy(self, engine, uid):
@@ -128,7 +128,7 @@ class Item:
             for value_name, value in stat.items():
                 engine.set_stats(uid, stat_name, value, value_name=value_name, additive=True)
         result = self.iid
-        logger.debug(f'{unit.name} bought item: {self}')
+        logger.info(f'{unit.name} bought item: {self}')
         engine.units[uid].cache[f'{self}-buy'] = engine.tick
         return result
 
@@ -152,7 +152,7 @@ class Item:
 
         result = self.iid
 
-        logger.debug(f'{unit.name} sold item: {self}')
+        logger.info(f'{unit.name} sold item: {self}')
         return result
 
     def __repr__(self):
@@ -171,6 +171,7 @@ class Item:
             return None
         catindex = min(math.floor(stat), len(ITEM_CATEGORIES)) - 1
         return list(ITEM_CATEGORIES)[catindex]
+
 
 def _load_raw_stats(raw_stats):
     stats = defaultdict(lambda: {})
@@ -196,8 +197,6 @@ def _load_items():
         items.append(item)
     logger.info(f'Loaded {len(items)} items.')
     return items
-
-
 
 
 ITEMS = _load_items()

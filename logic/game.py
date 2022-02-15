@@ -28,7 +28,6 @@ class GameAPI(BaseGameAPI):
             self.draftables.append(aid)
         self.loadout = [None for _ in range(8)]
         self.selected_aid = self.draftables[0]
-        self.load_preset(0)
 
     def update(self):
         if self.restart_flag:
@@ -58,7 +57,11 @@ class GameAPI(BaseGameAPI):
             if name == 'null':
                 self.loadout.append(None)
                 continue
-            aid = str2ability(name)
+            try:
+                aid = str2ability(name)
+            except AttributeError as e:
+                self.loadout.append(None)
+                continue
             self.loadout.append(aid)
         self.loadout.extend([None for _ in range(8-len(self.loadout))])
 

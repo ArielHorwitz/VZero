@@ -7,6 +7,7 @@ import math
 from collections import defaultdict
 import numpy as np
 from nutil.vars import normalize, modify_color
+from data.assets import Assets
 from engine.common import *
 
 
@@ -24,15 +25,19 @@ class Mechanics:
         # Check
         loot_target, dist = api.nearest_uid(pos, mask=api.mask_dead(), alive_only=False)
         if loot_target is None:
-            return FAIL_RESULT.MISSING_TARGET, None
+            Assets.play_sfx('ui', 'target', volume='feedback')
+            return FAIL_RESULT.MISSING_TARGET
         if api.unit_distance(uid, loot_target) > range:
-            return FAIL_RESULT.OUT_OF_RANGE, None
+            Assets.play_sfx('ui', 'target', volume='feedback')
+            return FAIL_RESULT.MISSING_TARGET
         # Apply and move remains
         looted_gold = api.get_stats(loot_target, STAT.GOLD)
         api.set_stats(loot_target, STAT.GOLD, 0)
         api.set_stats(loot_target, (STAT.POS_X, STAT.POS_Y), (-1_000_000, -1_000_000))
-        logger.debug(f'{api.units[uid]} removed {looted_gold} gold from {api.units[loot_target]}.')
-        return looted_gold, loot_target
+        api.set_stats(uid, STAT.GOLD, looted_gold, additive=True)
+        Assets.play_sfx('ui', 'loot', volume='sfx')
+        logger.debug(f'{api.units[uid]} looted {looted_gold} gold from {api.units[loot_target]}.')
+        return loot_target
 
     @classmethod
     def apply_teleport(cls, api, uid, target, reset_target=False):

@@ -23,7 +23,7 @@ category: basic
 cost: 30
 --- stats
 air: 5
-hp.delta: 0.01
+los: 200
 === Crystal
 category: basic
 cost: 30
@@ -35,27 +35,23 @@ mana.delta: 0.01
 === Scroll
 category: basic
 cost: 50
+=== Feather
+category: basic
+cost: 75
 --- stats
-air: 5
+movespeed: 5
 === Shard
 category: basic
 cost: 100
 --- stats
-hp.max: 50
+hp.max: 25
 hp.delta: 0.01
-hitbox: 5
 === Crown
 category: basic
 cost: 100
 --- stats
-armor: 8
-spikes: 12
-=== Feather
-category: basic
-cost: 100
---- stats
-mana.max: 40
-mana.delta: 0.02
+mana.max: 25
+mana.delta: 0.015
 === Buckler
 category: basic
 cost: 130
@@ -392,5 +388,9 @@ fire: 20
 ------------------------- DEV
 
 === Dev Stone
+category: basic
+cost: 0
+
+=== Dev Stats
 category: basic
 cost: 0

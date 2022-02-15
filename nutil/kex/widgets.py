@@ -259,6 +259,7 @@ class InputManager(Widget):
         self.keyboard = kvWindow.request_keyboard(lambda: None, self)
         self.activate()
         if defaults is True:
+            self.register('Debug input', '^!+ f12', lambda *a: self.record(on_release=self.start_debug_record))
             self.register('Restart', '+ escape', lambda *a: nutil.restart_script())
             self.register('Quit', '^+ escape', lambda *a: self.app.stop())
 
@@ -314,6 +315,13 @@ class InputManager(Widget):
             return
         if self.__last_keys_down in self.__last_keys_down:
             self._do_calls(self.__last_keys_down)
+
+    def start_debug_record(self, *a):
+        logger.info(f'InputManager recording input...')
+        kvClock.schedule_once(lambda *a: self.record(on_release=self.debug_record), 1)
+
+    def debug_record(self, keys):
+        logger.info(f'InputManager recorded input: <{keys}>')
 
 
 # LAYOUTS
