@@ -5,6 +5,7 @@ logger = logging.getLogger(__name__)
 import math
 from collections import defaultdict
 from enum import IntEnum
+from data import DEV_BUILD
 from data.load import RDF
 from data.assets import Assets
 from data.settings import Settings
@@ -32,8 +33,7 @@ SELL_MULTIPLIER = 0.8
 QUICK_RESELL_WINDOW = 1000
 
 ALL_ITEM_NAMES = list(RDF(RDF.CONFIG_DIR / 'items.rdf').keys())
-di = Settings.get_setting('dev_items', 'General')
-if di == 0:
+if not DEV_BUILD:
     logger.info(f'Skipping dev items')
     ALL_ITEM_NAMES = list(filter(lambda x: not x.lower().startswith('dev '), ALL_ITEM_NAMES))
 ITEM = AutoIntEnum('ITEM', [internal_name(name) for name in ALL_ITEM_NAMES])

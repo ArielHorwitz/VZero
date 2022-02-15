@@ -20,7 +20,7 @@ from logic.encounter import EncounterAPI
 class GameAPI(BaseGameAPI):
     def __init__(self):
         self.restart_flag = False
-        self.high_score = 0
+        self.silver_bank = 1000
         self.draftables = []
         for aid in AID_LIST:
             if not ABILITIES[aid].draftable and not Settings.get_setting('dev_build', 'General'):
@@ -90,7 +90,7 @@ class GameAPI(BaseGameAPI):
     @property
     def title_text(self):
         return '\n'.join([
-            f'High score: {self.high_score}',
+            f'Silver bank: {self.silver_bank}',
         ])
 
     def restart_encounter(self):
@@ -106,8 +106,6 @@ class GameAPI(BaseGameAPI):
         if self.encounter_api is not None:
             logger.info(f'Logic ending encounter: {self.encounter_api}')
             self.encounter_api.leave()
-            score = self.encounter_api.score
-            self.high_score = max(score, self.high_score)
             self.encounter_api = None
 
     def button_click(self, index):
@@ -142,15 +140,7 @@ class GameAPI(BaseGameAPI):
 
     # GUI properties
     def draft_label(self):
-        dc = self.average_draft_cost()
-        dcm = humanize_ms(self.draft_cost_minutes()*60*1000, show_ms=False, show_hours=False)
-        return "\n".join([
-            f'___ Score Calculation _______',
-            f'Draft cost: {dcm} (average ability: {round(dc, 1)})',
-            f'Starting score: {self.calc_score(dc, 0)}',
-            'Time:  '+' / '.join(f'{n}m' for n in range(5, 35, 5)),
-            'Score: '+' /  '.join(f'{self.calc_score(dc, n)}' for n in range(5, 35, 5)),
-        ])
+        return f'Draft cost: {round(self.average_draft_cost())} silver'
 
     def draft_details(self):
         ability = ABILITIES[self.selected_aid]

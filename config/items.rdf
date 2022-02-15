@@ -135,18 +135,15 @@ water: 30
 === Fine Shield
 category: basic
 cost: 650
-=== Broadsword
-category: basic
-cost: 800
---- stats
-physical: 10
-water: 10
 === Manuscript
 category: basic
-cost: 900
+cost: 700
 === Clover
 category: basic
-cost: 1000
+cost: 850
+=== Broadsword
+category: basic
+cost: 975
 === Whip
 category: basic
 cost: 1050
@@ -239,8 +236,6 @@ cost: 2500
 === Headpiece
 category: basic
 cost: 2700
---- stats
-armor: 50
 === Eye
 category: basic
 cost: 2800
@@ -286,29 +281,34 @@ water: 80
 category: herbal
 cost: 4000
 --- stats
-lifesteal: 22
-darkness: 10
+stocks: 2
+lifesteal: 30
+darkness: 25
 === Viscous Tar
 category: herbal
 cost: 4000
 --- stats
+stocks: 2
 spikes: 80
 === Acid Punch
 category: herbal
 cost: 4000
 --- stats
+stocks: 2
 armor: 50
 reflect: 100
 === Bottled Breeze
 category: herbal
 cost: 4000
 --- stats
+stocks: 2
 movespeed: 75
 los: 750
 === Distilled Essense
 category: herbal
 cost: 4000
 --- stats
+stocks: 2
 sensitivity: 100
 
 
@@ -350,38 +350,18 @@ water: 100
 === Wand
 category: ornament
 cost: 4400
---- stats
-hp.max: 150
-mana.max: 300
-mana.delta: 0.3
-hitbox: 10
 === Green Egg
 category: ornament
 cost: 4600
---- stats
-hp.max: 650
-hp.delta: 0.2
-armor: 20
-reflect: 40
-hitbox: 25
 === Spear
 category: ornament
 cost: 4900
---- stats
-physical: 40
-lifesteal: 15
-darkness: 15
 === Ice Blade
 category: ornament
 cost: 5300
---- stats
-water: 40
-reflect: 120
 === Ninja Star
 category: ornament
 cost: 5750
---- stats
-fire: 20
 
 
 
@@ -394,3 +374,9 @@ cost: 0
 === Dev Stats
 category: basic
 cost: 0
+sprite: vzero
+
+=== Dev Snipe
+category: basic
+cost: 0
+sprite: snipe

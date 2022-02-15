@@ -200,12 +200,14 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
 
     def update(self):
         if not self.api.show_hud:
+            self.set_auto_hover(False)
             if self.main_frame in self.children:
                 self.remove_widget(self.main_frame)
             return
         else:
             if self.main_frame not in self.children:
                 self.add(self.main_frame)
+        self.set_auto_hover(self.api.detailed_info_mode if self.api.show_hud else False)
         self.portrait.source = self.api.hud_portrait()
         self.name_label.text = self.api.hud_name()
         self.status_panel.update(self.api.hud_statuses())
@@ -220,6 +222,13 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
             self.bars[i].progress = pb.value
             self.bars[i].text = pb.text
             self.bars[i].fg_color = pb.color
+
+    def set_auto_hover(self, set_as=None):
+        set_as = self.api.detailed_info_mode if set_as is None else set_as
+        self.middle_hud.consider_hover = set_as
+        self.right_hud.consider_hover = set_as
+        self.left_hud.consider_hover = set_as
+        self.status_panel.consider_hover = set_as
 
 
 class ModalBrowse(Modal, EncounterViewComponent):
@@ -263,9 +272,11 @@ class ModalBrowse(Modal, EncounterViewComponent):
         if self.api.check_flag('browse'):
             self.activate()
         if not self.activated:
+            self.stack.consider_hover = False
             return
         self.main.update(self.api.browse_main())
         self.stack.update(self.api.browse_elements())
+        self.stack.consider_hover = self.api.detailed_info_mode
 
 
 class ViewFade(widgets.AnchorLayout, EncounterViewComponent):
@@ -283,17 +294,19 @@ class Menu(widgets.AnchorLayout, EncounterViewComponent):
         super().__init__(halign='center', valign='middle', **kwargs)
         self.consume_touch = self.add(widgets.ConsumeTouch(False))
         self.frame = widgets.BoxLayout(orientation='vertical')
-        self.label = self.frame.add(widgets.Label(text='Paused', halign='center', valign='middle')).set_size(hy=1.5)
+        self.frame.set_size(x=200, y=220)
+        self.frame.make_bg((0.1, 0, 0.05, 1))
+
+        self.label = self.frame.add(widgets.Label(text='', halign='center', valign='middle', markup=True))
+        self.label.set_size(y=80)
 
         self.frame.add(widgets.Button(text=RESUME_TEXT, on_release=lambda *a: self.api.user_hotkey('control0', None)))
-        self.frame.set_size(x=200, y=200)
-        self.frame.make_bg((0,0,0,1))
-
         self.restart_btn = self.frame.add(widgets.Button(on_release=lambda *a: self.click_restart()))
-        self.confirm_restart = False
         self.leave_btn = self.frame.add(widgets.Button(on_release=lambda *a: self.click_leave()))
-        self.confirm_leave = False
         self.quit_btn = self.frame.add(widgets.Button(on_release=lambda *a: self.click_quit()))
+
+        self.confirm_restart = False
+        self.confirm_leave = False
         self.confirm_quit = False
         self.unconfirm()
 

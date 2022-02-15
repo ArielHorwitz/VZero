@@ -6,6 +6,7 @@ import numpy as np
 from nutil.vars import modify_color
 from nutil.kex import widgets
 from data.assets import Assets
+from data.settings import Settings
 
 
 TOOLTIP_SIZE = 400, 600
@@ -150,6 +151,7 @@ class Stack(widgets.StackLayout):
             wtype=None, x=None, y=None,
             callback=None,
             drag_drop_callback=None,
+            consider_hover=False,
             **kwargs):
         super().__init__(**kwargs)
         self.__wtype = SpriteLabel if wtype is None else wtype
@@ -159,11 +161,13 @@ class Stack(widgets.StackLayout):
         self.callback = callback
         self.drag_drop_callback = drag_drop_callback
         self.dragging = None
+        self.consider_hover = consider_hover
         self.make_bg((0, 0, 0, 1))
         if self.callback or self.drag_drop_callback:
             self.bind(on_touch_down=lambda w, m: self.on_touch_down(m))
         if self.drag_drop_callback:
             self.bind(on_touch_up=lambda w, m: self.on_touch_up(m))
+        widgets.kvWindow.bind(mouse_pos=self.check_hover)
 
     def set_boxsize(self, size=None):
         if size is not None:
@@ -180,6 +184,17 @@ class Stack(widgets.StackLayout):
                 self.remove_widget(b)
                 self.boxes.remove(b)
         self.set_boxsize()
+
+    def check_hover(self, w, pos):
+        if not self.consider_hover:
+            return False
+        if not self.collide_point(*pos):
+            return False
+        for i, b in enumerate(self.boxes):
+            if b.collide_point(*pos):
+                self.callback(i, 'left')
+                break
+        return False
 
     def on_touch_down(self, m):
         if not self.collide_point(*m.pos):
@@ -220,6 +235,9 @@ class Tooltip(widgets.BoxLayout):
         self.__frame.make_bg(modify_color((1,1,1), v=0.85))
         self.__frame._bg.source = Assets.get_sprite('ui', 'tooltip')
         self.bind(on_touch_down=self._check_click)
+        self.__hover_bind = None
+        self.__dismiss_origin = np.array([0, 0])
+        self.auto_dismiss = Settings.get_setting('auto_dismiss_tooltip', 'UI')
 
     def activate(self, pos, stl, bounding_widget=None):
         if self.__frame not in self.children:
@@ -240,17 +258,30 @@ class Tooltip(widgets.BoxLayout):
                 pos = tuple(float(_) for _ in (fix + pos))
             self.pos = pos
         self.stl.update(stl)
+        if self.__hover_bind is not None:
+            widgets.kvWindow.unbind_uid('mouse_pos', self.__hover_bind)
+        if self.auto_dismiss:
+            self.__dismiss_origin = np.array(self.app.mouse_pos)
+            self.__hover_bind = widgets.kvWindow.fbind('mouse_pos', self._check_hover)
 
     def deactivate(self):
         if self.__frame in self.children:
             self.remove_widget(self.__frame)
             self.pos = -1_000_000, -1_000_000
+        if self.__hover_bind is not None:
+            widgets.kvWindow.unbind_uid('mouse_pos', self.__hover_bind)
+            self.__hover_bind = None
 
     def _check_click(self, w, m):
-        if m.button == 'left':
-            consume = self.__frame in self.children
+        if m.button == 'left' and self.__frame in self.children:
             self.deactivate()
-            return consume
+            return True
+
+    def _check_hover(self, w, pos):
+        if self.__frame not in self.children:
+            return False
+        if np.linalg.norm(self.__dismiss_origin - pos) > self.auto_dismiss:
+            self.deactivate()
 
 
 class Modal(widgets.AnchorLayout):

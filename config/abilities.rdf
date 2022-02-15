@@ -5,6 +5,7 @@ color: cyan
 cooldown: base attack
 off_cooldown: passive
 sfx: attack
+info: Auto attack a target.
 -- ALT
 no_sfx
 -- alt.unconditional.unselect
@@ -36,7 +37,8 @@ type: base
 color: cyan
 cooldown: base attack
 off_cooldown: passive
-sfx: attack
+sfx: snipe
+info: Auto attack a target.
 -- ALT
 no_sfx
 -- alt.unconditional.unselect
@@ -49,13 +51,13 @@ cooldown: 0
 selection_distance: 200
 -- active.unconditional.select
 -- active.unconditional.show_select
-show_range: 175
+show_range=scale: 125, air, 250, 75
 -- active.unconditional.recast
 phase: passive
 -- PASSIVE
 requires_los
 target: selected
-range: 175
+range=scale: 125, air, 250, 75
 cooldown=reduc: 1.5, water, 0.2, 50
 --- passive.upcast.sfx
 --- passive.upcast.vfx-line
@@ -70,7 +72,7 @@ color: cyan
 sprite: shoot
 cooldown: base attack
 off_cooldown: passive
-sfx: attack
+sfx: snipe
 -- ACTIVE
 requires_los
 no_sfx
@@ -80,14 +82,14 @@ cooldown: 0
 selection_distance: 200
 -- active.unconditional.select
 -- active.unconditional.show_select
-show_range: 250
+show_range=scale: 200, air, 250, 50
 -- active.unconditional.recast
 phase: passive
 -- PASSIVE
 requires_los
 target: selected
-range: 250
-cooldown=reduc: 1.5, water, 0.2, 125
+range=scale: 200, air, 250, 50
+cooldown=reduc: 1.5, water, 0.2, 50
 --- passive.upcast.sfx
 --- passive.upcast.vfx-line
 --- passive.upcast.hit
@@ -99,7 +101,8 @@ type: base
 color: cyan
 cooldown: base attack
 off_cooldown: passive
-sfx: attack
+sfx: snipe
+info: Auto attack a target.
 -- ALT
 no_sfx
 -- alt.unconditional.unselect
@@ -112,13 +115,13 @@ cooldown: 0
 selection_distance: 200
 -- active.unconditional.select
 -- active.unconditional.show_select
-show_range=scale: 50, air, 400, 75
+show_range=scale: 125, air, 500, 75
 -- active.unconditional.recast
 phase: passive
 -- PASSIVE
 requires_los
 target: selected
-range=scale: 100, air, 450, 50
+range=scale: 125, air, 500, 75
 cooldown: 1.2
 --- passive.upcast.sfx
 --- passive.upcast.vfx-line
@@ -132,6 +135,7 @@ color: cyan
 cooldown: base attack
 off_cooldown: passive
 sfx: attack
+info: Auto attack a target.
 -- ALT
 no_sfx
 -- alt.unconditional.unselect
@@ -165,6 +169,7 @@ color: cyan
 cooldown: base attack
 off_cooldown: passive
 sfx: attack
+info: Auto attack a target. Altcast for blink to target.
 --- ACTIVE
 requires_los
 target: enemy
@@ -195,10 +200,13 @@ type: base
 color: cyan
 cooldown: base attack
 off_cooldown: passive
+sfx: attack
+info: Auto attack a target and steal mana.
 -- ALT
 -- alt.unconditional.unselect
 --- ACTIVE
 requires_los
+no_sfx
 target: enemy
 --- active.unconditional.select
 --- active.unconditional.show_select
@@ -224,6 +232,7 @@ type: base
 color: cyan
 sfx: attack2
 off_cooldown: passive
+info: Passively attack a target.
 --- PASSIVE
 requires_los
 target: enemy
@@ -239,13 +248,15 @@ type: base
 color: cyan
 sfx: attack2
 off_cooldown: passive
+info: Passively attack a target.
 --- PASSIVE
 requires_los
 target: enemy
 range: 30
-cooldown: 2.5
+cooldown: 3
 --- passive.upcast.hit
-damage=scale: 15, earth, 400, 150
+damage=scale: 20, earth, 400, 150
+--- passive.upcast.sfx
 
 
 
@@ -255,6 +266,7 @@ damage=scale: 15, earth, 400, 150
 type: base
 color: purple
 draft_cost: 60
+info: Pull or push an enemy to/from target point.
 -- ACTIVE
 target: other
 mana_cost: 15
@@ -283,7 +295,7 @@ distance: 500
 type: base
 color: purple
 draft_cost: 60
-info: Pull duration: 2s < [b]water[/b] §100 < 6s
+info: Suck enemies in an area toward one point.
 --- stats
 los=scale: 200, time, 600, 25
 -- ACTIVE
@@ -310,6 +322,7 @@ duration=scale: 2, water, 6, 100
 type: base
 draft_cost: 25
 color: black
+info: Sense your foes beyond the darkness.
 --- PASSIVE
 target: enemy
 selection_distance=scale: 500, water, 2000, 50
@@ -339,6 +352,7 @@ no_sfx
 type: base
 color: green
 draft_cost: 65
+info: Instantly teleport to the target point.
 --- ACTIVE
 point: fix
 mana_cost: 30
@@ -352,6 +366,7 @@ status_block: bounded
 type: base
 color: green
 draft_cost: 55
+info: Instantly teleport to the target point.
 --- ACTIVE
 point: fix
 mana_cost: 30
@@ -365,6 +380,7 @@ status_block: bounded
 === Heavy Slam
 type: base
 color: green
+info: Instantly teleport to the target point and apply slow to enemies on landing.
 -- ACTIVE
 point_target
 point: fix
@@ -374,6 +390,7 @@ radius: 350
 range=scale: 500, air, 1000, 25
 mana_cost: 50
 cooldown=reduc: 20, water, 4, 50
+include_hitbox
 status_block: bounded
 -- active.upcast.vfx-line
 -- active.upcast.vfx-circle
@@ -382,16 +399,17 @@ radius: 200
 color: 0.3, 0.4, 0, 0.6
 duration: 1
 fade: 1
+include_hitbox
+-- active.upcast.sfx
+sfx: blink
+-- active.upcast.sfx
+sfx: dunder beam
 -- active.upcast.teleport
 -- active.upcast.status
 target: area
 status: slow
 stacks: 80
 duration: 3
--- active.upcast.sfx
-sfx: blink
--- active.upcast.sfx
-sfx: dunder beam
 
 
 
@@ -401,6 +419,7 @@ type: base
 color: lime
 draft_cost: 25
 cooldown: base scroll
+info: Instantly teleport home.
 --- ACTIVE
 mana_cost: 10
 cooldown=reduc: 100, water, 20, 50
@@ -412,6 +431,7 @@ status_block: bounded
 type: base
 color: yellow
 draft_cost: 25
+info: Apply sensitivity on target.
 --- ACTIVE
 target: other
 mana_cost: 20
@@ -435,6 +455,7 @@ stacks=bonus: 25, earth, 0.75
 type: base
 color: yellow
 draft_cost: 20
+info: Apply slow on enemy.
 -- ACTIVE
 requires_los
 target: enemy
@@ -452,6 +473,7 @@ duration: 6
 type: base
 color: yellow
 draft_cost: 60
+info: Passively apply slow on the nearest enemy.
 -- PASSIVE
 target: enemy
 cooldown: 3
@@ -471,6 +493,7 @@ delta: 0.1
 type: base
 color: yellow
 draft_cost: 30
+info: Bind an enemy.
 --- ACTIVE
 target: enemy
 mana_cost: 35
@@ -489,6 +512,7 @@ type: base
 color: yellow
 draft_cost: 15
 sfx: root
+info: Bind an enemy.
 --- ACTIVE
 requires_los
 target: enemy
@@ -508,6 +532,7 @@ stacks: 1
 type: base
 color: yellow
 draft_cost: 25
+info: Apply vanity to targets in an area.
 -- ACTIVE
 point_target
 area: circle
@@ -519,7 +544,7 @@ range: 500
 --- active.upcast.status
 target: area
 status: vanity
-stacks=scale: 30, earth, 300, 100
+stacks=scale: 30, physical, 300, 100
 duration: 8
 --- active.upcast.vfx-line
 --- active.upcast.vfx-circle
@@ -536,15 +561,16 @@ type: base
 color: yellow
 draft_cost: 45
 sfx: compliment
+info: Add stacking vanity on target.
 -- ACTIVE
 target: other
-mana_cost: 20
+mana_cost: 30
 cooldown: 1
 range=scale: 300, air, 700, 50
 --- active.upcast.vfx-line
 --- active.upcast.status
 status: vanity
-stacks=scale: 20, water, 80, 100
+stacks_add=scale: 10, water, 40, 100
 duration: 6
 
 
@@ -553,6 +579,7 @@ duration: 6
 type: base
 color: yellow
 draft_cost: 40
+info: Apply cuts on an enemy.
 --- ACTIVE
 requires_los
 target: enemy
@@ -572,6 +599,7 @@ type: base
 color: yellow
 draft_cost: 40
 off_cooldown: passive
+info: Apply darkness on enemy.
 --- PASSIVE
 target: selected
 mana_cost: 5
@@ -597,6 +625,7 @@ passive
 === Meditate
 type: base
 color: blue
+info: Gain sensitivity.
 --- ACTIVE
 mana_cost: 120
 cooldown: 100
@@ -615,6 +644,7 @@ duration: 15
 type: base
 color: blue
 draft_cost: 70
+info: Gain lifesteal.
 --- ACTIVE
 target: self
 mana_cost: 40
@@ -636,6 +666,7 @@ duration=scale: 15, water, 35, 100
 type: base
 color: blue
 draft_cost: 50
+info: Gain armor passively. Activate for more.
 --- stats
 armor=scale: 10, earth, 50, 125
 --- ACTIVE
@@ -652,6 +683,7 @@ stacks=bonus: 10, earth, 1
 type: base
 color: blue
 draft_cost: 50
+info: Gain reflect passively. Activate for more.
 --- stats
 reflect=scale: 20, physical, 100, 125
 --- ACTIVE
@@ -668,6 +700,7 @@ stacks=scale: 25, physical, 300, 150
 type: base
 color: blue
 draft_cost: 50
+info: Activate to gain spikes.
 --- stats
 --- ACTIVE
 target: self
@@ -684,6 +717,7 @@ type: base
 color: blue
 sprite: spikes
 sfx: fireblast
+info: Passively stack spikes on yourself. Activate for blast based on total spikes.
 --- PASSIVE
 target: self
 --- passive.unconditional.status
@@ -693,6 +727,7 @@ max_stacks=scale: 10, earth, 100, 75
 --- ACTIVE
 target: other
 point_target
+include_hitbox
 point: self
 area: circle
 radius: 400
@@ -708,6 +743,7 @@ stacks: 0
 center: point
 radius: 400
 color: 0, 0, 0.7, 0.5
+include_hitbox
 
 
 === Vortex
@@ -715,6 +751,7 @@ type: base
 color: red
 sfx: implosion
 draft_cost: 100
+info: Blast at short range. Virtually no cooldown.
 -- ACTIVE
 point_target
 point: fix
@@ -742,6 +779,7 @@ color: red
 sprite: vortex
 sfx: implosion
 draft_cost: 100
+info: Blast at short range. Virtually no cooldown.
 -- ACTIVE
 target: other
 selection_distance: 50
@@ -766,6 +804,7 @@ type: base
 color: red
 sfx: implosion
 draft_cost: 110
+info: Blast at range. Virtually no cooldown.
 -- ACTIVE
 point_target
 point: fix
@@ -790,6 +829,7 @@ fade: 0.5
 type: base
 color: red
 draft_cost: 70
+info: Blast in an area.
 -- ACTIVE
 point_target
 target: other
@@ -813,6 +853,7 @@ type: base
 color: red
 draft_cost: 40
 sfx: fireblast
+info: Blast others and yourself in an area.
 -- ACTIVE
 point_target
 point: self
@@ -837,6 +878,9 @@ fade: 1.5
 type: base
 color: brown
 sfx: implosion
+--- info
+~Off cooldown: slow aura.
+~On cooldown: mana steal aura.
 -- PASSIVE
 point_target
 target: enemy
@@ -862,6 +906,7 @@ no_sfx
 type: base
 color: brown
 draft_cost: 110
+info: HP degen aura.
 --- PASSIVE
 point_target
 point: self
@@ -879,6 +924,7 @@ delta=scale: 3, fire, 300, 200
 hidden
 type: base
 color: brown
+info: HP degen aura.
 --- PASSIVE
 point_target
 point: self
@@ -896,47 +942,51 @@ delta=scale: 3, fire, 300, 100
 type: base
 draft_cost: 30
 -- stats
-mana.max=scale: 20, time, 500, 25
+mana.max=scale: 20, time, 900, 75
 === Exocrust
 type: base
 draft_cost: 30
 -- stats
-hp.max=scale: 20, time, 500, 25
+hp.max=scale: 20, time, 900, 75
 === Natural Medicine
 type: base
 --- stats
-hp.delta=scale: 2, time, 30, 25
+hp.delta=scale: 2, time, 75, 75
+=== Ether Diffusion
+type: base
+--- stats
+mana.delta=scale: 2, time, 75, 75
 
 === Physical Essence
 type: base
 sprite: physical
 draft_cost: 30
 -- stats
-physical=scale: 20, time, 100, 25
+physical=scale: 10, time, 100, 50
 === Fire Essence
 type: base
 sprite: fire
 draft_cost: 30
 -- stats
-fire=scale: 20, time, 100, 25
+fire=scale: 10, time, 100, 50
 === Earth Essence
 type: base
 sprite: earth
 draft_cost: 30
 -- stats
-earth=scale: 20, time, 100, 25
+earth=scale: 10, time, 100, 50
 === Air Essence
 type: base
 sprite: air
 draft_cost: 30
 -- stats
-air=scale: 20, time, 100, 25
+air=scale: 10, time, 100, 50
 === Water Essence
 type: base
 sprite: water
 draft_cost: 30
 -- stats
-water=scale: 20, time, 100, 25
+water=scale: 10, time, 100, 50
 
 
 
@@ -945,12 +995,14 @@ water=scale: 20, time, 100, 25
 === Run
 type: base
 draft_cost: 30
+info: Gain movespeed.
 --- stats
 movespeed: 25
 === Walk
 type: base
 sprite: walk
 draft_cost: 60
+info: Gain movespeed based on air.
 --- stats
 movespeed=scale: 5, air, 60, 25
 los: 200
@@ -958,18 +1010,21 @@ los: 200
 type: base
 sprite: walk
 draft_cost: 60
+info: Gain movespeed based on fire.
 --- stats
 movespeed=scale: 5, fire, 60, 50
 === Hike
 type: base
 sprite: walk
 draft_cost: 60
+info: Gain movespeed based on earth.
 --- stats
 movespeed=scale: 5, earth, 60, 50
 === Flow
 type: base
 sprite: walk
 draft_cost: 60
+info: Gain movespeed based on water.
 --- stats
 movespeed=scale: 5, water, 60, 50
 
@@ -1038,16 +1093,36 @@ mana.max=scale: 20, fire, 60, 100
 === Deck
 hidden
 type: base
+info: Stacking vanity aura.
 -- stats
-hp.max=scale: 10, earth, 100, 100
-hp.delta: 5
+hp.max=scale: 20, earth, 40, 100
+hp.delta: 4
+--- PASSIVE
+point_target
+target: enemy
+cooldown: 5
+area: circle
+radius=scale: 250, water, 500, 50
+include_hitbox
+--- passive.upcast.vfx-circle
+center: point
+radius=scale: 150, water, 500, 50
+duration: 1
+fade: 0.5
+color: 1, 0.25, 0, 0.25
+include_hitbox
+--- passive.upcast.status
+target: area
+status: vanity
+stacks_add=scale: 10, physical, 20, 50
+duration: 6
 
 
 === Gloves
 hidden
 type: base
 --- stats
-armor=scale: 10, earth, 50, 50
+armor=scale: 10, earth, 30, 50
 reflect=scale: 15, physical, 70, 50
 spikes=scale: 15, fire, 30, 50
 
@@ -1056,8 +1131,9 @@ spikes=scale: 15, fire, 30, 50
 hidden
 type: base
 sfx: bloodlust
+info: Activate to gain lifesteal.
 --- stats
-vanity: 15
+movespeed: 10
 los: 250
 --- ACTIVE
 mana_cost: 5
@@ -1066,12 +1142,12 @@ cooldown: 18
 target: self
 status: lifesteal
 duration: 5
-stacks: 60
+stacks_add: 50
 --- active.upcast.status.2
 target: self
 status: darkness
 duration: 5
-stacks: 60
+stacks_add: 50
 
 
 
@@ -1084,33 +1160,14 @@ hp.max=scale: 30, earth, 150, 25
 hp.delta=scale: 2, earth, 10, 25
 
 
-
-=== Broadsword
-hidden
-type: base
-sfx: slash
---- ACTIVE
-requires_los
-target: enemy
-mana_cost: 10
-cooldown: 4
-range: 100
---- active.upcast.status
-status: cuts
-duration: 2
-stacks=scale: 20, fire, 80, 50
-
-
-
 === Manuscript
 hidden
 type: base
 sfx: scroll
 cooldown: base scroll
 off_cooldown: passive
-info: Gain access to higher tier shop. Passively remove [i]bounded[/i].
+info: Scroll-like. Gain higher tier shop access. Passively remove bindings.
 --- stats
-movespeed=scale: 5, air, 20, 50
 shop: 1
 --- PASSIVE
 target: self
@@ -1131,45 +1188,95 @@ status_block: bounded
 --- active.upcast.teleport-home
 
 
+
 === Clover
 hidden
 type: base
+info: Binding aura.
 --- stats
-los=scale: 300, air, 600, 50
 hp.delta=scale: 3, earth, 8, 75
-mana.delta=scale: 4, water, 10, 75
+mana.delta=scale: 6, water, 15, 75
+--- PASSIVE
+target: enemy
+range=scale: 300, air, 600, 50
+cooldown: 2
+--- passive.upcast.status
+target: single
+status: bounded
+stacks: 1
+duration=scale: 0.5, air, 1.5, 50
+--- passive.upcast.vfx-line
+color: purple
+--- passive.upcast.sfx
+sfx: root
+
+
+=== Broadsword
+hidden
+type: base
+sfx: slash
+info: Passively get movespeed, or activate to apply cuts.
+--- PASSIVE
+--- passive.upcast.status
+target: self
+status: movespeed
+stacks: 15
+--- ACTIVE
+requires_los
+target: enemy
+mana_cost: 25
+cooldown: 5
+range=scale: 400, air, 600, 50
+--- active.upcast.status
+status: cuts
+duration: 10
+stacks_add=scale: 10, air, 20, 50
+--- active.upcast.vfx-line
+
+
 
 
 === Whip
 hidden
 type: base
 sfx: root
+info: Activate to bind and darken your target, while gaining movespeed.
 --- stats
 mana.delta=scale: 2, water, 10, 75
 --- ACTIVE
 target: other
 mana_cost: 10
 cooldown: 3
-range=scale: 100, air, 600, 50
+range=scale: 300, air, 600, 50
 --- active.upcast.vfx-line
+--- active.upcast.status
+target: self
+status: movespeed
+duration: 1.5
+stacks: 100
 --- active.upcast.status
 status: bounded
 duration: 2.5
 stacks: 1
+--- active.upcast.status
+status: darkness
+duration: 5
+stacks_add: 50
 
 
 === Plated Armor
 hidden
 type: base
 --- stats
-armor=scale: 20, earth, 100, 50
+armor=scale: 25, earth, 80, 100
 spikes=scale: 25, earth, 50, 50
 
 === Cold Staff
 hidden
 type: base
+info: Slow aura.
 --- stats
-mana.delta=scale: 15, water, 30, 50
+mana.delta=scale: 10, water, 25, 100
 --- PASSIVE
 point_target
 target: other
@@ -1186,6 +1293,7 @@ radius=scale: 400, earth, 700, 50
 duration: 1
 fade: 1
 color: 0, 0, 1, 0.3
+include_hitbox
 
 
 
@@ -1194,6 +1302,9 @@ color: 0, 0, 1, 0.3
 hidden
 type: base
 off_cooldown: passive
+info: Cuts aura. Activate to hit all aura targets.
+--- stats
+hp.max=scale: 50, earth, 150, 100
 --- PASSIVE
 point_target
 target: enemy
@@ -1238,11 +1349,23 @@ hidden
 type: base
 sfx: scroll
 cooldown: base scroll
-info: Always have access to all shops. Gain LOS and movespeed.
+info: Scroll-like. Gain all shop access, LOS and movespeed. Passively remove bindings.
 --- stats
 los=scale: 800, air, 1500, 50
-movespeed=scale: 30, air, 40, 50
+movespeed: 30
 shop: 3
+--- PASSIVE
+target: self
+cooldown=reduc: 2, air, 0.25, 50
+status_require: bounded
+--- passive.upcast.sfx
+sfx: select
+category: ui
+--- passive.upcast.status
+target: self
+status: bounded
+stacks: 0
+duration: 0
 --- ACTIVE
 mana_cost: 10
 cooldown=reduc: 100, water, 20, 50
@@ -1254,13 +1377,25 @@ status_block: bounded
 === Blessed Shield
 hidden
 type: base
+info: Activate to gain a temporary stock.
 --- stats
 reflect=scale: 100, physical, 300, 75
 los=scale: 200, air, 800, 100
+--- ACTIVE
+target: self
+cooldown: 300
+--- active.upcast.status
+status: stocks
+stacks: 1
+duration: 5
+
 
 === Headpiece
 hidden
 type: base
+info: Passively gain armor. Activate for more.
+--- stats
+armor=scale: 50, earth, 100, 100
 --- ACTIVE
 target: self
 mana_cost: 25
@@ -1275,16 +1410,16 @@ stacks=scale: 20, earth, 500, 5
 hidden
 type: base
 --- stats
-mana.max=scale: 200, water, 400, 50
-mana.delta=scale: 20, water, 30, 50
+mana.max=scale: 175, water, 300, 50
+mana.delta=scale: 10, water, 25, 75
 hitbox=scale: -15, water, -30, 50
 
 === Pulsar
 hidden
 type: base
 --- stats
-hp.max=scale: 300, earth, 500, 50
-hp.delta=scale: 12, earth, 20, 50
+hp.max=scale: 150, earth, 300, 75
+hp.delta=scale: 12, earth, 25, 50
 hitbox=scale: 20, earth, 40, 50
 
 
@@ -1292,6 +1427,7 @@ hitbox=scale: 20, earth, 40, 50
 === Book of Death
 hidden
 type: base
+info: HP degen aura.
 -- PASSIVE
 point_target
 target: enemy
@@ -1301,7 +1437,48 @@ include_hitbox
 --- passive.upcast.degen
 target: area
 stat: hp
-delta=scale: 30, fire, 250, 100
+delta=scale: 150, fire, 300, 100
+
+
+=== Wand
+hidden
+type: base
+--- stats
+hp.max: 350
+mana.delta: 20
+hitbox: 20
+
+
+=== Green Egg
+hidden
+type: base
+--- stats
+mana.max: 350
+hp.delta: 15
+hitbox: -20
+
+
+=== Spear
+hidden
+type: base
+info: Activate to apply intense darkness to enemies in a large area.
+--- stats
+physical: 40
+lifesteal: 50
+darkness: 60
+--- ACTIVE
+point_target
+point: self
+target: enemy
+area: circle
+radius: 1000
+include_hitbox
+cooldown: 12
+--- active.upcast.status
+target: area
+status: darkness
+stacks: 300
+duration: 4
 
 
 === Ice Blade
@@ -1310,12 +1487,15 @@ type: base
 color: cyan
 sfx: attack2
 off_cooldown: passive
+info: Passively attack nearest target. High attack speed, low damage.
+--- stats
+water: 40
 --- PASSIVE
 target: enemy
 range: 30
 cooldown: 0.2
 --- passive.upcast.hit
-damage: 1
+damage=scale: 10, water, 20, 50
 --- passive.upcast.sfx
 
 
@@ -1324,6 +1504,9 @@ hidden
 type: base
 color: red
 sfx: slash
+info: Apply cuts to enemy. Scales incredibly.
+--- stats
+fire: 40
 --- ACTIVE
 requires_los
 target: enemy
@@ -1346,6 +1529,7 @@ stacks=scale: 20, fire, 500, 50
 === Shopkeeper
 hidden
 type: base
+info: Offering wares for sale.
 --- PASSIVE
 point_target
 point: self
@@ -1361,6 +1545,7 @@ hidden
 type: base
 color: brown
 sprite: fountain
+info: HP regen for nearby allies.
 -- PASSIVE
 point_target
 target: ally
@@ -1386,6 +1571,7 @@ hidden
 type: base
 color: brown
 sprite: fountain
+info: Mana regen for nearby allies.
 -- PASSIVE
 point_target
 target: ally
@@ -1414,24 +1600,28 @@ stacks: 1
 === Map Editor Eraser
 hidden
 type: base
+info: Erase a biome droplet.
 --- ACTIVE
 --- active.upcast.mapeditor
 remove
 === Map Editor Toggle
 hidden
 type: base
+info: Toggle a biome droplet.
 --- ACTIVE
 --- active.upcast.mapeditor
 toggle
 === Map Editor Pipette
 hidden
 type: base
+info: Copy a biome droplet.
 --- ACTIVE
 --- active.upcast.mapeditor
 pipette
 === Map Editor Droplet
 hidden
 type: base
+info: Paste a biome droplet.
 --- ACTIVE
 --- active.upcast.mapeditor
 add
@@ -1505,6 +1695,20 @@ stat: water
 delta: -25
 
 
+=== Dev Snipe
+hidden
+type: base
+sfx: snipe
+sprite: snipe
+--- ACTIVE
+target: other
+include_self
+--- active.upcast.hit
+damage: 10_000
+--- active.upcast.vfx-line
+
+
+
 === Dev Blast
 hidden
 type: base
@@ -1532,7 +1736,6 @@ sprite: dark touch
 --- ACTIVE
 target: enemy
 --- active.upcast.status
-status: darkness
 status: darkness
 stacks_add: 25
 duration: 5

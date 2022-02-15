@@ -18,9 +18,10 @@ from engine.unit import Unit as BaseUnit
 from logic.data import RAW_UNITS, ABILITIES
 from logic.items import ITEMS, ITEM_CATEGORIES
 from logic.mechanics import Mechanics
-
-
 RNG = np.random.default_rng()
+
+
+STARTING_PLAYER_STOCKS = 3
 
 
 class Slots:
@@ -98,6 +99,8 @@ class Slots:
 class Unit(BaseUnit):
     _respawn_timer = 12000  # ~ 2 minutes
     say = ''
+    win_on_death = False
+    lose_on_death = False
 
     @staticmethod
     def _get_default_stats():
@@ -109,6 +112,7 @@ class Unit(BaseUnit):
         table[:, VALUE.MIN] = 0
         table[:, VALUE.MAX] = LARGE_ENOUGH
 
+        table[STAT.STOCKS, VALUE.MIN] = -LARGE_ENOUGH
         table[STAT.ALLEGIANCE, VALUE.MIN] = -LARGE_ENOUGH
         table[STAT.ALLEGIANCE, VALUE.CURRENT] = 1
         table[(STAT.POS_X, STAT.POS_Y), VALUE.MIN] = -LARGE_ENOUGH
@@ -152,8 +156,8 @@ class Unit(BaseUnit):
         self.cache = defaultdict(lambda: None)
         self.always_visible = True if 'always_visible' in self.p.positional else False
         self.always_active = True if 'always_active' in self.p.positional else False
-        self.win_on_death = False
-        self.lose_on_death = False
+        self.death_sfx = raw_data['death_sfx'] if 'death_sfx' in raw_data else f'death-unit{RNG.integers(4)+1}'
+        self.respawn_sfx = raw_data['respawn_sfx'] if 'respawn_sfx' in raw_data else 'respawn-unit'
         self.api = api
         self.engine = api.engine
         self.name = self.__start_name = raw_data.default['name'] if 'name' in raw_data.default else name
@@ -236,8 +240,9 @@ class Unit(BaseUnit):
         return self._ability_slots.slots
 
     @property
-    def total_draft_cost(self):
-        return sum([ABILITIES[a].draft_cost for a in self.ability_slots if a is not None])
+    def draft_cost(self):
+        nones = self.ability_slots.count(None)
+        return round(sum([ABILITIES[a].draft_cost for a in self.ability_slots if a is not None]) / (8-nones))
 
     def set_spawn_location(self, spawn):
         self.starting_stats[(STAT.POS_X, STAT.POS_Y), VALUE.CURRENT] = spawn
@@ -270,6 +275,19 @@ class Unit(BaseUnit):
 
             item = ITEMS[iid]
             item.active(self.api, self.uid, target, alt)
+
+    def buy_item(self, iid):
+        r = ITEMS[iid].buy_item(self.engine, self.uid)
+        self.api.play_feedback(r if isinstance(r, FAIL_RESULT) else 'shop', self.uid)
+
+    def sell_item(self, item_index):
+        iid = self.item_slots[item_index]
+        if iid is None:
+            return
+        item = ITEMS[iid]
+        r = item.sell_item(self.engine, self.uid)
+        self.api.play_feedback(r if isinstance(r, FAIL_RESULT) else 'shop', self.uid)
+        self.check_win_condition()
 
     def use_ability_slot(self, index, target, alt=0):
         aid = self.ability_slots[index]
@@ -345,12 +363,20 @@ class Unit(BaseUnit):
         pass
 
     def hp_zero(self):
-        logger.info(f'{self} died.')
+        if self.engine.get_status(self.uid, STATUS.STOCKS) == 0:
+            self.engine.set_stats(self.uid, STAT.STOCKS, -1, additive=True)
+        self.engine.set_status(self.uid, STATUS.STOCKS, 0, 0)
+        logger.info(f'{self} died. Remaining stocks: {self.stocks}')
+        self.play_death_sfx()
         self._respawn_gold = self.engine.get_stats(self.uid, STAT.GOLD)
         self.engine.set_status(self.uid, STATUS.RESPAWN, self._respawn_timer, 1)
+        self.check_win_condition()
 
-    def death_sfx(self):
-        Assets.play_sfx('ui', 'unit-death', volume='feedback')
+    def play_death_sfx(self):
+        Assets.play_sfx('ui', self.death_sfx, volume='feedback')
+
+    def play_respawn_sfx(self):
+        Assets.play_sfx('ui', self.respawn_sfx, volume='feedback')
 
     def status_zero(self, status):
         logger.debug(f'{self} lost status: {status.name}.')
@@ -369,6 +395,7 @@ class Unit(BaseUnit):
         self.engine.kill_statuses(self.uid)
         if reset_gold:
             self.engine.set_stats(self.uid, STAT.GOLD, self._respawn_gold)
+        self.play_respawn_sfx()
 
     @property
     def networth_str(self):
@@ -384,7 +411,7 @@ class Unit(BaseUnit):
     def debug_str(self, verbose=False):
         velocity = self.engine.get_velocity(self.uid)
         s = [
-            f'Draft cost: {self.total_draft_cost}',
+            f'Draft cost: {self.draft_cost}',
             f'Current velocity: {s2ticks(velocity):.2f}/s ({velocity:.2f}/t)',
             f'Action phase: {self.uid % self.api.engine.AGENCY_PHASE_COUNT}',
             f'Agency: {self.api.engine.timers["agency"][self.uid].mean_elapsed_ms:.3f} ms',
@@ -409,30 +436,39 @@ class Unit(BaseUnit):
     def __repr__(self):
         return f'{self.name} #{self.uid}'
 
+    def check_win_condition(self):
+        pass
+
+    @property
+    def stocks(self):
+        return round(Mechanics.get_status(self.engine, self.uid, STAT.STOCKS))
+
 
 class Player(Unit):
     say = 'Let\'s defeat the boss!'
 
     def _setup(self):
+        self.engine.set_stats(self.uid, STAT.STOCKS, STARTING_PLAYER_STOCKS)
         self._respawn_timer = 500
         self._respawn_timer_scaling = 100
-        Assets.play_sfx('ability', 'player-respawn', volume='feedback')
-
-    def death_sfx(self):
-        Assets.play_sfx('ui', 'player-death', volume='feedback')
-
-    def hp_zero(self):
-        super().hp_zero()
+        self.death_sfx = 'death-player'
+        self.respawn_sfx = 'respawn-player'
+        if not self.api.dev_build:
+            self.play_respawn_sfx()
 
     def respawn(self):
         super().respawn(reset_gold=False)
         self._respawn_timer += self._respawn_timer_scaling
-        Assets.play_sfx('ability', 'player-respawn', volume='feedback')
+
+    def check_win_condition(self):
+        if self.stocks <= 0:
+            self.api.end_encounter(win=False)
 
 
 class Creep(Unit):
     say = 'I\'m coming for that fort!'
     def _setup(self):
+        self.respawn_sfx = 'respawn-wave' if self.respawn_sfx == 'respawn-unit' else self.respawn_sfx
         self.color = (1, 0, 0)
         self.wave_interval = int(float(self.p['wave']) * 100)
         self.wave_offset = int(float(self.p['wave_offset']) * 100)
@@ -455,7 +491,6 @@ class Creep(Unit):
             self.scale_power()
         self.first_wave = False
         self.use_walk(self.target)
-        Assets.play_sfx('ability', 'wave-respawn', volume='feedback', replay=False)
 
     def scale_power(self):
         currents = [STAT.PHYSICAL, STAT.FIRE, STAT.EARTH, STAT.WATER, STAT.GOLD]
@@ -545,9 +580,14 @@ class Camper(Unit):
 
 class Boss(Camper):
     say = 'Foolishly brave are we?'
+
     def _setup(self):
-        self.win_on_death = True
         super()._setup()
+        self.death_sfx = ''
+
+    def check_win_condition(self):
+        if self.stocks <= 0:
+            self.api.end_encounter(win=True)
 
 
 class Treasure(Unit):
@@ -571,9 +611,11 @@ class Shopkeeper(Unit):
 
 class Fountain(Unit):
     say = 'Bestowing life is a great pleasure'
+
     def _setup(self):
         self.set_abilities([ABILITY.FOUNTAIN_AURA])
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
+        self.death_sfx = ''
 
 
 class Fort(Fountain):
@@ -581,7 +623,11 @@ class Fort(Fountain):
     def _setup(self):
         self.set_abilities([ABILITY.FORT_AURA])
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
-        self.lose_on_death = True
+        self.death_sfx = ''
+
+    def check_win_condition(self):
+        if self.stocks <= 0:
+            self.api.end_encounter(win=False)
 
 
 class DPSMeter(Unit):

@@ -23,7 +23,7 @@ Targets = collections.namedtuple('Targets', ['aid', 'dt', 'fails', 'source', 'po
 
 class BaseAbility:
     PHASE = PHASE
-    info = 'Missing description.'
+    info = ''
     debug = False
     color = 0.5, 0.5, 0.5
     draft_cost = 100
@@ -75,12 +75,14 @@ class BaseAbility:
             return
         unit = api.units[uid]
         for i, (stat, value, formula) in enumerate(self.stats):
-            pre_stat = api.get_stats(uid, stat, value)
             pre_bonus = unit.cache[f'{self}-stats'][i][2]
             target = formula.get_value(api, uid)
             if value is VALUE.DELTA:
                 target = ticks2s(target)
             delta = target - pre_bonus
+            if delta == 0:
+                continue
+            pre_stat = api.get_stats(uid, stat, value)
             api.set_stats(uid, stat, delta, value, additive=True)
             post_stat = api.get_stats(uid, stat, value)
             actual_delta = round(post_stat - pre_stat, 4)
@@ -157,7 +159,7 @@ class BaseAbility:
         return self._description((api, uid))
 
     def stats_str(self, au):
-        strs = ['[u]Passive stat bonus:[/u]']
+        strs = []
         for s, v, f in self.stats:
             name = stat_name = s.name.lower().capitalize()
             name = f'{stat_name}'
@@ -171,18 +173,17 @@ class BaseAbility:
             elif v is VALUE.TARGET:
                 name = f'Target {stat_name}'
             strs.append(f'[b]{name}:[/b] {value}')
-        if len(strs) > 1:
-            return strs
-        return []
+        return '\n'.join(strs)
 
     def _description(self, au=None):
-        s = [
-            self.info,
-            self.shared_cooldown_repr,
-            '',
-        ]
+        s = []
+        if self.info:
+            s.append(self.info)
         if self.stats:
-            s.extend(self.stats_str(au))
+            s.append(f'\n[u]Passive stat bonus:[/u]\n{self.stats_str(au)}')
+        s.append('_'*30)
+        if self.aid != self.cooldown_aid:
+            s.append(f'Shares cooldown with: {self.__shared_cooldown_name}')
         for phase in self.phases.values():
             s.extend(phase.description(au))
         sr = self.selected_repr(au)
@@ -210,7 +211,7 @@ class BaseAbility:
     @property
     def shared_cooldown_repr(self):
         if self.aid != self.cooldown_aid:
-            return f'Shares cooldown with: {self.__shared_cooldown_name}'
+            return
         return ''
 
     def cache_selected(self, api, uid):
@@ -459,7 +460,7 @@ class Phase:
                 if not self.targeting_point and range_distance > range:
                     if self.show_miss:
                         single_target_vector = api.get_positions(single_target_uid) - source_point
-                        miss_point = source_point + normalize(single_target_vector, range)
+                        miss_point = source_point + normalize(single_target_vector, range + Mechanics.get_stats(api, uid, STAT.HITBOX))
                         self.draw_miss(api, uid, p1=source_point, p2=miss_point)
                     single_target_uid = None
                     fails.add(FAIL_RESULT.OUT_OF_RANGE)

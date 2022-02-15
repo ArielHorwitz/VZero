@@ -103,7 +103,11 @@ class RDF(dict):
         positional_values = []
         keyed_values = {}
         for line in lines:
-            if ': ' in line:
+            escape_keyvalue = False
+            if line.startswith('~'):
+                escape_keyvalue = True
+                line = line[1:]
+            if ': ' in line and not escape_keyvalue:
                 k, v = line.split(': ', 1)
                 keyed_values[k] = try_float(v)
             elif line != '':

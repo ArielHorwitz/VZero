@@ -30,6 +30,7 @@ class Encounter(widgets.RelativeLayout):
         super().__init__(**kwargs)
         self.api = api
         self.timers = defaultdict(RateCounter)
+        self.detailed_info_mode = False
         self.__units_per_pixel = self.DEFAULT_UPP
         self.__holding_mouse = False
         self.__enable_hold_mouse = Settings.get_setting('enable_hold_mouse', 'Hotkeys') == 1
@@ -67,6 +68,9 @@ class Encounter(widgets.RelativeLayout):
 
         self.make_hotkeys()
 
+    def toggle_detailed_info_mode(self, *a, **k):
+        self.detailed_info_mode = not self.detailed_info_mode
+
     def redraw_map(self):
         self.tilemap.source = str(self.api.map_image_source)
         logger.info(f'Redraw map: {self.tilemap.source}')
@@ -93,7 +97,7 @@ class Encounter(widgets.RelativeLayout):
         with ratecounter(self.timers['frame_total']):
             overlay_height = self.overlays['hud'].overlay_height + self.overlays['logic_label'].overlay_height
             usable_view_size = np.array(self.size) - [0, overlay_height]
-            self.api.update(usable_view_size)
+            self.api.update(usable_view_size, self.detailed_info_mode)
             with ratecounter(self.timers['graphics_total']):
                 self._update()
                 for timer, frame in self.overlays.items():
@@ -135,7 +139,9 @@ class Encounter(widgets.RelativeLayout):
             self.__holding_mouse = False
 
     def make_hotkeys(self):
-        hotkeys = []
+        hotkeys = [
+            ('toggle_detailed', Settings.get_setting('toggle_detailed', 'Hotkeys'), self.toggle_detailed_info_mode),
+        ]
         # Logic API
         api_actions = (
             'toggle_play', 'toggle_map', 'zoom_in', 'zoom_out', 'reset_view',

@@ -171,7 +171,8 @@ class EncounterAPI:
         return self.engine.get_position(0, value_name=VALUE.TARGET)
 
     # Logic handlers
-    def update(self, gui_size):
+    def update(self, gui_size, detailed_info_mode):
+        self.detailed_info_mode = detailed_info_mode
         self.gui_size = np.array(gui_size)
         self.view_size = self.gui_size * self.upp
 
@@ -281,7 +282,7 @@ class EncounterAPI:
     def sprite_visible_mask(self):
         max_los = self.player_los
         if self.dev_mode:
-            max_los = max(max_los, np.linalg.norm(self.view_size) / 2)
+            max_los = float('inf')
         return self.engine.unit_distance(0) <= max_los
 
     def sprite_positions(self):

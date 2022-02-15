@@ -10,6 +10,7 @@ import nutil
 from nutil.kex import widgets
 from nutil.time import RateCounter, pingpong
 from data import TITLE, FPS
+from data.assets import Assets
 from data.settings import Settings
 from gui.home import HomeGUI
 from gui.encounter.encounter import Encounter
@@ -56,6 +57,8 @@ class App(widgets.App):
             ('Tab: Encounter', '^+ f2', lambda *a: self.switch.switch_screen('enc')),
         ]:
             self.app_hotkeys.register(*params)
+        if not Settings.get_setting('dev_build', 'General'):
+            Assets.play_sfx('ui', 'welcome', volume='ui')
 
     def toggle_window_borderless(self, set_as=None):
         if widgets.kvWindow.fullscreen:

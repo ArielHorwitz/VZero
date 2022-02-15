@@ -14,3 +14,7 @@ ROOT_DIR = pathlib.Path.cwd()
 
 def resource_name(name):
     return name.lower().replace(' ', '-').replace('_', '-')
+
+
+from data.settings import Settings
+DEV_BUILD = Settings.get_setting('dev_build', 'General') != 0

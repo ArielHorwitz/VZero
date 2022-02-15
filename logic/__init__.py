@@ -12,6 +12,7 @@ from data.load import RDF
 
 
 MECHANICS_NAMES = [
+    'STOCKS',
     'SHOP',
     'LOS',
     'DARKNESS',

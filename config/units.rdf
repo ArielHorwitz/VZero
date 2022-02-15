@@ -23,12 +23,14 @@ wave_offset: 270
 scaling: 1.15
 always_active
 always_visible
+respawn_sfx: respawn-wave
 --- stats
 movespeed: 20
 hitbox: 75
 gold: 50
 hp.max: 100
 physical: 20
+movespeed: 20
 
 === Huge creep
 type: creep
@@ -38,13 +40,14 @@ wave_offset: 285
 scaling: 1.15
 always_active
 always_visible
+respawn_sfx: respawn-wave2
 --- stats
 movespeed: 20
 hitbox: 150
 gold: 150
 hp.max: 300
 physical: 60
-air: 8
+movespeed: 20
 
 
 
@@ -68,7 +71,7 @@ spikes: 20
 
 ====== Penguin
 type: camper
-abilities: shoot
+abilities: monster shoot
 aggro_range: 400
 deaggro_range: 700
 reaggro_range: 500
@@ -80,7 +83,7 @@ hp.max: 35
 hp.delta: 0.0001
 mana.delta: 0.01
 physical: 15
-air: 5
+water: 20
 
 ====== Glob
 type: camper
@@ -114,6 +117,7 @@ mana.max: 40
 mana.delta: 0.001
 physical: 5
 air: 55
+movespeed: 30
 
 ====== Slank
 type: camper
@@ -148,10 +152,11 @@ mana.max: 40
 mana.delta: 0.001
 physical: 5
 air: 20
+movespeed: 40
 
 ====== Blood Imp
 type: camper
-abilities: attack, fireblast
+abilities: fireblast, attack
 aggro_range: 550
 deaggro_range: 650
 reaggro_range: 100
@@ -162,9 +167,8 @@ gold: 24
 hp.max: 20
 hp.delta: 0.005
 mana.max: 40
-mana.delta: 0.015
+mana.delta: 0.03
 fire: 10
-air: 20
 
 
 
@@ -173,7 +177,7 @@ air: 20
 
 ====== Folphin
 type: camper
-abilities: attack, compliment, fireblast
+abilities: compliment, fireblast, attack
 aggro_range: 400
 deaggro_range: 800
 reaggro_range: 600
@@ -220,6 +224,7 @@ mana.delta: 0.005
 hp.delta: 0.005
 physical: 35
 air: 30
+movespeed: 35
 
 
 ====== Gnome
@@ -239,6 +244,7 @@ mana.delta: 0.05
 fire: 35
 air: 2
 reflect: 30
+movespeed: 5
 
 
 ====== Shako
@@ -259,7 +265,7 @@ air: 15
 
 ====== Phaser
 type: camper
-abilities: attack, nuke
+abilities: nuke
 aggro_range: 450
 deaggro_range: 800
 reaggro_range: 400
@@ -270,8 +276,7 @@ gold: 100
 hp.max: 170
 hp.delta: 0.05
 fire: 10
-physical: 20
-air: 12
+movespeed: 40
 
 
 
@@ -293,7 +298,7 @@ hp.delta: 0.05
 mana.max: 120
 mana.delta: 0.6
 fire: 50
-air: 45
+movespeed: 45
 
 ====== Boo
 type: camper
@@ -327,8 +332,9 @@ hp.max: 250
 hp.delta: 0.05
 mana.max: 40
 mana.delta: 0.02
-physical: 85
-air: 80
+physical: 45
+water: 50
+air: 50
 
 ====== Zombie
 type: camper
@@ -341,8 +347,8 @@ hitbox: 120
 gold: 160
 hp.max: 280
 hp.delta: 0.05
-physical: 135
-air: 8
+physical: 200
+movespeed: 15
 
 ====== Repteye
 type: camper
@@ -356,10 +362,9 @@ hitbox: 120
 gold: 220
 hp.max: 280
 hp.delta: 0.005
-physical: 80
-water: 80
+physical: 25
+water: 150
 reflect: 30
-air: 5
 
 ====== Spiker
 type: camper
@@ -397,7 +402,7 @@ mana.max: 100
 mana.delta: 0.05
 physical: 50
 water: 250
-air: 80
+movespeed: 60
 
 ====== Fire Elemental
 type: camper
@@ -414,8 +419,8 @@ hp.delta: 0.005
 mana.max: 250
 mana.delta: 0.15
 fire: 150
-air: 35
 water: 35
+movespeed: 45
 
 ====== Skull
 type: camper
@@ -431,8 +436,9 @@ hp.max: 600
 hp.delta: 0.005
 mana.max: 100
 mana.delta: 0.05
-physical: 230
-water: 40
+physical: 400
+air: 100
+movespeed: 10
 
 ====== Lich
 type: camper
@@ -449,8 +455,8 @@ hp.delta: 0.005
 mana.max: 100
 mana.delta: 0.05
 fire: 100
-air: 2
 reflect: 30
+movespeed: 5
 
 
 
@@ -473,8 +479,9 @@ hp.max: 3500
 hp.delta: 0.5
 mana.max: 40
 mana.delta: 0.01
-physical: 175
+physical: 250
 air: 150
+movespeed: 50
 
 ====== Robot
 type: boss
@@ -490,8 +497,10 @@ gold: 5000
 hp.max: 2250
 hp.delta: 0.25
 physical: 500
+water: 200
 air: 35
 spikes: 35
+movespeed: 40
 
 ====== Winged Snake
 type: boss
@@ -506,10 +515,10 @@ hitbox: 220
 gold: 5000
 hp.max: 3000
 hp.delta: 0.4
-physical: 150
+physical: 175
 water: 150
-air: 50
 reflect: 10
+movespeed: 100
 
 
 

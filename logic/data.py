@@ -8,11 +8,11 @@ import numpy as np
 from nutil.file import file_load
 from nutil.random import h256
 from nutil.vars import AutoIntEnum
-from data import VERSION
+from data import VERSION, DEV_BUILD
+from data.settings import Settings
 from data.load import RDF
 from engine.common import *
 from logic.abilities import ABILITY_CLASSES
-
 
 
 # Abilities
@@ -53,7 +53,7 @@ def _load_unit_types():
 RAW_UNITS = _load_unit_types()
 
 
-metagame_data = str(VERSION).join(file_load(RDF.CONFIG_DIR / f'{_}.rdf') for _ in ('abilities', 'items', 'units', 'map', 'spawn_types'))
+metagame_data = str(VERSION) + str(DEV_BUILD) + ''.join(file_load(RDF.CONFIG_DIR / f'{_}.rdf') for _ in ('abilities', 'items', 'units', 'map', 'spawn_types'))
 METAGAME_BALANCE = h256(metagame_data)
 METAGAME_BALANCE_SHORT = METAGAME_BALANCE[:4]
 logger.info(f'Metagame Balance: {METAGAME_BALANCE_SHORT} ({METAGAME_BALANCE})')

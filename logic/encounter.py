@@ -12,7 +12,7 @@ from nutil.display import njoin, make_title
 from nutil.time import RateCounter, ping, pong
 from nutil.vars import modify_color, is_iterable
 
-from data import resource_name
+from data import resource_name, DEV_BUILD
 from data.load import RDF
 from data.settings import Settings
 from data.assets import Assets
@@ -43,7 +43,7 @@ SHOP_STATE_KEY = defaultdict(lambda: 0.7, {
 })
 
 
-FAIL_SFX_INTERVAL = Settings.get_setting('feedback_sfx_cooldown', 'UI')
+FEEDBACK_SFX_INTERVAL = Settings.get_setting('feedback_sfx_cooldown', 'UI')
 HUD_STATUSES = {str2stat(s): str2status(s) for s in MECHANICS_NAMES if s is not 'SHOP'}
 
 
@@ -54,15 +54,15 @@ class EncounterAPI(BaseEncounterAPI):
 
     # Logic handlers
     def hp_zero(self, uid):
-        unit = self.engine.units[uid]
-        if unit.lose_on_death or unit.win_on_death:
-            self.enc_over = True
-            self.win = unit.win_on_death
-            logger.info(f'Encounter over! Win: {self.win}')
-            self.toggle_play(set_to=False)
-            self.raise_gui_flag('menu')
-        else:
-            self.engine.units[uid].hp_zero()
+        self.engine.units[uid].hp_zero()
+
+    def end_encounter(self, win):
+        self.enc_over = True
+        self.win = win
+        Assets.play_sfx('ui', 'win' if win else 'lose', volume='feedback')
+        logger.info(f'Encounter over! Win: {self.win}')
+        self.toggle_play(set_to=False)
+        self.raise_gui_flag('menu')
 
     def status_zero(self, uid, status):
         unit = self.engine.units[uid]
@@ -73,9 +73,9 @@ class EncounterAPI(BaseEncounterAPI):
     def play_feedback(self, feedback, uid=0):
         if not uid in self.sfx_feedback_uids:
             return
-        if pong(self.__last_fail_sfx_ping) > FAIL_SFX_INTERVAL:
-            if feedback in FAIL_SFX:
-                Assets.play_sfx('ui', FAIL_SFX[feedback], volume='feedback')
+        if pong(self.__last_fail_sfx_ping) > FEEDBACK_SFX_INTERVAL:
+            if feedback in FEEDBACK_SFX:
+                Assets.play_sfx('ui', FEEDBACK_SFX[feedback], volume='feedback')
                 self.__last_fail_sfx_ping = ping()
 
     ouch_feedback_uids = {0, 1}  # Assuming player then fort are created first
@@ -99,21 +99,24 @@ class EncounterAPI(BaseEncounterAPI):
     def menu_text(self):
         if self.enc_over:
             if self.win:
-                return f'You win!\nScore: {self.score}'
+                return '\n'.join([
+                    f'[b][u]You win![/u][/b]',
+                    f'Stocks: {self.units[0].stocks}',
+                    f'Time: {self.time_str}',
+                    f'Draft cost: {self.units[0].draft_cost}',
+                ])
             else:
-                return f'You lose :(\nScore: {self.score}'
-        return f'Paused'
+                return f'You lose :(\nBetter luck next time!'
+        return f'[b]Paused[/b]'
 
     def top_panel_labels(self):
-        dstr = self.units[0].networth_str
-        if self.dev_mode:
-            dstr = " / ".join(str(round(_, 1)) for _ in self.engine.get_position(0)/100)
-            dstr = f'DEBUG MODE - {dstr}'
+        bstr = f'DEV BUILD' if self.dev_build else f'Balance patch: {METAGAME_BALANCE_SHORT}'
+        dstr = " / ".join(str(round(_, 1)) for _ in self.engine.get_position(0)/100) if self.dev_mode else self.units[0].networth_str
         paused_str = '' if self.engine.auto_tick else 'Paused'
         view_size = '×'.join(str(round(_)) for _ in np.array(self.gui_size) * self.upp)
         vstr = f'{view_size} ({round(100 / self.upp)}% zoom)'
         return [
-            f'Balance: {METAGAME_BALANCE_SHORT} | Score: {self.score}',
+            bstr,
             dstr,
             f'{paused_str}\n{self.time_str}',
             vstr,
@@ -121,7 +124,11 @@ class EncounterAPI(BaseEncounterAPI):
 
     @property
     def top_panel_color(self):
-        return (1,1,1,1) if not self.dev_mode else (0.5,0,1,1)
+        if self.dev_mode:
+            return 0.5, 0, 1, 1
+        elif self.dev_build:
+            return 0, 0.5, 1, 1
+        return 1, 1, 1, 1
 
     @property
     def control_buttons(self):
@@ -149,15 +156,7 @@ class EncounterAPI(BaseEncounterAPI):
         self.units[0].use_item_slot(item_index, target, alt)
 
     def itemsell(self, item_index, target):
-        iid = self.units[0].item_slots[item_index]
-        if iid is None:
-            return
-        item = ITEMS[iid]
-        r = item.sell_item(self.engine, 0)
-        if isinstance(r, FAIL_RESULT) and r in FAIL_SFX:
-            Assets.play_sfx('ui', FAIL_SFX[r])
-        else:
-            Assets.play_sfx('ui', 'shop')
+        self.units[0].sell_item(item_index)
 
     def user_hotkey(self, hotkey, target):
         zoom_scale = 1.15
@@ -179,15 +178,16 @@ class EncounterAPI(BaseEncounterAPI):
         elif hotkey == 'dev1':
             self.show_debug = not self.show_debug
             logger.info(f'Toggle show_debug, now: {self.show_debug}')
-        elif hotkey == 'dev2':
-            self.engine._do_ticks(1)
-        elif hotkey == 'dev3':
-            logger.info(f'Dev doing 3000 ticks...')
-            self.engine._do_ticks(3000)
-        elif hotkey == 'dev4':
-            self.dev_mode = not self.dev_mode
-            logger.info(f'Toggle dev_mode, now: {self.dev_mode}')
-            self.map.refresh()
+        elif hotkey.startswith('dev') and self.dev_build:
+            if hotkey == 'dev2':
+                self.engine._do_ticks(1)
+            elif hotkey == 'dev3':
+                logger.info(f'Dev doing 3000 ticks...')
+                self.engine._do_ticks(3000)
+            elif hotkey == 'dev4':
+                self.dev_mode = not self.dev_mode
+                logger.info(f'Toggle dev_mode, now: {self.dev_mode}')
+                self.map.refresh()
         elif 'control' in hotkey:
             control = int(hotkey[-1])
             if control == 0:
@@ -260,27 +260,34 @@ class EncounterAPI(BaseEncounterAPI):
         return icons
 
     # HUD
+    hud_left_hotkeys = [key.upper() for key in Settings.get_setting('abilities', 'Hotkeys')]
+    hud_right_hotkeys = [key.upper() for key in Settings.get_setting('items', 'Hotkeys')]
+
     def hud_left(self):
         uid = self.selected_unit
         sls = []
-        for aid in self.units[uid].ability_slots:
+        for i, aid in enumerate(self.units[uid].ability_slots):
             if aid is None:
-                sls.append(SpriteBox(str(Assets.get_sprite('ui', 'blank')), '', (0,0,0,0), (1,1,1,1)))
+                sls.append(SpriteBox(str(Assets.get_sprite('ui', 'blank')), f'\n{self.hud_left_hotkeys[i]}' if self.detailed_info_mode else '', (0,0,0,0), (1,1,1,1)))
                 continue
             ability = self.abilities[aid]
             s, color = ability.gui_state(self.engine, uid)
+            if self.detailed_info_mode:
+                s = f'{s}\n{self.hud_left_hotkeys[i]}'
             sls.append(SpriteBox(ability.sprite, s, modify_color(color, a=1), (1,1,1,1)))
         return sls
 
     def hud_right(self):
         uid = self.selected_unit
         sls = []
-        for iid in self.units[uid].item_slots:
+        for i, iid in enumerate(self.units[uid].item_slots):
             if iid is None:
-                sls.append(SpriteBox(Assets.get_sprite('ui', 'blank'), '', (0,0,0,0), (1,1,1,1)))
+                sls.append(SpriteBox(Assets.get_sprite('ui', 'blank'), f'\n{self.hud_right_hotkeys[i]}' if self.detailed_info_mode else '', (0,0,0,0), (1,1,1,1)))
                 continue
             item = ITEMS[iid]
             s, color = item.gui_state(self.engine, uid)
+            if self.detailed_info_mode:
+                s = f'{s}\n{self.hud_right_hotkeys[i]}'
             sls.append(SpriteBox(item.sprite, s, modify_color(color, a=1), (1,1,1,1)))
         return sls
 
@@ -460,7 +467,9 @@ class EncounterAPI(BaseEncounterAPI):
             v = Mechanics.get_status(self.engine, self.selected_unit, status)
             sp = Mechanics.scaling(v)
             sp_asc = Mechanics.scaling(v, ascending=True)
-            if status is STAT.LOS:
+            if status is STAT.STOCKS:
+                label = f'Number of remaining deaths available before losing.'
+            elif status is STAT.LOS:
                 view_distance = self.units[self.selected_unit].view_distance
                 label = f'Base view distance, obscured by [i]darkness[/i].\nActual view distance: [b]{view_distance}[/b]'
             elif status is STAT.DARKNESS:
@@ -548,12 +557,7 @@ class EncounterAPI(BaseEncounterAPI):
 
     def browse_click(self, index, button):
         if button == 'right':
-            r = ITEMS[index].buy_item(self.engine, 0)
-            if not isinstance(r, FAIL_RESULT):
-                Assets.play_sfx('ui', 'shop')
-                return
-            if isinstance(r, FAIL_RESULT) and r in FAIL_SFX:
-                Assets.play_sfx('ui', FAIL_SFX[r])
+            self.units[0].buy_item(index)
         if button == 'left':
             item = ITEMS[index]
             return SpriteTitleLabel(
@@ -572,11 +576,12 @@ class EncounterAPI(BaseEncounterAPI):
 
     def update(self, *a, **k):
         super().update(*a, **k)
-        if not self.enc_over:
-            player_action_radius = min(self.units[0].view_distance+1000, 3000)
-            in_action_radius = self.engine.get_distances(self.engine.get_position(0)) < player_action_radius
-            active_uids = self.always_active | in_action_radius
-            self.engine.update(active_uids)
+        if self.enc_over:
+            return
+        player_action_radius = min(self.units[0].view_distance+1000, 3000)
+        in_action_radius = self.engine.get_distances(self.engine.get_position(0)) < player_action_radius
+        active_uids = self.always_active | in_action_radius
+        self.engine.update(active_uids)
 
     @property
     def unit_count(self):
@@ -671,6 +676,7 @@ class EncounterAPI(BaseEncounterAPI):
         return logic_performance, logic_overview, text_unit1, text_unit2, text_unit3
 
     def __init__(self, game, player_abilities, draft_cost):
+        self.dev_build = DEV_BUILD
         self.dev_mode = False
         self.show_debug = False
         self.game = game
@@ -693,19 +699,12 @@ class EncounterAPI(BaseEncounterAPI):
     def leave(self):
         self.enc_over = True
 
-    @property
-    def score(self):
-        score = 0
-        if self.win or not self.enc_over:
-            elapsed_minutes = self.engine.tick/6000
-            score = self.game.calc_score(self.draft_cost, elapsed_minutes)
-        return score
-
     def debug(self, *args, dev_mode=-1, tick=None, **kwargs):
         logger.info(f'Logic Debug called (extra args: {args} {kwargs})')
 
 
-FAIL_SFX = {
+FEEDBACK_SFX = {
+    'shop': 'shop',
     'select': 'select',
     'ouch': 'ouch',
     'ouch2': 'ouch2',
@@ -719,8 +718,7 @@ FAIL_SFX = {
 }
 
 SCALING_TABLE_CURVES = (25, 50, 75, 100, 150, 200)
-# SCALING_TABLE_VALUES = (5,10,15,20,25,30,40,50,60,70,80,90,100,125,150,175,200,250,300,400,500,600)
-SCALING_TABLE_VALUES = (5,10,15,20,25,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200,250,300)
+SCALING_TABLE_VALUES = (5,10,15,20,25,30,35,40,45,50,60,70,80,90,100,110,120,130,140,150,200,300,400)
 
 def __value_repr(value):
     return " | ".join([__value_curve_repr(value, curve) for curve in SCALING_TABLE_CURVES])
