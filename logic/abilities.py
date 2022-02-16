@@ -279,7 +279,7 @@ class Phase:
         self.target = raw_data['target'] if 'target' in raw_data else 'none'
         assert self.target in {'none', 'self', 'selected', 'other', 'ally', 'enemy', 'neutral'}
         self.include_self = 'include_self' in raw_data.positional
-        self.targeting_point = self.target == 'none' or self.point == 'self' or 'point_target' in raw_data.positional
+        self.targeting_point = self.target == 'none' or 'point_target' in raw_data.positional  #  or self.point == 'self'
         self.single_selection_distance = resolve_formula('selection_distance', raw_data, float('inf'))
         self.range = resolve_formula('range', raw_data, sentinel=float('inf'))
         self.mana_cost = resolve_formula('mana_cost', raw_data, sentinel=0)

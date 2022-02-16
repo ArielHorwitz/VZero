@@ -76,6 +76,7 @@ aggro_range: 400
 deaggro_range: 700
 reaggro_range: 500
 camp_spread: 200
+keep_distance: 150
 -- stats
 hitbox: 50
 gold: 18
@@ -92,6 +93,8 @@ aggro_range: 400
 deaggro_range: 700
 reaggro_range: 500
 camp_spread: 200
+keep_distance: 50
+aggro_flank: 1.5
 -- stats
 hitbox: 60
 gold: 20
@@ -117,24 +120,26 @@ mana.max: 40
 mana.delta: 0.001
 physical: 5
 air: 55
-movespeed: 30
+movespeed: 45
 
 ====== Slank
 type: camper
-abilities: attack, hex
+abilities: hex, mesmerise
 aggro_range: 400
 deaggro_range: 500
 reaggro_range: 150
 camp_spread: 250
+keep_distance: 100
+aggro_flank: 2
 --- stats
 hitbox: 50
 gold: 14
 hp.max: 35
 hp.delta: 0.001
 mana.max: 40
-mana.delta: 0.001
+mana.delta: 0.02
 physical: 5
-air: 35
+air: 20
 
 ====== Ratzan
 type: camper
@@ -157,6 +162,7 @@ movespeed: 40
 ====== Blood Imp
 type: camper
 abilities: fireblast, attack
+keep_distance: 300
 aggro_range: 550
 deaggro_range: 650
 reaggro_range: 100
@@ -182,6 +188,7 @@ aggro_range: 400
 deaggro_range: 800
 reaggro_range: 600
 camp_spread: 300
+keep_distance: 300
 --- stats
 hitbox: 80
 gold: 70
@@ -270,6 +277,7 @@ aggro_range: 450
 deaggro_range: 800
 reaggro_range: 400
 camp_spread: 100
+keep_distance: 50
 --- stats
 hitbox: 100
 gold: 100
@@ -307,6 +315,7 @@ aggro_range: 600
 deaggro_range: 800
 reaggro_range: 200
 camp_spread: 500
+aggro_flank: 2
 --- stats
 hitbox: 85
 gold: 200
@@ -357,6 +366,7 @@ aggro_range: 700
 deaggro_range: 800
 reaggro_range: 450
 camp_spread: 50
+keep_distance: 100
 --- stats
 hitbox: 120
 gold: 220
@@ -393,6 +403,7 @@ aggro_range: 700
 deaggro_range: 1200
 reaggro_range: 900
 camp_spread: 500
+keep_distance: 150
 --- stats
 hitbox: 130
 gold: 400
@@ -470,6 +481,7 @@ aggro_range: 800
 deaggro_range: 1000
 reaggro_range: 500
 camp_spread: 600
+keep_distance: 150
 always_visible
 --- stats
 allegiance: 1000

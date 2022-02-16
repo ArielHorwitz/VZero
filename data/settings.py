@@ -21,7 +21,7 @@ class Settings:
             0: {
                 'hud_scale': 1,
                 'auto_tooltip': 1,
-                'auto_dismiss_tooltip': 10,
+                'auto_dismiss_tooltip': 25,
                 'decorations': 0.75,
                 'feedback_sfx_cooldown': 350,
                 'fog': 1,

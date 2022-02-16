@@ -53,12 +53,12 @@ class Menu(widgets.BoxLayout):
         super().__init__(**kwargs)
 
         for t, m in {
-            'Play': lambda: self.app.game.new_encounter(),
             **{b: lambda x=i: self.app.game.button_click(x) for i, b in enumerate(self.app.game.button_names)},
+            **{f'{mode.capitalize()} mode': lambda _=i: self.app.game.new_encounter(difficulty_level=_) for i, mode in enumerate(self.app.game.difficulty_levels)},
         }.items():
             b = widgets.Button(
                 text=t, on_release=lambda *a, x=m: x())
-            self.add(b).set_size(x=100, y=30)
+            self.add(b).set_size(x=110, y=30)
 
 
 class Draft(widgets.BoxLayout):

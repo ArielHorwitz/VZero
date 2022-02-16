@@ -6,7 +6,7 @@ from collections import defaultdict
 import math
 import numpy as np
 import copy, random
-from nutil.vars import normalize, collide_point, is_iterable, List, nsign_str, FIFO
+from nutil.vars import normalize, collide_point, is_iterable, List, nsign_str, nsign, FIFO
 from nutil.display import make_title
 from nutil.time import ratecounter
 from nutil.random import SEED
@@ -21,7 +21,7 @@ from logic.mechanics import Mechanics
 RNG = np.random.default_rng()
 
 
-STARTING_PLAYER_STOCKS = 3
+STARTING_PLAYER_STOCKS = 10
 
 
 class Slots:
@@ -119,6 +119,7 @@ class Unit(BaseUnit):
         table[STAT.WEIGHT, VALUE.MIN] = -1
         table[STAT.HITBOX, VALUE.CURRENT] = 100
         table[STAT.MOVESPEED, VALUE.CURRENT] = 20
+        table[STAT.MOVESPEED, VALUE.MIN] = 5
         table[STAT.LOS, VALUE.CURRENT] = 1000
         table[STAT.HP, VALUE.CURRENT] = LARGE_ENOUGH
         table[STAT.HP, VALUE.TARGET] = 0
@@ -524,6 +525,8 @@ class Camper(Unit):
         if len(self.default_abilities) == 0:
             self.set_abilities([ABILITY.ATTACK])
         self.camp = self.engine.get_position(self.uid)
+        self.__keep_distance = float(self.p['keep_distance']) if 'keep_distance' in self.p else 0
+        self.__aggro_flank = float(self.p['aggro_flank']) * nsign(RNG.random()-0.5) if 'aggro_flank' in self.p else 0
         self.__aggro_range = float(self.p['aggro_range'])
         self.__aggro_range_camp = float(self.p['aggro_range_camp']) if 'aggro_range_camp' in self.p else self.__aggro_range
         self.__deaggro_range = float(self.p['deaggro_range'])
@@ -543,7 +546,12 @@ class Camper(Unit):
             in_aggro_range = in_aggro_range_self or in_aggro_range_camp
             if in_aggro_range and not self.__deaggro and self.engine.units[0].is_alive:
                 player_pos = self.engine.get_position(0)
-                self.use_walk(player_pos)
+                if self.__aggro_flank != 0:
+                    self.use_walk(self.flank_pos(0))
+                elif self.__keep_distance > 0:
+                    self.use_walk(self.straight_distance(0))
+                else:
+                    self.use_walk(player_pos)
                 for aid in self.ability_slots:
                     if aid is None:
                         continue
@@ -555,7 +563,32 @@ class Camper(Unit):
                     self.__deaggro = False
                 self.use_walk(self.walk_target)
         else:
+            self.__deaggro = False
             self.use_walk(self.walk_target)
+
+    def straight_distance(self, uid):
+        my_pos = self.engine.get_position(self.uid)
+        target_pos = self.engine.get_position(0)
+        vector_from_target = my_pos - target_pos
+        hb = Mechanics.get_stats(self.engine, uid, STAT.HITBOX) + Mechanics.get_stats(self.engine, self.uid, STAT.HITBOX)
+        final_pos = target_pos + normalize(vector_from_target, hb+self.__keep_distance)
+        return final_pos
+
+    def flank_pos(self, uid):
+        my_pos = self.engine.get_position(self.uid)
+        target_pos = self.engine.get_position(0)
+        target_vector = target_pos - my_pos
+        flank_vector = self.rotate_vector(target_vector, self.__aggro_flank)
+        hb = Mechanics.get_stats(self.engine, uid, STAT.HITBOX) + Mechanics.get_stats(self.engine, self.uid, STAT.HITBOX)
+        flank_pos = target_pos + normalize(flank_vector, hb+self.__keep_distance)
+        return flank_pos
+
+    @staticmethod
+    def rotate_vector(xy, radians=1.5):
+        x, y = xy
+        xx = x * math.cos(radians) + y * math.sin(radians)
+        yy = -x * math.sin(radians) + y * math.cos(radians)
+        return xx, yy
 
     @property
     def walk_target(self):

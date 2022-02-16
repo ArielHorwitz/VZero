@@ -22,6 +22,7 @@ from engine.common import *
 
 Box = namedtuple('Box', ['box', 'sprite', 'label'])
 
+AUTO_TOOLTIP = Settings.get_setting('auto_tooltip', 'UI')
 HUD_SCALING = Settings.get_setting('hud_scale', 'UI')
 HUD_WIDTH = 300
 MIDDLE_HUD = 230
@@ -224,6 +225,8 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
             self.bars[i].fg_color = pb.color
 
     def set_auto_hover(self, set_as=None):
+        if not AUTO_TOOLTIP:
+            return
         set_as = self.api.detailed_info_mode if set_as is None else set_as
         self.middle_hud.consider_hover = set_as
         self.right_hud.consider_hover = set_as
@@ -276,7 +279,7 @@ class ModalBrowse(Modal, EncounterViewComponent):
             return
         self.main.update(self.api.browse_main())
         self.stack.update(self.api.browse_elements())
-        self.stack.consider_hover = self.api.detailed_info_mode
+        self.stack.consider_hover = self.api.detailed_info_mode if AUTO_TOOLTIP else False
 
 
 class ViewFade(widgets.AnchorLayout, EncounterViewComponent):
@@ -293,12 +296,14 @@ class Menu(widgets.AnchorLayout, EncounterViewComponent):
     def __init__(self, **kwargs):
         super().__init__(halign='center', valign='middle', **kwargs)
         self.consume_touch = self.add(widgets.ConsumeTouch(False))
+        self.margin = 0.9, 0.9
         self.frame = widgets.BoxLayout(orientation='vertical')
-        self.frame.set_size(x=200, y=220)
-        self.frame.make_bg((0.1, 0, 0.05, 1))
+        self.frame.set_size(x=200, y=250)
+        self.frame.make_bg((0, 0, 0, 1))
+        self.frame._bg.source = Assets.get_sprite('ui', 'mask-1x2')
 
-        self.label = self.frame.add(widgets.Label(text='', halign='center', valign='middle', markup=True))
-        self.label.set_size(y=80)
+        self.label = self.frame.add(widgets.Label(text='', halign='center', valign='middle', markup=True, line_height=1.2))
+        self.label.set_size(y=100)
 
         self.frame.add(widgets.Button(text=RESUME_TEXT, on_release=lambda *a: self.api.user_hotkey('control0', None)))
         self.restart_btn = self.frame.add(widgets.Button(on_release=lambda *a: self.click_restart()))

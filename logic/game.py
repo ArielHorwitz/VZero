@@ -18,6 +18,8 @@ from logic.encounter import EncounterAPI
 
 
 class GameAPI(BaseGameAPI):
+    difficulty_levels = ['easy', 'medium', 'hard', 'impossible']
+
     def __init__(self):
         self.restart_flag = False
         self.silver_bank = 1000
@@ -97,10 +99,10 @@ class GameAPI(BaseGameAPI):
         self.leave_encounter()
         self.restart_flag = True
 
-    def new_encounter(self):
+    def new_encounter(self, difficulty_level=0):
         if self.encounter_api is None:
             logger.info(f'Logic creating encounter with loadout: {self.loadout}')
-            self.encounter_api = EncounterAPI(self, self.loadout, self.average_draft_cost())
+            self.encounter_api = EncounterAPI(self, difficulty_level, self.loadout)
 
     def leave_encounter(self):
         if self.encounter_api is not None:

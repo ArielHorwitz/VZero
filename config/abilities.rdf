@@ -262,11 +262,11 @@ damage=scale: 20, earth, 400, 150
 
 
 
-=== Mesmerise
+=== Force
 type: base
 color: purple
 draft_cost: 60
-info: Pull or push an enemy to/from target point.
+info: Pull or push to target point.
 -- ACTIVE
 target: other
 mana_cost: 15
@@ -276,7 +276,7 @@ range: 600
 p1: point
 -- active.upcast.push
 target: single
-duration=scale: 2, air, 4, 100
+duration=scale: 1, air, 4, 100
 distance: 500
 -- ALT
 target: other
@@ -287,7 +287,27 @@ range: 600
 p1: point
 -- alt.upcast.pull
 target: single
-duration=scale: 2, air, 4, 100
+duration=scale: 1, air, 4, 100
+distance: 500
+
+
+=== Mesmerise
+type: base
+color: purple
+draft_cost: 60
+info: Pull an enemy to yourself.
+-- ACTIVE
+point: self
+target: enemy
+mana_cost: 15
+cooldown=reduc: 8, water, 2, 50
+range: 600
+-- active.upcast.vfx-line
+p1: point
+duration=scale: 1, air, 4, 100
+-- active.upcast.pull
+target: single
+duration=scale: 1, air, 4, 100
 distance: 500
 
 
@@ -435,7 +455,7 @@ info: Apply sensitivity on target.
 --- ACTIVE
 target: other
 mana_cost: 20
-range=scale: 200, air, 800, 125
+range=scale: 500, air, 800, 125
 cooldown=reduc: 10, water, 3, 30
 --- active.upcast.vfx-line
 --- active.upcast.vfx-sprite
@@ -493,7 +513,7 @@ delta: 0.1
 type: base
 color: yellow
 draft_cost: 30
-info: Bind an enemy.
+info: Bind an enemy at range.
 --- ACTIVE
 target: enemy
 mana_cost: 35
@@ -594,7 +614,6 @@ stacks=scale: 10, air, 150, 75
 
 
 === Dark Touch
-hidden
 type: base
 color: yellow
 draft_cost: 40
@@ -997,14 +1016,14 @@ type: base
 draft_cost: 30
 info: Gain movespeed.
 --- stats
-movespeed: 25
+movespeed=scale: 15, time, 60, 25
 === Walk
 type: base
 sprite: walk
 draft_cost: 60
 info: Gain movespeed based on air.
 --- stats
-movespeed=scale: 5, air, 60, 25
+movespeed=scale: 5, air, 60, 100
 los: 200
 === Flametrail
 type: base
@@ -1012,21 +1031,21 @@ sprite: walk
 draft_cost: 60
 info: Gain movespeed based on fire.
 --- stats
-movespeed=scale: 5, fire, 60, 50
+movespeed=scale: 5, fire, 60, 100
 === Hike
 type: base
 sprite: walk
 draft_cost: 60
 info: Gain movespeed based on earth.
 --- stats
-movespeed=scale: 5, earth, 60, 50
+movespeed=scale: 5, earth, 60, 100
 === Flow
 type: base
 sprite: walk
 draft_cost: 60
 info: Gain movespeed based on water.
 --- stats
-movespeed=scale: 5, water, 60, 50
+movespeed=scale: 5, water, 60, 100
 
 
 
@@ -1133,7 +1152,7 @@ type: base
 sfx: bloodlust
 info: Activate to gain lifesteal.
 --- stats
-movespeed: 10
+movespeed: -40
 los: 250
 --- ACTIVE
 mana_cost: 5

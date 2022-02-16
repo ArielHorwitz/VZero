@@ -52,9 +52,10 @@ meef: 2
 blood imp: 2
 --- Ratzan hive
 ratzan: 2
+slank: 1
 --- Glob hole
 glob: 1
-slank: 1
+ratzan: 1
 --- Penguin cell
 penguin: 2
 --- Jackal pack

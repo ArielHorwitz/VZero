@@ -42,10 +42,15 @@ SHOP_STATE_KEY = defaultdict(lambda: 0.7, {
     FAIL_RESULT.ON_COOLDOWN: 0,
 })
 
-
 FEEDBACK_SFX_INTERVAL = Settings.get_setting('feedback_sfx_cooldown', 'UI')
 HUD_STATUSES = {str2stat(s): str2status(s) for s in MECHANICS_NAMES if s is not 'SHOP'}
 
+DIFFICULTY2STOCKS = {
+    0: 100,
+    1: 10,
+    2: 3,
+    3: 1,
+}
 
 class EncounterAPI(BaseEncounterAPI):
     RNG = np.random.default_rng()
@@ -101,9 +106,9 @@ class EncounterAPI(BaseEncounterAPI):
             if self.win:
                 return '\n'.join([
                     f'[b][u]You win![/u][/b]',
-                    f'Stocks: {self.units[0].stocks}',
-                    f'Time: {self.time_str}',
                     f'Draft cost: {self.units[0].draft_cost}',
+                    f'Time: {self.time_str}',
+                    f'Stocks: {self.units[0].stocks}',
                 ])
             else:
                 return f'You lose :(\nBetter luck next time!'
@@ -675,21 +680,22 @@ class EncounterAPI(BaseEncounterAPI):
 
         return logic_performance, logic_overview, text_unit1, text_unit2, text_unit3
 
-    def __init__(self, game, player_abilities, draft_cost):
+    def __init__(self, game, difficulty_level, player_abilities):
         self.dev_build = DEV_BUILD
         self.dev_mode = False
         self.show_debug = False
         self.game = game
+        self.difficulty_level = difficulty_level
         self.engine = EncounterEngine(self)
         self.map = MapGenerator(self)
         self.engine.units[0].set_abilities(player_abilities)
-        self.draft_cost = draft_cost
         self.always_visible = np.zeros(len(self.engine.units), dtype=np.bool)
         self.always_active = np.zeros(len(self.engine.units), dtype=np.bool)
         self.__last_hud_statuses = []
         self.__last_fail_sfx_ping = ping()
         self.map_mode = False
         self.set_zoom()
+        self.engine.set_stats(0, STAT.STOCKS, DIFFICULTY2STOCKS[difficulty_level])
         # Setup units
         for unit in self.engine.units:
             unit.action_phase()
@@ -702,6 +708,14 @@ class EncounterAPI(BaseEncounterAPI):
     def debug(self, *args, dev_mode=-1, tick=None, **kwargs):
         logger.info(f'Logic Debug called (extra args: {args} {kwargs})')
 
+    def debug_pointer(self, pos, **params):
+        self.engine.add_visual_effect(VFX.SPRITE, 50, {
+            'source': self.quickcast_sprite,
+            'point': pos,
+            'size': (250, 250),
+            'color': (0, 0, 0, 1),
+            **params,
+        })
 
 FEEDBACK_SFX = {
     'shop': 'shop',
