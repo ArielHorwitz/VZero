@@ -133,33 +133,37 @@ damage=scale: 20, physical, 400, 150
 type: base
 color: cyan
 cooldown: base attack
-off_cooldown: passive
 sfx: attack
-info: Auto attack a target.
--- ALT
-no_sfx
--- alt.unconditional.unselect
+info: Cleave through enemies with normal damage.
 -- ACTIVE
 requires_los
 no_sfx
 target: enemy
-mana_cost: 0
-cooldown: 0
-selection_distance: 200
--- active.unconditional.select
--- active.unconditional.show_select
-show_range: 30
--- active.unconditional.recast
-phase: passive
--- PASSIVE
-requires_los
-target: selected
+area: rect
+area_origin: target
+width: 400
+length: 800
 range: 30
 cooldown: 2
---- passive.upcast.sfx
---- passive.upcast.vfx-line
---- passive.upcast.hit
-damage=scale: 50, physical, 150, 25
+selection_distance: 100
+--- active.upcast.sfx
+--- active.upcast.vfx-line
+--- active.upcast.vfx-rect
+duration: 0.2
+fade: 0.2
+origin: self
+direction: single
+width: 400
+length: 400
+include_hitbox
+--- active.upcast.hit
+target: area
+damage=scale: 50, physical, 300, 150
+--- active.upcast.status
+target: single
+status: bounded
+stacks: 1
+duration: 2
 
 
 
@@ -266,7 +270,7 @@ damage=scale: 20, earth, 400, 150
 type: base
 color: purple
 draft_cost: 60
-info: Pull or push to target point.
+info: Push or pull a single target.
 -- ACTIVE
 target: other
 mana_cost: 15
@@ -342,7 +346,7 @@ duration=scale: 2, water, 6, 100
 type: base
 draft_cost: 25
 color: black
-info: Sense your foes beyond the darkness.
+info: Sense your foes beyond the darkness. Activate to remove most negative statuses.
 --- PASSIVE
 target: enemy
 selection_distance=scale: 500, water, 2000, 50
@@ -351,17 +355,36 @@ range=scale: 500, water, 2000, 50
 p2: single
 duration: 0.25
 color: 0, 0, 0, 0.5
---- passive.upcast.select
---- passive.upcast.show_select
+--- passive.unconditional.select
+--- passive.unconditional.show_select
 no_sfx
 --- ACTIVE
+target: self
+mana_cost: 30
+--- active.upcast.status.1
+target: self
+status: bounded
+duration: 0
+--- active.upcast.status.2
+target: self
+status: slow
+duration: 0
+--- active.upcast.status.3
+target: self
+status: cuts
+duration: 0
+--- active.upcast.status.4
+target: self
+status: vanity
+duration: 0
+--- ALT
 target: enemy
 range=scale: 500, water, 10_000, 150
---- active.upcast.vfx-line
+--- alt.upcast.vfx-line
 p2: single
 color: 0, 0, 0, 0.5
---- active.upcast.select
---- active.upcast.show_select
+--- alt.upcast.select
+--- alt.upcast.show_select
 show_range=scale: 500, water, 10_000, 150
 no_sfx
 
@@ -445,6 +468,36 @@ mana_cost: 10
 cooldown=reduc: 100, water, 20, 50
 status_block: bounded
 --- active.upcast.teleport-home
+
+
+
+=== Manuscript
+type: base
+color: lime
+sfx: scroll
+cooldown: base scroll
+off_cooldown: passive
+info: Scroll-like. Gain higher tier shop access. Passively remove bindings.
+--- stats
+shop: 1
+--- PASSIVE
+target: self
+cooldown=reduc: 2, air, 0.25, 50
+status_require: bounded
+--- passive.upcast.sfx
+sfx: select
+category: ui
+--- passive.upcast.status
+target: self
+status: bounded
+stacks: 0
+duration: 0
+--- ACTIVE
+mana_cost: 10
+cooldown=reduc: 100, water, 20, 50
+status_block: bounded
+--- active.upcast.teleport-home
+
 
 
 === Hex
@@ -893,32 +946,65 @@ color: 1, 0, 0, 0.2
 fade: 1.5
 
 
+
+=== Static Link
+type: base
+draft_cost: 25
+color: brown
+info: WIP
+
+--- PASSIVE
+target: selected
+range: 600
+--- passive.upcast.vfx-line
+p2: selected
+duration: 0.25
+~color: 0, 0, 0, 0.5
+--- passive.upcast.steal
+target: single
+stat: mana
+delta: 10
+--- passive.downcast.unselect
+
+--- ACTIVE
+target: enemy
+selection_distance: 200
+range: 600
+--- active.upcast.select
+--- active.upcast.show_select
+
+--- ALT
+--- alt.unconditional.unselect
+
+
+
 === Crazy Aura
 type: base
 color: brown
 sfx: implosion
 --- info
-~Off cooldown: slow aura.
-~On cooldown: mana steal aura.
+~Off cooldown: mana steal aura
+~On cooldown: slow aura
 -- PASSIVE
 point_target
 target: enemy
 area: circle
-radius=scale: 150, air, 450, 60
+radius=scale: 350, water, 550, 75
 include_hitbox
--- passive.upcast.status
-target: area
-status: slow
-stacks=scale: 10, air, 150, 60
--- passive.downcast.steal
+-- passive.upcast.steal
 target: area
 stat: mana
-delta=scale: 1, water, 5, 25
+delta=scale: 1, physical, 5, 75
+-- passive.downcast.status
+target: area
+status: slow
+stacks=scale: 10, air, 150, 75
 --- ACTIVE
-cooldown: 20
+cooldown: 10
 mana_cost: 50
 no_sfx
 --- active.upcast.sfx
+
 
 
 === Death Fog
@@ -1152,7 +1238,7 @@ type: base
 sfx: bloodlust
 info: Activate to gain lifesteal.
 --- stats
-movespeed: -40
+movespeed: 5
 los: 250
 --- ACTIVE
 mana_cost: 5
@@ -1177,35 +1263,6 @@ type: base
 --- stats
 hp.max=scale: 30, earth, 150, 25
 hp.delta=scale: 2, earth, 10, 25
-
-
-=== Manuscript
-hidden
-type: base
-sfx: scroll
-cooldown: base scroll
-off_cooldown: passive
-info: Scroll-like. Gain higher tier shop access. Passively remove bindings.
---- stats
-shop: 1
---- PASSIVE
-target: self
-cooldown=reduc: 2, air, 0.25, 50
-status_require: bounded
---- passive.upcast.sfx
-sfx: select
-category: ui
---- passive.upcast.status
-target: self
-status: bounded
-stacks: 0
-duration: 0
---- ACTIVE
-mana_cost: 10
-cooldown=reduc: 100, water, 20, 50
-status_block: bounded
---- active.upcast.teleport-home
-
 
 
 === Clover
@@ -1537,6 +1594,32 @@ status: cuts
 duration: 10
 stacks=scale: 20, fire, 500, 50
 
+
+
+
+
+
+---------------------------------------------------------------------- -
+
+
+
+
+=== Zombie Aura
+hidden
+type: base
+--- info
+~Off cooldown: mana steal aura
+~On cooldown: slow aura
+-- PASSIVE
+point_target
+target: enemy
+area: circle
+radius=scale: 350, water, 550, 75
+include_hitbox
+-- passive.upcast.steal
+target: area
+stat: mana
+delta: 5
 
 
 

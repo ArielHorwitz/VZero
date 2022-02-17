@@ -18,7 +18,7 @@ from logic.encounter import EncounterAPI
 
 
 class GameAPI(BaseGameAPI):
-    difficulty_levels = ['easy', 'medium', 'hard', 'impossible']
+    difficulty_levels = EncounterAPI.difficulty_levels
 
     def __init__(self):
         self.restart_flag = False
@@ -33,8 +33,8 @@ class GameAPI(BaseGameAPI):
 
     def update(self):
         if self.restart_flag:
+            self.new_encounter(self.restart_flag)
             self.restart_flag = False
-            self.new_encounter()
 
     def average_draft_cost(self, loadout=None):
         if loadout is None:
@@ -51,21 +51,6 @@ class GameAPI(BaseGameAPI):
     def calc_score(self, draft_cost, elapsed_minutes):
         total_penalty = elapsed_minutes + self.draft_cost_minutes(draft_cost)
         return int(1000 * 50 / (50+total_penalty))
-
-    def load_preset(self, index):
-        self.loadout = []
-        preset_loadout = Settings.get_setting(f'preset_loadout{index+1}', 'Personal').split(', ')
-        for name in preset_loadout:
-            if name == 'null':
-                self.loadout.append(None)
-                continue
-            try:
-                aid = str2ability(name)
-            except AttributeError as e:
-                self.loadout.append(None)
-                continue
-            self.loadout.append(aid)
-        self.loadout.extend([None for _ in range(8-len(self.loadout))])
 
     def select_ability(self, aid):
         self.selected_aid = aid
@@ -87,7 +72,7 @@ class GameAPI(BaseGameAPI):
             Assets.play_sfx('ui', 'target')
 
     # GUI handlers
-    button_names = ['Clear']+[f'Preset {i+1}' for i in range(4)]
+    button_names = ['Clear']
 
     @property
     def title_text(self):
@@ -96,8 +81,8 @@ class GameAPI(BaseGameAPI):
         ])
 
     def restart_encounter(self):
+        self.restart_flag = self.encounter_api.difficulty_level
         self.leave_encounter()
-        self.restart_flag = True
 
     def new_encounter(self, difficulty_level=0):
         if self.encounter_api is None:
@@ -113,9 +98,7 @@ class GameAPI(BaseGameAPI):
     def button_click(self, index):
         if index == 0:
             self.loadout = [None for _ in range(8)]
-        else:
-            self.load_preset(index-1)
-        Assets.play_sfx('ui', 'select')
+            Assets.play_sfx('ui', 'select')
 
     def draft_click(self, index, button):
         aid = self.draftables[index]

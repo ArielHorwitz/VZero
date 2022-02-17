@@ -9,13 +9,12 @@ from pathlib import Path
 import nutil
 from nutil.kex import widgets
 from nutil.time import RateCounter, pingpong
-from data import TITLE, FPS
+from data import TITLE, FPS, DEV_BUILD
 from data.assets import Assets
 from data.settings import Settings
 from gui.home import HomeGUI
 from gui.encounter.encounter import Encounter
 from engine import get_api
-
 
 
 class App(widgets.App):
@@ -24,7 +23,7 @@ class App(widgets.App):
         super().__init__(make_bg=False, make_menu=False, **kwargs)
         self.home_hotkeys = widgets.InputManager()
         self.enc_hotkeys = widgets.InputManager()
-        self.enc_hotkeys.block_repeat = not Settings.get_setting('enable_hold_key', 'Hotkeys')
+        self.enc_hotkeys.block_repeat = not Settings.get_setting('enable_hold_key', 'General')
         self.app_hotkeys = widgets.InputManager()
         self.icon = str(Path.cwd()/'icon.png')
 
@@ -34,8 +33,13 @@ class App(widgets.App):
         self.home = HomeGUI()
         self.encounter = None
         self.enc_frame = widgets.BoxLayout()
+        self.enc_frame.add(ENC_PLACEHOLDER)
+        self.info1 = INFO_PANEL1
+        self.info2 = INFO_PANEL2
         self.switch.add_screen('home', self.home)
         self.switch.add_screen('enc', self.enc_frame)
+        self.switch.add_screen('info1', self.info1)
+        self.switch.add_screen('info2', self.info2)
 
         # Start mainloop
         self.fps = RateCounter(sample_size=FPS)
@@ -55,9 +59,11 @@ class App(widgets.App):
             ('Borderless', Settings.get_setting('toggle_borderless', 'Hotkeys'), lambda *a: self.toggle_window_borderless()),
             ('Tab: Home', '^+ f1', lambda *a: self.switch.switch_screen('home')),
             ('Tab: Encounter', '^+ f2', lambda *a: self.switch.switch_screen('enc')),
+            ('Tab: Info 1', '^+ f3', lambda *a: self.switch.switch_screen('info1')),
+            ('Tab: Info 2', '^+ f4', lambda *a: self.switch.switch_screen('info2')),
         ]:
             self.app_hotkeys.register(*params)
-        if not Settings.get_setting('dev_build', 'General'):
+        if not DEV_BUILD:
             Assets.play_sfx('ui', 'welcome', volume='ui')
 
     def toggle_window_borderless(self, set_as=None):
@@ -106,19 +112,47 @@ class App(widgets.App):
 
         encounter_api = self.game.encounter_api
         if self.encounter is None and encounter_api is not None:
+            self.enc_frame.clear_widgets()
             self.encounter = self.enc_frame.add(Encounter(encounter_api))
             self.switch.switch_screen('enc')
             self.home_hotkeys.deactivate()
+            self.enc_hotkeys.activate()
             logger.info(f'GUI opened encounter')
         elif self.encounter is not None and encounter_api is None:
             self.enc_hotkeys.clear_all()
             self.enc_frame.remove_widget(self.encounter)
+            self.enc_frame.add(ENC_PLACEHOLDER)
             self.encounter = None
             self.switch.switch_screen('home')
             self.home_hotkeys.activate()
+            self.enc_hotkeys.deactivate()
             logger.info(f'GUI closed encounter')
 
-        if self.encounter is None:
+        self.enc_hotkeys.deactivate()
+        if self.encounter is None or self.switch.current_screen.name == 'home':
+            self.enc_hotkeys.deactivate()
             self.home.update()
-        else:
+        elif self.encounter is not None and self.switch.current_screen.name == 'enc':
+            self.enc_hotkeys.activate()
             self.encounter.update()
+
+
+class InfoBox(widgets.BoxLayout):
+    def __init__(self, label, widget=None, label_color=None, **kwargs):
+        super().__init__(orientation='vertical', **kwargs)
+        label_frame = self.add(widgets.AnchorLayout(anchor_y='top'))
+        label_frame.set_size(y=50)
+        label_widget = widgets.Label(text=label, markup=True, color=(0,0,0,1))
+        label_widget.make_bg((0.5, 0.5, 0.5, 1))
+        label_frame.add(label_widget)
+        if widget:
+            widget_frame = self.add(widgets.AnchorLayout())
+            widget_frame.add(widget)
+        else:
+            self.add(widgets.Widget())
+
+
+
+INFO_PANEL1 = InfoBox(f'Press [b]Ctrl[/b]+[b]Shift[/b]+[b]F2[/b] to return to encounter', widgets.Image(allow_stretch=True, source=Assets.get_sprite('ui', 'scaling-table')))
+INFO_PANEL2 = InfoBox(f'Press [b]Ctrl[/b]+[b]Shift[/b]+[b]F2[/b] to return to encounter', widgets.Image(allow_stretch=True, source=Assets.get_sprite('ui', 'scaling-table-full')))
+ENC_PLACEHOLDER = InfoBox(f'Press [b]Ctrl[/b]+[b]Shift[/b]+[b]F1[/b] to load an encounter', widgets.Label(text='No encounter in progress.'))

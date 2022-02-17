@@ -38,13 +38,16 @@ class Encounter:
         assert len(active_uids) == self.unit_count
         self.__active_uids = active_uids
         with ratecounter(self.timers['logic_total']):
-            ticks = self._check_ticks()
             if self.tick == 0:
                 logger.info(f'Encounter {self.eid} started.')
                 ticks = 1
+            ticks = self._check_ticks()
+            if ticks > self.AGENCY_PHASE_COUNT:
+                logger.info(f'Requested {ticks} ticks on a single frame, throttled to {self.AGENCY_PHASE_COUNT}.')
+                ticks = self.AGENCY_PHASE_COUNT
             if ticks > 0:
                 self._do_ticks(ticks)
-        self.stats._cap_minmax_values()
+
 
     def _check_ticks(self):
         dt = pong(self.__last_tick)
@@ -72,6 +75,8 @@ class Encounter:
             if len(cooldown_zero) > 0:
                 for uid, aid in cooldown_zero:
                     self.units[uid].off_cooldown(aid)
+        with ratecounter(self.timers['logic_valuecap']):
+            self.stats._cap_minmax_values()
 
     def _iterate_visual_effects(self, ticks):
         if len(self._visual_effects) == 0:
@@ -100,7 +105,7 @@ class Encounter:
         self.units[uid].action_phase()
 
     def _find_units_in_phase(self, ticks):
-        if ticks >= self.AGENCY_PHASE_COUNT:
+        if ticks > self.AGENCY_PHASE_COUNT:
             # Without crashing, assume tick count is lower than phase count
             # This will not break the engine, but may cause game mechanics to break
             # Better to adjust the phase count or improve performance of game mechanics,

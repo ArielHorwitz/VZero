@@ -305,7 +305,7 @@ class Menu(widgets.AnchorLayout, EncounterViewComponent):
         self.label = self.frame.add(widgets.Label(text='', halign='center', valign='middle', markup=True, line_height=1.2))
         self.label.set_size(y=100)
 
-        self.frame.add(widgets.Button(text=RESUME_TEXT, on_release=lambda *a: self.api.user_hotkey('control0', None)))
+        self.frame.add(widgets.Button(text=RESUME_TEXT, on_release=lambda *a: self.api.user_hotkey('toggle_menu', None)))
         self.restart_btn = self.frame.add(widgets.Button(on_release=lambda *a: self.click_restart()))
         self.leave_btn = self.frame.add(widgets.Button(on_release=lambda *a: self.click_leave()))
         self.quit_btn = self.frame.add(widgets.Button(on_release=lambda *a: self.click_quit()))

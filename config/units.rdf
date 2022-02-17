@@ -347,6 +347,7 @@ air: 50
 
 ====== Zombie
 type: camper
+abilities: attack, zombie aura
 aggro_range: 600
 deaggro_range: 1000
 reaggro_range: 600
@@ -405,7 +406,7 @@ reaggro_range: 900
 camp_spread: 500
 keep_distance: 150
 --- stats
-hitbox: 130
+hitbox: 160
 gold: 400
 hp.max: 600
 hp.delta: 0.005
@@ -423,7 +424,7 @@ deaggro_range: 800
 reaggro_range: 450
 camp_spread: 350
 --- stats
-hitbox: 160
+hitbox: 150
 gold: 440
 hp.max: 420
 hp.delta: 0.005

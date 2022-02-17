@@ -269,10 +269,12 @@ class Unit(BaseUnit):
                 logger.warning(f'{self} using item {repr(iid)} not in items: {self.items}')
             if not self.engine.auto_tick and not self.api.dev_mode:
                 logger.warning(f'{self} tried using item {iid.name} while paused')
-                return FAIL_RESULT.INACTIVE
+                self.api.play_feedback(FAIL_RESULT.INACTIVE, self.uid)
+                return
             if not self.is_alive:
                 logger.warning(f'{self} is dead and requested item {iid.name}')
-                return FAIL_RESULT.MISSING_TARGET
+                self.api.play_feedback(FAIL_RESULT.INACTIVE, self.uid)
+                return
 
             item = ITEMS[iid]
             item.active(self.api, self.uid, target, alt)
@@ -301,10 +303,12 @@ class Unit(BaseUnit):
                 logger.warning(f'{self} using ability {repr(aid)} not in abilities: {self.abilities}')
             if not self.engine.auto_tick and not self.api.dev_mode:
                 logger.warning(f'{self} tried using ability {aid.name} while paused')
-                return FAIL_RESULT.INACTIVE
+                self.api.play_feedback(FAIL_RESULT.INACTIVE, self.uid)
+                return
             if not self.is_alive:
                 logger.warning(f'{self} is dead and requested ability {aid.name}')
-                return FAIL_RESULT.MISSING_TARGET
+                self.api.play_feedback(FAIL_RESULT.INACTIVE, self.uid)
+                return
 
             ability = self.api.abilities[aid]
             ability.active(self.engine, self.uid, target, alt)

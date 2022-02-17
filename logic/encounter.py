@@ -54,6 +54,7 @@ DIFFICULTY2STOCKS = {
 
 class EncounterAPI(BaseEncounterAPI):
     RNG = np.random.default_rng()
+    difficulty_levels = ['Easy mode', 'Medium challenge', 'Hard difficulty', 'Impossible...']
     enc_over = False
     win = False
 
@@ -103,20 +104,26 @@ class EncounterAPI(BaseEncounterAPI):
     @property
     def menu_text(self):
         if self.enc_over:
+            difficulty = self.difficulty_levels[self.difficulty_level]
             if self.win:
                 return '\n'.join([
                     f'[b][u]You win![/u][/b]',
+                    f'{difficulty}',
                     f'Draft cost: {self.units[0].draft_cost}',
                     f'Time: {self.time_str}',
                     f'Stocks: {self.units[0].stocks}',
                 ])
             else:
-                return f'You lose :(\nBetter luck next time!'
+                return f'You lose :(\n{difficulty}\nBetter luck next time!'
         return f'[b]Paused[/b]'
 
     def top_panel_labels(self):
         bstr = f'DEV BUILD' if self.dev_build else f'Balance patch: {METAGAME_BALANCE_SHORT}'
-        dstr = " / ".join(str(round(_, 1)) for _ in self.engine.get_position(0)/100) if self.dev_mode else self.units[0].networth_str
+        if self.dev_mode:
+            dstr = " / ".join(str(round(_, 1)) for _ in self.engine.get_position(0)/100)
+        else:
+            d = self.difficulty_levels[self.difficulty_level].split(' ', 1)[0].lower()
+            dstr = f'{self.units[0].networth_str} ({d})'
         paused_str = '' if self.engine.auto_tick else 'Paused'
         view_size = '×'.join(str(round(_)) for _ in np.array(self.gui_size) * self.upp)
         vstr = f'{view_size} ({round(100 / self.upp)}% zoom)'
@@ -165,8 +172,16 @@ class EncounterAPI(BaseEncounterAPI):
 
     def user_hotkey(self, hotkey, target):
         zoom_scale = 1.15
-        if hotkey == 'toggle_play':
+
+        if hotkey == 'toggle_menu':
             self.toggle_play()
+            self.raise_gui_flag('browse_dismiss')
+            self.raise_gui_flag('menu_dismiss' if self.engine.auto_tick else 'menu')
+        elif hotkey == 'toggle_play':
+            self.toggle_play()
+        elif hotkey == 'toggle_shop':
+            self.selected_unit = 0
+            self.raise_gui_flag('browse_toggle')
         elif hotkey == 'toggle_map':
             self.map_mode = not self.map_mode
             self.view_offset = None
@@ -193,15 +208,6 @@ class EncounterAPI(BaseEncounterAPI):
                 self.dev_mode = not self.dev_mode
                 logger.info(f'Toggle dev_mode, now: {self.dev_mode}')
                 self.map.refresh()
-        elif 'control' in hotkey:
-            control = int(hotkey[-1])
-            if control == 0:
-                self.toggle_play()
-                self.raise_gui_flag('browse_dismiss')
-                self.raise_gui_flag('menu_dismiss' if self.engine.auto_tick else 'menu')
-            elif control == 1:
-                self.selected_unit = 0
-                self.raise_gui_flag('browse_toggle')
 
     @property
     def map_size(self):
@@ -265,8 +271,13 @@ class EncounterAPI(BaseEncounterAPI):
         return icons
 
     # HUD
-    hud_left_hotkeys = [key.upper() for key in Settings.get_setting('abilities', 'Hotkeys')]
-    hud_right_hotkeys = [key.upper() for key in Settings.get_setting('items', 'Hotkeys')]
+    hud_left_hotkeys = []
+    hud_right_hotkeys = []
+    for i in range(8):
+        akey = Settings.get_setting(f'ability{i+1}', 'Hotkeys')
+        hud_left_hotkeys.append(str(int(akey) if isinstance(akey, float) else akey).upper())
+        ikey = Settings.get_setting(f'item{i+1}', 'Hotkeys')
+        hud_right_hotkeys.append(str(int(ikey) if isinstance(ikey, float) else ikey).upper())
 
     def hud_left(self):
         uid = self.selected_unit
@@ -443,10 +454,8 @@ class EncounterAPI(BaseEncounterAPI):
                 self.itemsell(index, (0,0))
 
     def hud_portrait_click(self):
-        return SpriteTitleLabel(
-            str(Assets.FALLBACK_SPRITE), 'Scaling Table',
-            SCALING_TABLE,
-            None)
+        unit = self.units[self.selected_unit]
+        return SpriteTitleLabel(unit.sprite, unit.name, unit.say, None)
 
     def hud_status_tooltip(self, index):
         status = self.__last_hud_statuses[index]

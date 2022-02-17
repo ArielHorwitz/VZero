@@ -83,6 +83,7 @@ class EncounterAPI:
     map_size = np.array([10_000, 10_000])
     selection_sprite = Assets.get_sprite('ui', 'crosshair-select')
     quickcast_sprite = Assets.get_sprite('ui', 'crosshair-cast')
+    loot_hotkey = f"mouse{Settings.get_setting('loot-mouse', 'Hotkeys')}"
 
     def raise_gui_flag(self, flag):
         self.gui_flags[flag] = True
@@ -207,6 +208,8 @@ class EncounterAPI:
             self.zoom_out()
         elif button == 'scrolldown':
             self.zoom_in()
+        elif button == self.loot_hotkey:
+            self.lootcast(target)
         else:
             logger.warning(f'{self.__class__}.user_click() with button: {button} not implemented.')
 

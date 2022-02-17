@@ -181,8 +181,12 @@ class InputManager(Widget):
         self.__bound_up = self.keyboard.fbind('on_key_up', self._on_key_up)
 
     def deactivate(self):
-        self.keyboard.unbind_uid('on_key_down', self.__bound_down)
-        self.keyboard.unbind_uid('on_key_up', self.__bound_up)
+        if self.__bound_down:
+            self.keyboard.unbind_uid('on_key_down', self.__bound_down)
+        if self.__bound_up:
+            self.keyboard.unbind_uid('on_key_up', self.__bound_up)
+        self.__bound_down = None
+        self.__bound_up = None
 
     def register(self, action, key=None, callback=None):
         if key is not None:
@@ -190,15 +194,15 @@ class InputManager(Widget):
             self._refresh_all_keys()
         if callback is not None:
             self.__actions[action].on_press.add(callback)
-        logger.debug(f'Input manager registering: {self.__actions[action]}')
+        logger.info(f'Input manager registering {action}: {self.__actions[action]}')
 
     def register_callbacks(self, action, callbacks):
         self.__actions[action].on_press.update(callbacks)
-        logger.debug(f'Input manager registering: {self.__actions[action]}')
+        logger.info(f'Input manager registering {action}: {self.__actions[action]}')
 
     def register_keys(self, action, keys):
         self.__actions[action].keys.update(keys)
-        logger.debug(f'Input manager registering: {self.__actions[action]}')
+        logger.info(f'Input manager registering {action}: {self.__actions[action]}')
         self._refresh_all_keys()
 
     def remove_actions(self, actions):

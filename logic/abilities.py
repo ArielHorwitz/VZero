@@ -269,6 +269,8 @@ class Phase:
         self.area_shape = raw_data['area'] if 'area' in raw_data else 'none'
         assert self.area_shape in {'none', 'circle', 'rect'}
         self.area = self.area_shape != 'none'
+        self.area_origin = raw_data['area_origin'] if 'area_origin' in raw_data else 'point'
+        assert self.area_origin in {'point', 'target'}
         self.area_radius = resolve_formula('radius', raw_data, sentinel=100)
         self.area_width = resolve_formula('width', raw_data, sentinel=300)
         self.area_length = resolve_formula('length', raw_data, sentinel=200)
@@ -466,16 +468,19 @@ class Phase:
                     fails.add(FAIL_RESULT.OUT_OF_RANGE)
 
             if self.area:
-                if not self.targeting_point and single_target_uid:
+                # Find origin
+                if self.area_origin == 'target' and single_target_uid:
                     origin = api.get_position(single_target_uid)
                 else:
                     origin = target_point
+                # Find circle
                 if self.area_shape == 'circle':
                     radius = self.area_radius.get_value(api, uid)
                     if self.include_hitbox:
                         radius += Mechanics.get_stats(api, uid, STAT.HITBOX)
                     subset_in_radius = api.get_distances(origin, subset_uids) < radius
                     area_uids = subset_uids[np.flatnonzero(subset_in_radius)]
+                # Find rectangle
                 elif self.area_shape == 'rect':
                     width = self.area_width.get_value(api, uid)
                     length = self.area_length.get_value(api, uid)
@@ -1334,14 +1339,14 @@ class EffectVFXRect(Effect):
         assert self.direction_vector in self.valid_point_targets
         self.length = resolve_formula('length', raw_data, 750)
         self.width = resolve_formula('width', raw_data, 250)
-        self.include_hitbox = 'disinclude_hitbox' not in raw_data.positional
+        self.include_hitbox = 'include_hitbox' not in raw_data.positional
 
     def apply(self, api, uid, targets):
         origin = self.resolve_target_point(api, uid, self.origin, targets)
         target = self.resolve_target_point(api, uid, self.direction_vector, targets)
         length = self.length.get_value(api, uid)
         width = self.width.get_value(api, uid)
-        offset = Mechanics.get_stats(api, uid, STAT.HITBOX) if self.include_hitbox else 0
+        offset = 0 if self.include_hitbox else Mechanics.get_stats(api, uid, STAT.HITBOX)
         rect = Rect.from_point(origin, target, width, length, offset)
         fade = s2ticks(self.fade.get_value(api, uid))
         fade = {'fade': fade} if fade > 0 else {}

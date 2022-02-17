@@ -15,12 +15,14 @@ class Settings:
                 'full_resolution': '1920, 1080',
                 'window_resolution': '1024, 768',
                 'default_zoom': 40,
+                'enable_hold_mouse': 1,
+                'enable_hold_key': 0,
             }
         },
         'UI': {
             0: {
                 'hud_scale': 1,
-                'auto_tooltip': 1,
+                'auto_tooltip': 0,
                 'auto_dismiss_tooltip': 25,
                 'decorations': 0.75,
                 'feedback_sfx_cooldown': 350,
@@ -30,7 +32,7 @@ class Settings:
         },
         'Audio': {
             0: {
-                'volume_master': 0.1,
+                'volume_master': 0.15,
                 'volume_sfx': 1,
                 'volume_ui': 0.5,
                 'volume_feedback': 0.5,
@@ -40,21 +42,12 @@ class Settings:
             0: {
                 'toggle_fullscreen': 'f11',
                 'toggle_borderless': '! f11',
-                'start_encounter': 'spacebar',
+                'toggle_menu': 'escape',
                 'toggle_play': 'spacebar',
-                'toggle_detailed': '! alt',
-                'control0': 'escape',
-                'control1': 'f1',
-                'control2': 'f2',
-                'control3': 'f3',
-                'control4': 'f4',
+                'toggle_shop': 'f1',
                 'toggle_map': 'tab',
-                'loot': '^ lctrl',
-                'abilities': 'qwerasdf',
-                'alt_modifier': '+',
-                'items': '1234zxcv',
-                'enable_hold_mouse': 1,
-                'enable_hold_key': 0,
+                'toggle_detailed': '! alt',
+                # Map control
                 'reset_view': 'home',
                 'zoom_in': '=',
                 'zoom_out': '-',
@@ -62,20 +55,32 @@ class Settings:
                 'pan_down': 'down',
                 'pan_left': 'left',
                 'pan_right': 'right',
+                # Abilities
+                'loot': 'z',
+                'alt_modifier': '+',
+                'loot-mouse': '5',
+                'ability1': 'q',
+                'ability2': 'w',
+                'ability3': 'e',
+                'ability4': 'r',
+                'ability5': '',
+                'ability6': '',
+                'ability7': '',
+                'ability8': '',
+                'item1': '1',
+                'item2': '2',
+                'item3': '3',
+                'item4': '4',
+                'item5': '',
+                'item6': '',
+                'item7': '',
+                'item8': '',
                 'dev1': '^+ f9',
                 'dev2': '^+ f10',
                 'dev3': '^+ f11',
                 'dev4': '^+ f12',
             },
         },
-        'Personal': {
-            0: {
-                'preset_loadout1': 'null',
-                'preset_loadout2': 'null',
-                'preset_loadout3': 'null',
-                'preset_loadout4': 'null',
-            },
-        }
     }
 
     @classmethod
@@ -113,10 +118,18 @@ class Settings:
         raise KeyError(m)
 
 
-logger.info(f'Found settings:')
+logger.info(f'Found default settings:')
 for category_name, category in Settings.DEFAULT_SETTINGS.items():
     for subcategory_name, subcategory in category.items():
         for setting in subcategory.keys():
             value = Settings.get_setting(setting, category=category_name, subcategory=subcategory_name)
             m = f'Default {category_name} [{subcategory_name}] - {setting}: {value}'
+            logger.info(m)
+
+logger.info(f'Found user-defined settings:')
+for category_name, category in Settings.SETTINGS.items():
+    for subcategory_name, subcategory in category.items():
+        for setting in subcategory.keys():
+            value = Settings.get_setting(setting, category=category_name, subcategory=subcategory_name)
+            m = f'User-defined {category_name} [{subcategory_name}] - {setting}: {value}'
             logger.info(m)

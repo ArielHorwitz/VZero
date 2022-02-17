@@ -33,7 +33,7 @@ class Encounter(widgets.RelativeLayout):
         self.detailed_info_mode = False
         self.__units_per_pixel = self.DEFAULT_UPP
         self.__holding_mouse = False
-        self.__enable_hold_mouse = Settings.get_setting('enable_hold_mouse', 'Hotkeys') == 1
+        self.__enable_hold_mouse = Settings.get_setting('enable_hold_mouse', 'General') == 1
         self.__last_redraw = -1
 
         # Setting the order of timers
@@ -144,9 +144,9 @@ class Encounter(widgets.RelativeLayout):
         ]
         # Logic API
         api_actions = (
-            'toggle_play', 'toggle_map', 'zoom_in', 'zoom_out', 'reset_view',
+            'toggle_menu', 'toggle_play', 'toggle_shop', 'toggle_map',
+            'zoom_in', 'zoom_out', 'reset_view',
             'pan_up', 'pan_down', 'pan_left', 'pan_right',
-            'control0', 'control1', 'control2', 'control3', 'control4',
             'dev1', 'dev2', 'dev3', 'dev4',
         )
         for action_name in api_actions:
@@ -155,29 +155,23 @@ class Encounter(widgets.RelativeLayout):
                 lambda action_name_: self.api.user_hotkey(action_name_, self.mouse_real_pos)
             ))
         # Abilities
+        alt_mod = Settings.get_setting('alt_modifier', 'Hotkeys')
         hotkeys.append((
             f'loot', Settings.get_setting('loot', 'Hotkeys'),
             lambda *a: self.api.lootcast(self.mouse_real_pos)))
-        alt_mod = Settings.get_setting('alt_modifier', 'Hotkeys')
-        for i, key in enumerate(Settings.get_setting('abilities', 'Hotkeys')):
-            hotkeys.append((
-                f'ability {key.upper()}', key,
-                lambda *a, x=i: self.api.quickcast(x, self.mouse_real_pos)
-            ))
-            hotkeys.append((
-                f'ability alt {key.upper()}', f'{alt_mod} {key}',
-                lambda *a, x=i: self.api.quickcast(x, self.mouse_real_pos, alt=1)
-            ))
-        # Items
-        for i, key in enumerate(Settings.get_setting('items', 'Hotkeys')):
-            hotkeys.append((
-                f'item {key.upper()} ability', key,
-                lambda *a, x=i: self.api.itemcast(x, self.mouse_real_pos)
-            ))
-            hotkeys.append((
-                f'item alt {key.upper()}', f'{alt_mod} {key}',
-                lambda *a, x=i: self.api.itemcast(x, self.mouse_real_pos, alt=1)
-            ))
+        for i in range(8):
+            akey = Settings.get_setting(f'ability{i+1}', 'Hotkeys')
+            ikey = Settings.get_setting(f'item{i+1}', 'Hotkeys')
+            if akey:
+                if isinstance(akey, float):
+                    akey = str(int(akey))
+                hotkeys.append((f'ability{i+1}', str(akey), lambda *a, x=i: self.api.quickcast(x, self.mouse_real_pos)))
+                hotkeys.append((f'altability{i+1}', f'{alt_mod} {akey}', lambda *a, x=i: self.api.quickcast(x, self.mouse_real_pos, alt=1)))
+            if ikey:
+                if isinstance(ikey, float):
+                    ikey = str(int(ikey))
+                hotkeys.append((f'item{i+1}', str(ikey), lambda *a, x=i: self.api.itemcast(x, self.mouse_real_pos)))
+                hotkeys.append((f'altitem{i+1}', f'{alt_mod} {ikey}', lambda *a, x=i: self.api.itemcast(x, self.mouse_real_pos, alt=1)))
         # View control
         hotkeys.extend([
             ('redraw map', f'f5', lambda *a: self.redraw_map()),

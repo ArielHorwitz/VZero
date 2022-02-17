@@ -8,7 +8,7 @@ import nutil
 from nutil import kex
 from nutil.display import make_title
 from nutil.kex import widgets
-from data import TITLE
+from data import TITLE, DEV_BUILD
 from data.assets import Assets
 from data.settings import Settings
 from gui.common import SpriteLabel, SpriteTitleLabel, CenteredSpriteBox, Stack
@@ -25,26 +25,22 @@ class HomeGUI(widgets.AnchorLayout):
 
         main_frame = main_anchor.add(widgets.BoxLayout(orientation='vertical'))
         main_frame.make_bg((0,0,0,0.5))
-        self.title_label = main_frame.add(widgets.Label(halign='center', valign='middle')).set_size(y=100)
+        self.title_label = main_frame.add(widgets.Label(halign='center', valign='middle', markup=True)).set_size(y=100)
         self.menu = main_frame.add(Menu())
         self.menu.set_size(y=30)
         self.draft = main_frame.add(Draft())
 
         corner_anchor = main_anchor.add(widgets.AnchorLayout(anchor_x='right', anchor_y='top'))
         corner_buttons = corner_anchor.add(widgets.BoxLayout())
-        if Settings.get_setting('dev_build'):
+        if DEV_BUILD:
             corner_buttons.add(widgets.Button(text='Restart', on_release=lambda *a: nutil.restart_script())).set_size(x=100, y=30)
         corner_buttons.add(widgets.Button(text='Quit', on_release=lambda *a: self.app.stop())).set_size(x=100, y=30)
         corner_buttons.set_size(x=100*len(corner_buttons.children), y=30)
 
-        for params in [
-            ('New encounter', f'{Settings.get_setting("start_encounter", "Hotkeys")}', lambda *a: self.app.game.new_encounter()),
-        ]:
-            self.app.home_hotkeys.register(*params)
-
     def update(self):
         self.app.game.update()
-        self.title_label.text = f'{TITLE}\n\n{self.app.game.title_text}'
+        enc_str = f'\nPress [b]Ctrl[/b]+[b]Shift[/b]+[b]F2[/b] to return to encounter\n' if self.app.encounter else ''
+        self.title_label.text = f'{TITLE}\n{enc_str}\n{self.app.game.title_text}'
         self.draft.update()
 
 
@@ -54,11 +50,11 @@ class Menu(widgets.BoxLayout):
 
         for t, m in {
             **{b: lambda x=i: self.app.game.button_click(x) for i, b in enumerate(self.app.game.button_names)},
-            **{f'{mode.capitalize()} mode': lambda _=i: self.app.game.new_encounter(difficulty_level=_) for i, mode in enumerate(self.app.game.difficulty_levels)},
+            **{mode: lambda _=i: self.app.game.new_encounter(difficulty_level=_) for i, mode in enumerate(self.app.game.difficulty_levels)},
         }.items():
             b = widgets.Button(
                 text=t, on_release=lambda *a, x=m: x())
-            self.add(b).set_size(x=110, y=30)
+            self.add(b).set_size(x=150, y=30)
 
 
 class Draft(widgets.BoxLayout):
