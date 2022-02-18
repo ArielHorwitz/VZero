@@ -29,6 +29,7 @@ from logic.mapgen import MapGenerator
 from logic.items import ITEM, ITEMS, ITEM_CATEGORIES, Item
 
 
+LOG_INTERVAL_TICKS = 3000
 RNG = np.random.default_rng()
 STAT_SPRITES = tuple([Assets.get_sprite('ability', s) for s in (
     'physical', 'fire', 'earth',
@@ -42,6 +43,20 @@ SHOP_STATE_KEY = defaultdict(lambda: 0.7, {
     FAIL_RESULT.ON_COOLDOWN: 0,
 })
 
+FEEDBACK_SFX = {
+    'shop': 'shop',
+    'select': 'select',
+    'ouch': 'ouch',
+    'ouch2': 'ouch2',
+    FAIL_RESULT.INACTIVE: 'target',
+    FAIL_RESULT.MISSING_TARGET: 'target',
+    FAIL_RESULT.OUT_OF_BOUNDS: 'target',
+    FAIL_RESULT.OUT_OF_ORDER: 'target',
+    FAIL_RESULT.OUT_OF_RANGE: 'range',
+    FAIL_RESULT.ON_COOLDOWN: 'cooldown',
+    FAIL_RESULT.MISSING_COST: 'cost',
+}
+
 FEEDBACK_SFX_INTERVAL = Settings.get_setting('feedback_sfx_cooldown', 'UI')
 HUD_STATUSES = {str2stat(s): str2status(s) for s in MECHANICS_NAMES if s is not 'SHOP'}
 
@@ -51,6 +66,7 @@ DIFFICULTY2STOCKS = {
     2: 3,
     3: 1,
 }
+
 
 class EncounterAPI(BaseEncounterAPI):
     RNG = np.random.default_rng()
@@ -169,6 +185,7 @@ class EncounterAPI(BaseEncounterAPI):
 
     def itemsell(self, item_index, target):
         self.units[0].sell_item(item_index)
+        self.log_player_state()
 
     def user_hotkey(self, hotkey, target):
         zoom_scale = 1.15
@@ -195,11 +212,11 @@ class EncounterAPI(BaseEncounterAPI):
             self.map_mode = False
             self.view_offset = None
             self.set_zoom()
-        elif hotkey == 'dev1':
-            self.show_debug = not self.show_debug
-            logger.info(f'Toggle show_debug, now: {self.show_debug}')
         elif hotkey.startswith('dev') and self.dev_build:
-            if hotkey == 'dev2':
+            if hotkey == 'dev1':
+                self.show_debug = not self.show_debug
+                logger.info(f'Toggle show_debug, now: {self.show_debug}')
+            elif hotkey == 'dev2':
                 self.engine._do_ticks(1)
             elif hotkey == 'dev3':
                 logger.info(f'Dev doing 3000 ticks...')
@@ -572,6 +589,7 @@ class EncounterAPI(BaseEncounterAPI):
     def browse_click(self, index, button):
         if button == 'right':
             self.units[0].buy_item(index)
+            self.log_player_state()
         if button == 'left':
             item = ITEMS[index]
             return SpriteTitleLabel(
@@ -581,6 +599,8 @@ class EncounterAPI(BaseEncounterAPI):
 
     # Misc
     abilities = ABILITIES
+    items = ITEMS
+    ItemCls = Item
 
     def select_unit(self, uid):
         self.selected_unit = uid
@@ -596,12 +616,30 @@ class EncounterAPI(BaseEncounterAPI):
         in_action_radius = self.engine.get_distances(self.engine.get_position(0)) < player_action_radius
         active_uids = self.always_active | in_action_radius
         self.engine.update(active_uids)
+        if self.__last_log_interval + LOG_INTERVAL_TICKS < self.engine.tick:
+            self.log_player_state()
+            self.__last_log_interval = self.engine.tick
+
+    def log_player_state(self):
+        logger.info('\n'.join([
+            '\n\n\n',
+            f'__ PLAYER STATE __',
+            f'Tick: {self.engine.tick} Active UIDs: {np.flatnonzero(self.engine.active_uids)}',
+            f'__ STATS __',
+            self.pretty_stats(0, verbose=True),
+            f'__ STATUSES __',
+            self.pretty_statuses(0, verbose=True),
+            f'__ COOLDOWNS __',
+            self.pretty_cooldowns(0, verbose=True),
+            f'__ UNIT DEBUG_STR __',
+            self.units[0].debug_str(verbose=True),
+        ]))
 
     @property
     def unit_count(self):
         return len(self.units)
 
-    def pretty_stats(self, uid, stats=None):
+    def pretty_stats(self, uid, stats=None, verbose=False):
         unit = self.units[uid]
         if stats is None:
             stats = STAT
@@ -619,27 +657,27 @@ class EncounterAPI(BaseEncounterAPI):
             s.append(f'{stat.name.lower().capitalize()}: {current:3.3f}{d_str}{mv_str}')
         return njoin(s)
 
-    def pretty_statuses(self, uid):
+    def pretty_statuses(self, uid, verbose=False):
         t = []
         for status in STATUS:
             d = self.engine.get_status(uid, status, value_name=STATUS_VALUE.DURATION)
             s = self.engine.get_status(uid, status, value_name=STATUS_VALUE.STACKS)
-            if d > 0 or self.dev_mode:
+            if d > 0 or verbose:
                 name_ = status.name.lower().capitalize()
                 t.append(f'{name_}: {s:.3f} × {round(ticks2s(d), 2)}')
         return njoin(t) if len(t) > 0 else 'No statuses'
 
-    def pretty_cooldowns(self, uid):
+    def pretty_cooldowns(self, uid, verbose=False):
         unit = self.units[uid]
         s = []
         for aid in unit.abilities | unit.item_abilities:
             v = self.engine.get_cooldown(uid, aid)
-            if v > 0 or ABILITIES[aid].debug or self.dev_mode:
+            if v > 0 or ABILITIES[aid].debug or verbose:
                 name_ = aid.name.lower().capitalize()
                 s.append(f'{name_}: {ticks2s(v):.2f} ({v:.1f})')
         return njoin(s) if len(s) > 0 else f'No cooldowns'
 
-    def debug_panel_labels(self):
+    def debug_panel_labels(self, verbose):
         bold = {'logic_total', 'logic_stats'}
         timer_strs = []
         for tname, timer in self.engine.timers.items():
@@ -660,20 +698,20 @@ class EncounterAPI(BaseEncounterAPI):
             f'Map size: {self.map_size}',
             f'Agency phase: {self.engine.tick % self.engine.AGENCY_PHASE_COUNT}',
             make_title(f'Stats Engine Debug', length=30),
-            f'{self.engine.stats.debug_str(verbose=self.dev_mode)}',
+            f'{self.engine.stats.debug_str(verbose=verbose)}',
         ])
 
         uid = self.selected_unit
         unit = self.engine.units[uid]
         text_unit1 = '\n'.join([
             make_title(f'{unit.name} (#{unit.uid}) debug', length=30),
-            f'\n{unit.debug_str(verbose=self.dev_mode)}',
+            f'\n{unit.debug_str(verbose=verbose)}',
         ])
         text_unit2 = '\n'.join([
             make_title(f'Stats', length=30),
-            f'{self.pretty_stats(uid)}',
+            f'{self.pretty_stats(uid, verbose=self.dev_mode)}',
             make_title(f'Statuses', length=30),
-            f'{self.pretty_statuses(uid)}',
+            f'{self.pretty_statuses(uid, verbose=self.dev_mode)}',
         ])
         text_unit3 = '\n'.join([
             make_title(f'Abilities', length=30),
@@ -683,7 +721,7 @@ class EncounterAPI(BaseEncounterAPI):
             make_title(f'Unslotted', length=30),
             *(repr(_) for _ in unit.unslotted_abilities),
             make_title(f'Cooldown', length=30),
-            f'{self.pretty_cooldowns(uid)}',
+            f'{self.pretty_cooldowns(uid, verbose=self.dev_mode)}',
         ])
 
 
@@ -700,6 +738,7 @@ class EncounterAPI(BaseEncounterAPI):
         self.engine.units[0].set_abilities(player_abilities)
         self.always_visible = np.zeros(len(self.engine.units), dtype=np.bool)
         self.always_active = np.zeros(len(self.engine.units), dtype=np.bool)
+        self.__last_log_interval = self.engine.tick - (LOG_INTERVAL_TICKS + 1)
         self.__last_hud_statuses = []
         self.__last_fail_sfx_ping = ping()
         self.map_mode = False
@@ -725,37 +764,3 @@ class EncounterAPI(BaseEncounterAPI):
             'color': (0, 0, 0, 1),
             **params,
         })
-
-FEEDBACK_SFX = {
-    'shop': 'shop',
-    'select': 'select',
-    'ouch': 'ouch',
-    'ouch2': 'ouch2',
-    FAIL_RESULT.INACTIVE: 'target',
-    FAIL_RESULT.MISSING_TARGET: 'target',
-    FAIL_RESULT.OUT_OF_BOUNDS: 'target',
-    FAIL_RESULT.OUT_OF_ORDER: 'target',
-    FAIL_RESULT.OUT_OF_RANGE: 'range',
-    FAIL_RESULT.ON_COOLDOWN: 'cooldown',
-    FAIL_RESULT.MISSING_COST: 'cost',
-}
-
-SCALING_TABLE_CURVES = (25, 50, 75, 100, 150, 200)
-SCALING_TABLE_VALUES = (5,10,15,20,25,30,35,40,45,50,60,70,80,90,100,110,120,130,140,150,200,300,400)
-
-def __value_repr(value):
-    return " | ".join([__value_curve_repr(value, curve) for curve in SCALING_TABLE_CURVES])
-def __value_curve_repr(value, curve):
-    if curve == 50:
-        r = f'[b]{Mechanics.scaling(value, curve=curve, ascending=True)*100:.1f}[/b]%'
-    else:
-        r = f'{Mechanics.scaling(value, curve=curve, ascending=True)*100:.1f}%'
-    return f'{r:_>5}'
-def __curve_markdown(curve):
-    if curve == 50:
-        return f'[b]§{curve}[/b]'
-    return f'§{curve}'
-SCALING_TABLE = '\n'.join([
-    '[u][b]Curve  ' + " /  ".join([__curve_markdown(curve) for curve in SCALING_TABLE_CURVES]) + '[/b][/u]',
-    *[f'[u][b]{value:_>3}[/b] : {__value_repr(value)}[/u]' for value in SCALING_TABLE_VALUES],
-])

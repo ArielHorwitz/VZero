@@ -115,24 +115,22 @@ class UnitStats:
         v = self.get_positions(index, value_name=VALUE.DELTA)
         return np.linalg.norm(v)
 
-    def set_move(self, index, target, speed):
-        assert isinstance(speed, np.ndarray) if isinstance(target, np.ndarray) else not isinstance(speed, np.ndarray)
-        if not isinstance(index, np.ndarray):
-            mask = np.full(len(self.table), False)
-            mask[index] = True
-        else:
-            mask = index
+    def set_move(self, mask, target, speed):
         if mask.sum() == 0:
             return
-        pos = np.atleast_2d(self.get_positions(mask))
+        indices = np.flatnonzero(mask)
+        pos = np.atleast_2d(self.get_positions(indices))
+        target = np.atleast_2d(target)
         target_vector = target - pos
         v_size = np.linalg.norm(target_vector, axis=-1)
         do_move = v_size > 0
         if do_move.sum() == 0:
             return
+        indices = indices[do_move]
         delta = speed[do_move, None] * target_vector[do_move] / v_size[do_move, None]
-        self.set_positions(mask, delta, value_name=VALUE.DELTA)
-        self.set_positions(mask, target, value_name=VALUE.TARGET)
+        target = target[do_move]
+        self.set_positions(indices, delta, value_name=VALUE.DELTA)
+        self.set_positions(indices, target, value_name=VALUE.TARGET)
 
     def align_to_target(self, index):
         if not isinstance(index, np.ndarray):
@@ -161,7 +159,7 @@ class UnitStats:
             index = _
         elif index is None:
             index = np.ones(len(self.table), dtype=np.bool)
-        positions = np.column_stack(self.table[index, a, VALUE.CURRENT] for a in (STAT.POS_X, STAT.POS_Y))
+        positions = np.column_stack([self.table[index, a, VALUE.CURRENT] for a in (STAT.POS_X, STAT.POS_Y)])
         dist = np.linalg.norm(positions - np.array(point), axis=-1)
         if include_hitbox is True:
             dist -= self.table[index, STAT.HITBOX, VALUE.CURRENT]

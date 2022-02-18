@@ -243,6 +243,8 @@ class Unit(BaseUnit):
     @property
     def draft_cost(self):
         nones = self.ability_slots.count(None)
+        if nones >= 8:
+            return 0
         return round(sum([ABILITIES[a].draft_cost for a in self.ability_slots if a is not None]) / (8-nones))
 
     def set_spawn_location(self, spawn):
@@ -378,7 +380,9 @@ class Unit(BaseUnit):
         self.check_win_condition()
 
     def play_death_sfx(self):
-        Assets.play_sfx('ui', self.death_sfx, volume='feedback')
+        v = Settings.get_volume('monster_death')
+        if v > 0:
+            Assets.play_sfx('ui', self.death_sfx, volume=v)
 
     def play_respawn_sfx(self):
         Assets.play_sfx('ui', self.respawn_sfx, volume='feedback')
@@ -608,6 +612,8 @@ class Camper(Unit):
             f'Camp spread: {self.__camp_spread}',
             f'Next walk: {self.__next_walk}',
             f'Walk target: {self.__walk_target}',
+            f'Keep distance: {self.__keep_distance}',
+            f'Aggro flank: {self.__aggro_flank}',
             f'Aggro range: {self.__aggro_range}',
             f'Deaggro range: {self.__deaggro_range}',
             f'Reaggro range: {self.__reaggro_range}',

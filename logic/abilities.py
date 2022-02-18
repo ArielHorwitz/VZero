@@ -1,6 +1,6 @@
 import logging
 logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 
 import enum
@@ -70,32 +70,12 @@ class BaseAbility:
 
         logger.info(f'Created ability {self} with data: {raw_data}')
 
-    def balance_stats(self, api, uid):
-        if not self.stats:
-            return
-        unit = api.units[uid]
-        for i, (stat, value, formula) in enumerate(self.stats):
-            pre_bonus = unit.cache[f'{self}-stats'][i][2]
-            target = formula.get_value(api, uid)
-            if value is VALUE.DELTA:
-                target = ticks2s(target)
-            delta = target - pre_bonus
-            if delta == 0:
-                continue
-            pre_stat = api.get_stats(uid, stat, value)
-            api.set_stats(uid, stat, delta, value, additive=True)
-            post_stat = api.get_stats(uid, stat, value)
-            actual_delta = round(post_stat - pre_stat, 4)
-            unit.cache[f'{self}-stats'][i][2] += actual_delta
+    def _setup(self):
+        self.cooldown_aid = self.off_cooldown_aid = str2ability(self.__shared_cooldown_name)
+        self.fail_sfx = 'no_fail_sfx' not in self._raw_data.default.positional
+        self.upcast_sfx = 'no_upcast_sfx' not in self._raw_data.default.positional
 
-    def remove_stats(self, api, uid):
-        if not self.stats:
-            return
-        unit = api.units[uid]
-        for s, v, bonus in unit.cache[f'{self}-stats']:
-            api.set_stats(uid, s, -bonus, value_name=v, additive=True)
-        unit.cache[f'{self}-stats'] = None
-
+    # STAT BONUS AND BALANCE
     @staticmethod
     def _parse_stats(raw_data):
         stats = []
@@ -111,13 +91,37 @@ class BaseAbility:
             stats.append((stat, statval, formula))
         return stats
 
-    def off_cooldown(self, api, uid):
-        if self.off_cooldown_phase is PHASE.PASSIVE:
-            self.passive(api, uid, 0)
-        elif self.off_cooldown_phase is PHASE.ACTIVE:
-            self.active(api, uid, None)
-        elif self.off_cooldown_phase is PHASE.ALT:
-            self.active(api, uid, None, 1)
+    def balance_stats(self, api, uid):
+        if not self.stats:
+            return
+        unit = api.units[uid]
+        for i, balance_entry in enumerate(unit.cache[f'{self}-stats']):
+            stat, value, formula, pre_bonus = balance_entry
+            target_value = formula.get_value(api, uid)
+            if value is VALUE.DELTA:
+                target_value = ticks2s(target_value)
+            delta = target_value - pre_bonus
+            if delta == 0:
+                continue
+            pre_stat = api.get_stats(uid, stat, value)
+            api.set_stats(uid, stat, delta, value, additive=True)
+            post_stat = api.get_stats(uid, stat, value)
+            actual_delta = post_stat - pre_stat
+            unit.cache[f'{self}-stats'][i][3] += actual_delta
+
+    def remove_stats(self, api, uid):
+        if not self.stats:
+            return
+        unit = api.units[uid]
+        for i, (stat, value, formula, bonus) in enumerate(unit.cache[f'{self}-stats']):
+            pre_stat = api.get_stats(uid, stat, value)
+            api.set_stats(uid, stat, -bonus, value_name=value, additive=True)
+            post_stat = api.get_stats(uid, stat, value)
+            actual_delta = pre_stat - post_stat
+            unit.cache[f'{self}-stats'][i][3] -= actual_delta
+            logger.info(f'Removed stat {stat} {value} {formula} {bonus} from {unit.name}: {actual_delta}')
+            if actual_delta != bonus:
+                logger.warning(f'Removed ability stat bonus but result is nonzero. Bonus to remove {bonus}, actual delta: {actual_delta}')
 
     def load_on_unit(self, api, uid):
         unit = api.units[uid]
@@ -125,21 +129,20 @@ class BaseAbility:
             unit.cache[f'{self}-loadcount'] += 1
             return
         unit.cache[f'{self}-loadcount'] = 1
-        unit.cache[f'{self}-stats'] = [[s, v, 0] for s,v,f in self.stats]
+        unit.cache[f'{self}-stats'] = [[s, v, f, 0] for s,v,f in self.stats]
 
     def unload_from_unit(self, api, uid):
         unit = api.units[uid]
         loadcount = unit.cache[f'{self}-loadcount']
         if loadcount == 0:
             logger.warning(f'{self} requested to unload but found loadcount 0')
-        unit.cache[f'{self}-loadcount'] = None if loadcount <= 1 else loadcount - 1
-        self.remove_stats(api, uid)
+        if loadcount <= 1:
+            unit.cache[f'{self}-loadcount'] = 0
+            self.remove_stats(api, uid)
+        else:
+            unit.cache[f'{self}-loadcount'] -= 1
 
-    def _setup(self):
-        self.cooldown_aid = self.off_cooldown_aid = str2ability(self.__shared_cooldown_name)
-        self.fail_sfx = 'no_fail_sfx' not in self._raw_data.default.positional
-        self.upcast_sfx = 'no_upcast_sfx' not in self._raw_data.default.positional
-
+    # PHASES
     def passive(self, api, uid, dt):
         self.balance_stats(api, uid)
         phase = self.phases[PHASE.PASSIVE]
@@ -151,6 +154,32 @@ class BaseAbility:
         phase.apply_effects(api, uid, dt=0, target_point=target_point)
         return self.aid
 
+    def off_cooldown(self, api, uid):
+        if self.off_cooldown_phase is PHASE.PASSIVE:
+            self.passive(api, uid, 0)
+        elif self.off_cooldown_phase is PHASE.ACTIVE:
+            self.active(api, uid, None)
+        elif self.off_cooldown_phase is PHASE.ALT:
+            self.active(api, uid, None, 1)
+
+    # GUI
+    def gui_state(self, api, uid):
+        cd, missing_mana, other_fail = self.state_phase.check_state(api, uid)
+        miss = 0
+        strings = []
+        color = (0, 0, 0, 0)
+        if cd > 0:
+            strings.append(f'C: {round(ticks2s(cd), 1)}')
+            color = (1, 0, 0, 1)
+            miss += 1
+        if missing_mana > 0:
+            strings.append(f'M: {round(missing_mana, 1)}')
+            color = (0, 0, 1, 1)
+            miss += 1
+        if miss > 1 or other_fail > 0:
+            color = (0, 0, 0, 1)
+        return '\n'.join(strings), color
+
     @property
     def universal_description(self):
         return self._description()
@@ -158,7 +187,7 @@ class BaseAbility:
     def description(self, api, uid):
         return self._description((api, uid))
 
-    def stats_str(self, au):
+    def stats_description(self, au):
         strs = []
         for s, v, f in self.stats:
             name = stat_name = s.name.lower().capitalize()
@@ -180,44 +209,18 @@ class BaseAbility:
         if self.info:
             s.append(self.info)
         if self.stats:
-            s.append(f'\n[u]Passive stat bonus:[/u]\n{self.stats_str(au)}')
+            s.append(f'\n[u]Passive stat bonus:[/u]\n{self.stats_description(au)}')
         s.append('_'*30)
         if self.aid != self.cooldown_aid:
             s.append(f'Shares cooldown with: {self.__shared_cooldown_name}')
         for phase in self.phases.values():
             s.extend(phase.description(au))
-        sr = self.selected_repr(au)
+        sr = self.selected_description(au)
         if sr:
             s.append(f'\nSelected: {sr}')
         return '\n'.join(s)
 
-    def gui_state(self, api, uid):
-        cd, missing_mana, other_fail = self.state_phase.check_state(api, uid)
-        miss = 0
-        strings = []
-        color = (0, 0, 0, 0)
-        if cd > 0:
-            strings.append(f'C: {round(ticks2s(cd), 1)}')
-            color = (1, 0, 0, 1)
-            miss += 1
-        if missing_mana > 0:
-            strings.append(f'M: {round(missing_mana, 1)}')
-            color = (0, 0, 1, 1)
-            miss += 1
-        if miss > 1 or other_fail > 0:
-            color = (0, 0, 0, 1)
-        return '\n'.join(strings), color
-
-    @property
-    def shared_cooldown_repr(self):
-        if self.aid != self.cooldown_aid:
-            return
-        return ''
-
-    def cache_selected(self, api, uid):
-        return api.units[uid].cache[self.cached_selected_key]
-
-    def selected_repr(self, au):
+    def selected_description(self, au):
         if au is None:
             return None
         api, uid = au
@@ -228,8 +231,15 @@ class BaseAbility:
         extra = f', +{len(uids)-3}' if len(uids) > 3 else ''
         return ', '.join([api.units[u].name for u in uids[:3]]) + extra
 
-    def play_sfx(self, volume='sfx', replay=True, **kwargs):
-        Assets.play_sfx('ability', self.sfx, volume=volume, replay=replay, **kwargs)
+    # UTILITIES
+    @property
+    def shared_cooldown_repr(self):
+        if self.aid != self.cooldown_aid:
+            return
+        return ''
+
+    def cache_selected(self, api, uid):
+        return api.units[uid].cache[self.cached_selected_key]
 
     def __repr__(self):
         return f'{self.aid} {self.name}'
@@ -241,6 +251,9 @@ class BaseAbility:
     @staticmethod
     def has_phase(s):
         return hasattr(PHASE, s.upper())
+
+    def play_sfx(self, volume='sfx', replay=True, **kwargs):
+        Assets.play_sfx('ability', self.sfx, volume=volume, replay=replay, **kwargs)
 
 
 ABILITY_CLASSES = {
@@ -319,8 +332,8 @@ class Phase:
                 'area:', np.flatnonzero(targets.area),
                 'selected:', np.flatnonzero(targets.selected),
             ])
-            target_str = f'point{"*" if self.targeting_point else ""}: {self.point} target{"" if self.targeting_point else "*"}: {self.target} '
-            logger.info(f'Tick: {api.tick}, {self} found: {target_str} {d}')
+            target_str = f'{"*" if self.targeting_point else ""}point: {self.point} {"" if self.targeting_point else "*"}target: {self.target} '
+            logger.info(f'Tick: {api.tick} UID: {uid}, {self} found: {target_str} {d}')
         # Unconditional effects
         for effect in self.effects[CONDITION.UNCONDITIONAL]:
             effect.apply(api, uid, targets)
@@ -489,7 +502,7 @@ class Phase:
                     rect = Rect.from_point(source_point, target_point, width, length, offset)
                     subset_pos = api.get_position(np.vstack(subset_uids))
                     subset_in_rect = rect.check_colliding_circles(subset_pos, hb_radius)
-                    area_uids = subset_uids[np.flatnonzero(subset_in_rect)]
+                    area_uids = subset_uids[subset_in_rect]
 
         single_target_mask = empty_mask if single_target_uid is None else Mechanics.mask(api, single_target_uid)
         area_mask = Mechanics.mask(api, area_uids)
@@ -824,7 +837,7 @@ class EffectPush(Effect):
             extra_str = f'{extra_str} at [b]{round(speed)}[/b] speed'
         if extra_str:
             extra_str = f' for {extra_str}'
-        return f'[u][b]{self.effect_name}[/b]{extra_str}[/u][/b]{self.distance.full_str("Distance: ")}{self.duration.full_str("Duration: ")}{self.speed.full_str("Speed: ")}'
+        return f'[u][b]{self.effect_name}[/b]{extra_str}[/u]{self.distance.full_str("Distance: ")}{self.duration.full_str("Duration: ")}{self.speed.full_str("Speed: ")}'
 
     def apply(self, api, uid, targets):
         # Resolve targets
@@ -881,7 +894,19 @@ class EffectLoot(Effect):
 
     def apply(self, api, uid, targets):
         range = self.range.get_value(api, uid)
-        Mechanics.apply_loot(api, uid, api.get_position(uid), range)
+        loot_pos, loot_gold = f, _ = Mechanics.apply_loot(api, uid, api.get_position(uid), range)
+        if isinstance(f, FAIL_RESULT):
+            api.logic.play_feedback(f, uid=uid)
+        else:
+            diameter = max(75, 500 * Mechanics.scaling(loot_gold, 150, ascending=True))
+            api.add_visual_effect(VFX.SPRITE, 25, {
+                'source': Assets.get_sprite('ability', 'gold'),
+                'point': loot_pos,
+                'size': (diameter, diameter),
+                'fade': 25,
+            })
+
+
 
 
 class EffectTeleport(Effect):
@@ -957,7 +982,7 @@ class EffectStatus(Effect):
 
         duration_total = (duration != 0) + duration_add
         stacks_total = (stacks is not None) + stacks_add
-        if duration_total + stacks_total == 0:
+        if duration_total == 0 or stacks_total == 0:
             stacks_str = 'Remove all'
             duration_str = ''
 
@@ -1205,8 +1230,8 @@ class EffectShopkeeper(Effect):
 
     def repr(self, au):
         if au:
-            shop_name = Item.stat2category(self._get_shop_stacks(*au)).name.lower().capitalize()
-            return f'Apply {shop_name} status'
+            shop_name = au[0].logic.ItemCls.stat2category(self._get_shop_stacks(*au)).name.lower()
+            return f'Apply {shop_name} shop status'
         return 'Apply shop status based on caster\'s shop stat'
 
     @staticmethod
@@ -1339,14 +1364,14 @@ class EffectVFXRect(Effect):
         assert self.direction_vector in self.valid_point_targets
         self.length = resolve_formula('length', raw_data, 750)
         self.width = resolve_formula('width', raw_data, 250)
-        self.include_hitbox = 'include_hitbox' not in raw_data.positional
+        self.include_hitbox = 'include_hitbox' in raw_data.positional
 
     def apply(self, api, uid, targets):
         origin = self.resolve_target_point(api, uid, self.origin, targets)
         target = self.resolve_target_point(api, uid, self.direction_vector, targets)
         length = self.length.get_value(api, uid)
         width = self.width.get_value(api, uid)
-        offset = 0 if self.include_hitbox else Mechanics.get_stats(api, uid, STAT.HITBOX)
+        offset = Mechanics.get_stats(api, uid, STAT.HITBOX) if self.include_hitbox else 0
         rect = Rect.from_point(origin, target, width, length, offset)
         fade = s2ticks(self.fade.get_value(api, uid))
         fade = {'fade': fade} if fade > 0 else {}

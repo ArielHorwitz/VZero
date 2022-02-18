@@ -138,14 +138,15 @@ info: Cleave through enemies with normal damage.
 -- ACTIVE
 requires_los
 no_sfx
+range: 30
+cooldown: 2
+selection_distance: 200
 target: enemy
 area: rect
 area_origin: target
 width: 400
-length: 800
-range: 30
-cooldown: 2
-selection_distance: 100
+length: 600
+include_hitbox
 --- active.upcast.sfx
 --- active.upcast.vfx-line
 --- active.upcast.vfx-rect
@@ -154,7 +155,7 @@ fade: 0.2
 origin: self
 direction: single
 width: 400
-length: 400
+length: 600
 include_hitbox
 --- active.upcast.hit
 target: area
@@ -269,7 +270,7 @@ damage=scale: 20, earth, 400, 150
 === Force
 type: base
 color: purple
-draft_cost: 60
+draft_cost: 20
 info: Push or pull a single target.
 -- ACTIVE
 target: other
@@ -298,7 +299,7 @@ distance: 500
 === Mesmerise
 type: base
 color: purple
-draft_cost: 60
+draft_cost: 25
 info: Pull an enemy to yourself.
 -- ACTIVE
 point: self
@@ -318,7 +319,7 @@ distance: 500
 === Mudslide
 type: base
 color: purple
-draft_cost: 60
+draft_cost: 35
 info: Suck enemies in an area toward one point.
 --- stats
 los=scale: 200, time, 600, 25
@@ -347,6 +348,7 @@ type: base
 draft_cost: 25
 color: black
 info: Sense your foes beyond the darkness. Activate to remove most negative statuses.
+sfx: unbuff
 --- PASSIVE
 target: enemy
 selection_distance=scale: 500, water, 2000, 50
@@ -378,6 +380,7 @@ target: self
 status: vanity
 duration: 0
 --- ALT
+no_fail_sfx
 target: enemy
 range=scale: 500, water, 10_000, 150
 --- alt.upcast.vfx-line
@@ -485,8 +488,7 @@ target: self
 cooldown=reduc: 2, air, 0.25, 50
 status_require: bounded
 --- passive.upcast.sfx
-sfx: select
-category: ui
+sfx: unbuff
 --- passive.upcast.status
 target: self
 status: bounded
@@ -671,7 +673,7 @@ type: base
 color: yellow
 draft_cost: 40
 off_cooldown: passive
-info: Apply darkness on enemy.
+info: Add stacking darkness on an enemy.
 --- PASSIVE
 target: selected
 mana_cost: 5
@@ -879,7 +881,6 @@ draft_cost: 110
 info: Blast at range. Virtually no cooldown.
 -- ACTIVE
 point_target
-point: fix
 target: other
 include_self
 mana_cost=scale: 60, fire, 125, 100
@@ -980,6 +981,7 @@ range: 600
 
 === Crazy Aura
 type: base
+draft_cost: 35
 color: brown
 sfx: implosion
 --- info
@@ -1045,51 +1047,53 @@ delta=scale: 3, fire, 300, 100
 
 === Dragon Teeth
 type: base
-draft_cost: 30
+draft_cost: 70
 -- stats
 mana.max=scale: 20, time, 900, 75
 === Exocrust
 type: base
-draft_cost: 30
+draft_cost: 70
 -- stats
 hp.max=scale: 20, time, 900, 75
 === Natural Medicine
 type: base
+draft_cost: 70
 --- stats
 hp.delta=scale: 2, time, 75, 75
 === Ether Diffusion
 type: base
+draft_cost: 70
 --- stats
 mana.delta=scale: 2, time, 75, 75
 
 === Physical Essence
 type: base
 sprite: physical
-draft_cost: 30
+draft_cost: 40
 -- stats
 physical=scale: 10, time, 100, 50
 === Fire Essence
 type: base
 sprite: fire
-draft_cost: 30
+draft_cost: 40
 -- stats
 fire=scale: 10, time, 100, 50
 === Earth Essence
 type: base
 sprite: earth
-draft_cost: 30
+draft_cost: 40
 -- stats
 earth=scale: 10, time, 100, 50
 === Air Essence
 type: base
 sprite: air
-draft_cost: 30
+draft_cost: 40
 -- stats
 air=scale: 10, time, 100, 50
 === Water Essence
 type: base
 sprite: water
-draft_cost: 30
+draft_cost: 40
 -- stats
 water=scale: 10, time, 100, 50
 
@@ -1106,7 +1110,7 @@ movespeed=scale: 15, time, 60, 25
 === Walk
 type: base
 sprite: walk
-draft_cost: 60
+draft_cost: 30
 info: Gain movespeed based on air.
 --- stats
 movespeed=scale: 5, air, 60, 100
@@ -1114,21 +1118,21 @@ los: 200
 === Flametrail
 type: base
 sprite: walk
-draft_cost: 60
+draft_cost: 30
 info: Gain movespeed based on fire.
 --- stats
 movespeed=scale: 5, fire, 60, 100
 === Hike
 type: base
 sprite: walk
-draft_cost: 60
+draft_cost: 30
 info: Gain movespeed based on earth.
 --- stats
 movespeed=scale: 5, earth, 60, 100
 === Flow
 type: base
 sprite: walk
-draft_cost: 60
+draft_cost: 30
 info: Gain movespeed based on water.
 --- stats
 movespeed=scale: 5, water, 60, 100
@@ -1243,6 +1247,7 @@ los: 250
 --- ACTIVE
 mana_cost: 5
 cooldown: 18
+target: self
 --- active.upcast.status.1
 target: self
 status: lifesteal
@@ -1360,6 +1365,7 @@ area: circle
 radius=scale: 400, earth, 700, 50
 include_hitbox
 --- passive.upcast.status
+target: area
 status: slow
 stacks=scale: 15, air, 30, 50
 --- ALT
@@ -1435,8 +1441,7 @@ target: self
 cooldown=reduc: 2, air, 0.25, 50
 status_require: bounded
 --- passive.upcast.sfx
-sfx: select
-category: ui
+sfx: unbuff
 --- passive.upcast.status
 target: self
 status: bounded

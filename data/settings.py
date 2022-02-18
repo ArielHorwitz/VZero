@@ -2,86 +2,94 @@ import logging
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
+from nutil.file import file_dump
 from data.load import RDF
 
 
+_DEFAULT_SETTINGS_STR = """
+=== General
+dev_build: 0
+default_window: fullscreen
+full_resolution: 1920, 1080
+window_resolution: 1024, 768
+default_zoom: 40
+enable_hold_mouse: 1
+enable_hold_key: 0
+
+=== UI
+detailed_mode: 1
+auto_dismiss_tooltip: 100
+auto_tooltip: 0
+hud_scale: 1
+decorations: 0.75
+feedback_sfx_cooldown: 350
+fog: 40
+fog_color: 0, 0, 0, 0.6
+
+=== Audio
+volume_master: 0.15
+volume_sfx: 1
+volume_ui: 0.5
+volume_feedback: 0.5
+volume_monster_death: 0.4
+
+=== Hotkeys
+toggle_fullscreen: f11
+toggle_borderless: ! f11
+toggle_menu: escape
+toggle_play: spacebar
+toggle_shop: f1
+toggle_map: tab
+toggle_detailed: ! alt
+
+loot: z
+alt_modifier: +
+ability1: q
+ability2: w
+ability3: e
+ability4: r
+ability5: a
+ability6: s
+ability7: d
+ability8: f
+item1: 1
+item2: 2
+item3: 3
+item4: 4
+item5: 5
+item6: 6
+item7: 7
+item8: 8
+
+reset_view: home
+zoom_in: =
+zoom_out: -
+pan_up: up
+pan_down: down
+pan_left: left
+pan_right: right
+
+refresh: f5
+
+dev1: ^+ f9
+dev2: ^+ f10
+dev3: ^+ f11
+dev4: ^+ f12
+
+=== Loadouts
+
+"""
+file_dump(RDF.CONFIG_DIR / 'settings-auto-generated-defaults.cfg', _DEFAULT_SETTINGS_STR)
+
+
 class Settings:
-    SETTINGS = RDF.load(RDF.CONFIG_DIR / 'settings.cfg')
-    DEFAULT_SETTINGS = {
-        'General': {
-            0: {
-                'dev_build': 0,
-                'default_window': 'fullscreen',
-                'full_resolution': '1920, 1080',
-                'window_resolution': '1024, 768',
-                'default_zoom': 40,
-                'enable_hold_mouse': 1,
-                'enable_hold_key': 0,
-            }
-        },
-        'UI': {
-            0: {
-                'hud_scale': 1,
-                'auto_tooltip': 0,
-                'auto_dismiss_tooltip': 25,
-                'decorations': 0.75,
-                'feedback_sfx_cooldown': 350,
-                'fog': 1,
-                'fog_color': '0, 0, 0, 0.5',
-            },
-        },
-        'Audio': {
-            0: {
-                'volume_master': 0.15,
-                'volume_sfx': 1,
-                'volume_ui': 0.5,
-                'volume_feedback': 0.5,
-            }
-        },
-        'Hotkeys': {
-            0: {
-                'toggle_fullscreen': 'f11',
-                'toggle_borderless': '! f11',
-                'toggle_menu': 'escape',
-                'toggle_play': 'spacebar',
-                'toggle_shop': 'f1',
-                'toggle_map': 'tab',
-                'toggle_detailed': '! alt',
-                # Map control
-                'reset_view': 'home',
-                'zoom_in': '=',
-                'zoom_out': '-',
-                'pan_up': 'up',
-                'pan_down': 'down',
-                'pan_left': 'left',
-                'pan_right': 'right',
-                # Abilities
-                'loot': 'z',
-                'alt_modifier': '+',
-                'loot-mouse': '5',
-                'ability1': 'q',
-                'ability2': 'w',
-                'ability3': 'e',
-                'ability4': 'r',
-                'ability5': '',
-                'ability6': '',
-                'ability7': '',
-                'ability8': '',
-                'item1': '1',
-                'item2': '2',
-                'item3': '3',
-                'item4': '4',
-                'item5': '',
-                'item6': '',
-                'item7': '',
-                'item8': '',
-                'dev1': '^+ f9',
-                'dev2': '^+ f10',
-                'dev3': '^+ f11',
-                'dev4': '^+ f12',
-            },
-        },
-    }
+    DEFAULT_SETTINGS = RDF(_DEFAULT_SETTINGS_STR, raw_str=True)
+    USER_SETTINGS = RDF(RDF.CONFIG_DIR / 'settings.cfg')
+
+    @classmethod
+    def reload_settings(cls):
+        cls.USER_SETTINGS = RDF(RDF.CONFIG_DIR / 'settings.cfg')
+        logger.info(f'Reloaded user-defined settings: {Settings.USER_SETTINGS}')
 
     @classmethod
     def get_volume(cls, category=None):
@@ -92,44 +100,12 @@ class Settings:
         return v
 
     @classmethod
-    def get_setting(cls, setting, category='General', subcategory=0):
-        for database in (cls.SETTINGS, cls.DEFAULT_SETTINGS):
-            if category in database:
-                if subcategory in database[category]:
-                    if setting in database[category][subcategory]:
-                        # Warn if default setting is missing
-                        if category not in cls.DEFAULT_SETTINGS:
-                            logger.error(f'Missing default settings category: {category}')
-                        if subcategory not in cls.DEFAULT_SETTINGS[category]:
-                            logger.error(f'Missing default settings subcategory: {subcategory}')
-                        if setting not in cls.DEFAULT_SETTINGS[category][subcategory]:
-                            logger.error(f'Missing default setting: {setting} from category {category} subcategory {subcategory}')
-                        # Finally return the setting value
-                        return database[category][subcategory][setting]
-                    else:
-                        m = f'Cannot find setting {setting} from category {category}, subcategory {subcategory}.'
-                else:
-                    m = f'Cannot find settings subcategory {subcategory} in category {category}.'
-            else:
-                m = f'Cannot find settings category {category}.'
-        logger.critical(m)
-        logger.debug(f'Settings:{cls.SETTINGS}')
-        logger.debug(f'Default Settings:{cls.DEFAULT_SETTINGS}')
-        raise KeyError(m)
+    def get_setting(cls, setting, category='General'):
+        try:
+            return cls.USER_SETTINGS[category].default[setting]
+        except Exception as e:
+            return cls.DEFAULT_SETTINGS[category].default[setting]
 
 
-logger.info(f'Found default settings:')
-for category_name, category in Settings.DEFAULT_SETTINGS.items():
-    for subcategory_name, subcategory in category.items():
-        for setting in subcategory.keys():
-            value = Settings.get_setting(setting, category=category_name, subcategory=subcategory_name)
-            m = f'Default {category_name} [{subcategory_name}] - {setting}: {value}'
-            logger.info(m)
-
-logger.info(f'Found user-defined settings:')
-for category_name, category in Settings.SETTINGS.items():
-    for subcategory_name, subcategory in category.items():
-        for setting in subcategory.keys():
-            value = Settings.get_setting(setting, category=category_name, subcategory=subcategory_name)
-            m = f'User-defined {category_name} [{subcategory_name}] - {setting}: {value}'
-            logger.info(m)
+logger.info(f'Found default settings: {Settings.DEFAULT_SETTINGS}')
+logger.info(f'Found user-defined settings: {Settings.USER_SETTINGS}')

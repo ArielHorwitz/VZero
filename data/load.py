@@ -34,9 +34,13 @@ class Category(dict):
 
 class RDF(dict):
     CONFIG_DIR = ROOT_DIR / 'config'
-    def __init__(self, file):
-        self.raw_dict = self.load(file)
+    def __init__(self, file, raw_str=False):
+        self.raw_dict = self.load(file) if not raw_str else self.load_str(file)
         super().__init__({k: Category(v) for k, v in self.raw_dict.items()})
+
+    @classmethod
+    def load_str(cls, str):
+        return cls._read_toplevel(str.split('\n'))
 
     @classmethod
     def load(cls, file):

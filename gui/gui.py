@@ -55,16 +55,25 @@ class App(widgets.App):
             widgets.kvClock.schedule_once(lambda *a: self.toggle_window_borderless(False), 0)
 
         for params in [
+            ('Refresh', Settings.get_setting('refresh', 'Hotkeys'), lambda *a: self.full_refresh()),
             ('Fullscreen', Settings.get_setting('toggle_fullscreen', 'Hotkeys'), lambda *a: self.toggle_window_fullscreen()),
             ('Borderless', Settings.get_setting('toggle_borderless', 'Hotkeys'), lambda *a: self.toggle_window_borderless()),
-            ('Tab: Home', '^+ f1', lambda *a: self.switch.switch_screen('home')),
-            ('Tab: Encounter', '^+ f2', lambda *a: self.switch.switch_screen('enc')),
-            ('Tab: Info 1', '^+ f3', lambda *a: self.switch.switch_screen('info1')),
-            ('Tab: Info 2', '^+ f4', lambda *a: self.switch.switch_screen('info2')),
+            ('Tab: Home', '^+ f1', lambda *a: self.switch_screen('home')),
+            ('Tab: Encounter', '^+ f2', lambda *a: self.switch_screen('enc')),
+            ('Tab: Info 1', '^+ f3', lambda *a: self.switch_screen('info1')),
+            ('Tab: Info 2', '^+ f4', lambda *a: self.switch_screen('info2')),
         ]:
             self.app_hotkeys.register(*params)
         if not DEV_BUILD:
             Assets.play_sfx('ui', 'welcome', volume='ui')
+
+    def full_refresh(self):
+        logger.info(f'Reloading settings...')
+        Settings.reload_settings()
+
+    def switch_screen(self, *a, **k):
+        logger.info(f'GUI Switch screen args: {a} {k}')
+        self.switch.switch_screen(*a, **k)
 
     def toggle_window_borderless(self, set_as=None):
         if widgets.kvWindow.fullscreen:
@@ -114,19 +123,21 @@ class App(widgets.App):
         if self.encounter is None and encounter_api is not None:
             self.enc_frame.clear_widgets()
             self.encounter = self.enc_frame.add(Encounter(encounter_api))
-            self.switch.switch_screen('enc')
+            self.switch_screen('enc')
             self.home_hotkeys.deactivate()
             self.enc_hotkeys.activate()
             logger.info(f'GUI opened encounter')
+            self.full_refresh()
         elif self.encounter is not None and encounter_api is None:
             self.enc_hotkeys.clear_all()
             self.enc_frame.remove_widget(self.encounter)
             self.enc_frame.add(ENC_PLACEHOLDER)
             self.encounter = None
-            self.switch.switch_screen('home')
+            self.switch_screen('home')
             self.home_hotkeys.activate()
             self.enc_hotkeys.deactivate()
             logger.info(f'GUI closed encounter')
+            self.full_refresh()
 
         self.enc_hotkeys.deactivate()
         if self.encounter is None or self.switch.current_screen.name == 'home':
@@ -152,7 +163,6 @@ class InfoBox(widgets.BoxLayout):
             self.add(widgets.Widget())
 
 
-
-INFO_PANEL1 = InfoBox(f'Press [b]Ctrl[/b]+[b]Shift[/b]+[b]F2[/b] to return to encounter', widgets.Image(allow_stretch=True, source=Assets.get_sprite('ui', 'scaling-table')))
-INFO_PANEL2 = InfoBox(f'Press [b]Ctrl[/b]+[b]Shift[/b]+[b]F2[/b] to return to encounter', widgets.Image(allow_stretch=True, source=Assets.get_sprite('ui', 'scaling-table-full')))
+INFO_PANEL1 = InfoBox(f'Press [b]Ctrl[/b]+[b]Shift[/b]+[b]F2[/b] to return to encounter', widgets.Image(allow_stretch=True, source=Assets.get_sprite('ui', 'info1')))
+INFO_PANEL2 = InfoBox(f'Press [b]Ctrl[/b]+[b]Shift[/b]+[b]F2[/b] to return to encounter', widgets.Image(allow_stretch=True, source=Assets.get_sprite('ui', 'info2')))
 ENC_PLACEHOLDER = InfoBox(f'Press [b]Ctrl[/b]+[b]Shift[/b]+[b]F1[/b] to load an encounter', widgets.Label(text='No encounter in progress.'))

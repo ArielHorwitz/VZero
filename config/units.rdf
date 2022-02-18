@@ -4,7 +4,7 @@ type: player
 max_hp_delta: 0.002
 --- stats
 allegiance: 0
-gold: 30
+gold: 150
 gold.delta: 0.01
 hp.max: 100
 hp.delta: 0.01

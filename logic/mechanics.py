@@ -25,11 +25,10 @@ class Mechanics:
         # Check
         loot_target, dist = api.nearest_uid(pos, mask=api.mask_dead(), alive_only=False)
         if loot_target is None:
-            Assets.play_sfx('ui', 'target', volume='feedback')
-            return FAIL_RESULT.MISSING_TARGET
+            return FAIL_RESULT.MISSING_TARGET, None
         if api.unit_distance(uid, loot_target) > range:
-            Assets.play_sfx('ui', 'target', volume='feedback')
-            return FAIL_RESULT.MISSING_TARGET
+            return FAIL_RESULT.MISSING_TARGET, None
+        loot_pos = api.get_position(loot_target)
         # Apply and move remains
         looted_gold = api.get_stats(loot_target, STAT.GOLD)
         api.set_stats(loot_target, STAT.GOLD, 0)
@@ -37,7 +36,7 @@ class Mechanics:
         api.set_stats(uid, STAT.GOLD, looted_gold, additive=True)
         Assets.play_sfx('ui', 'loot', volume='sfx')
         logger.debug(f'{api.units[uid]} looted {looted_gold} gold from {api.units[loot_target]}.')
-        return loot_target
+        return loot_pos, looted_gold
 
     @classmethod
     def apply_teleport(cls, api, uid, target, reset_target=False):
@@ -309,5 +308,5 @@ class Rect:
             return self.point_vectors
         c, s = np.cos(radians), np.sin(radians)
         j = np.matrix([[c, s], [-s, c]])
-        rotated_point_vectors = np.vstack(np.hstack(np.dot(j, p).T) for p in self.point_vectors)
+        rotated_point_vectors = np.vstack([np.hstack(np.dot(j, p).T) for p in self.point_vectors])
         return rotated_point_vectors + self.center

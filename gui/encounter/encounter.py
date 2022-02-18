@@ -30,7 +30,7 @@ class Encounter(widgets.RelativeLayout):
         super().__init__(**kwargs)
         self.api = api
         self.timers = defaultdict(RateCounter)
-        self.detailed_info_mode = False
+        self.detailed_info_mode = Settings.get_setting('detailed_mode', 'UI')
         self.__units_per_pixel = self.DEFAULT_UPP
         self.__holding_mouse = False
         self.__enable_hold_mouse = Settings.get_setting('enable_hold_mouse', 'General') == 1
@@ -174,7 +174,7 @@ class Encounter(widgets.RelativeLayout):
                 hotkeys.append((f'altitem{i+1}', f'{alt_mod} {ikey}', lambda *a, x=i: self.api.itemcast(x, self.mouse_real_pos, alt=1)))
         # View control
         hotkeys.extend([
-            ('redraw map', f'f5', lambda *a: self.redraw_map()),
+            ('redraw map', Settings.get_setting('refresh', 'Hotkeys'), lambda *a: self.redraw_map()),
         ])
         # Register
         for params in hotkeys:

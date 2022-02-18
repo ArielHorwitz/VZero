@@ -6,6 +6,8 @@ logger = logging.getLogger(__name__)
 import statistics
 from nutil.vars import modify_color, List
 from nutil.time import humanize_ms
+from nutil.file import file_dump
+from data import DEV_BUILD
 from data.load import RDF
 from data.assets import Assets
 from data.settings import Settings
@@ -21,7 +23,7 @@ class GameAPI(BaseGameAPI):
     difficulty_levels = EncounterAPI.difficulty_levels
 
     def __init__(self):
-        self.restart_flag = False
+        self.restart_difficulty_flag = None
         self.silver_bank = 1000
         self.draftables = []
         for aid in AID_LIST:
@@ -30,11 +32,13 @@ class GameAPI(BaseGameAPI):
             self.draftables.append(aid)
         self.loadout = [None for _ in range(8)]
         self.selected_aid = self.draftables[0]
+        self.load_loadout(1)
 
     def update(self):
-        if self.restart_flag:
-            self.new_encounter(self.restart_flag)
-            self.restart_flag = False
+        if self.restart_difficulty_flag is not None:
+            difficulty = self.restart_difficulty_flag
+            self.restart_difficulty_flag = None
+            self.new_encounter(difficulty)
 
     def average_draft_cost(self, loadout=None):
         if loadout is None:
@@ -63,16 +67,16 @@ class GameAPI(BaseGameAPI):
             Assets.play_sfx('ui', 'select')
             return
 
-        for i, loadout_aid in enumerate(self.loadout):
-            if loadout_aid is None:
-                self.loadout[i] = aid
-                ABILITIES[aid].play_sfx(volume='ui')
-                return
-        else:
-            Assets.play_sfx('ui', 'target')
+        if ABILITIES[aid].draftable or DEV_BUILD:
+            for i, loadout_aid in enumerate(self.loadout):
+                if loadout_aid is None:
+                    self.loadout[i] = aid
+                    ABILITIES[aid].play_sfx(volume='ui')
+                    return
+        Assets.play_sfx('ui', 'target')
 
     # GUI handlers
-    button_names = ['Clear']
+    button_names = []
 
     @property
     def title_text(self):
@@ -81,7 +85,7 @@ class GameAPI(BaseGameAPI):
         ])
 
     def restart_encounter(self):
-        self.restart_flag = self.encounter_api.difficulty_level
+        self.restart_difficulty_flag = self.encounter_api.difficulty_level
         self.leave_encounter()
 
     def new_encounter(self, difficulty_level=0):
@@ -95,10 +99,44 @@ class GameAPI(BaseGameAPI):
             self.encounter_api.leave()
             self.encounter_api = None
 
-    def button_click(self, index):
-        if index == 0:
+    @staticmethod
+    def get_user_loadouts():
+        Settings.reload_settings()
+        if 'Loadouts' in Settings.USER_SETTINGS:
+            return Settings.USER_SETTINGS['Loadouts'].default.positional
+        file_dump(RDF.CONFIG_DIR / 'settings.cfg', '\n\n\n=== Loadouts\n', clear=False)
+        Settings.reload_settings()
+        return []
+
+    def save(self):
+        loadout_str = ', '.join(['null' if aid is None else aid.name.lower() for aid in self.loadout])
+        all_loadouts = self.get_user_loadouts()
+        logger.info(f'saving loadout: {loadout_str}, all loadouts:\n{all_loadouts}')
+        if loadout_str not in all_loadouts:
+            file_dump(RDF.CONFIG_DIR / 'settings.cfg', '\n'+loadout_str+'\n', clear=False)
+            Assets.play_sfx('ui', 'pause')
+
+    def load_loadout(self, loadout_number):
+        if loadout_number == 0:
             self.loadout = [None for _ in range(8)]
-            Assets.play_sfx('ui', 'select')
+        elif loadout_number != 0:
+            self.loadout = []
+            all_loadouts = self.get_user_loadouts()
+            loadout_index = loadout_number - 1 if loadout_number > 0 else loadout_number
+            if all_loadouts and len(all_loadouts) > loadout_index:
+                selected_loadout = all_loadouts[loadout_index]
+                for aname in selected_loadout.split(', '):
+                    try:
+                        aid = str2ability(aname)
+                        assert ABILITIES[aid].draftable or DEV_BUILD
+                        self.loadout.append(aid)
+                    except:
+                        self.loadout.append(None)
+            self.loadout.extend([None for _ in range(8-len(self.loadout))])
+
+    def number_select(self, index):
+        Assets.play_sfx('ui', 'select')
+        self.load_loadout(index)
 
     def draft_click(self, index, button):
         aid = self.draftables[index]

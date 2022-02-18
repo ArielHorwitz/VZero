@@ -32,6 +32,10 @@ class Encounter:
         self._visual_effects = []
         logger.info(f'Initialized Encounter Engine {self}')
 
+    @property
+    def active_uids(self):
+        return self.__active_uids
+
     # TIME MANAGEMENT
     def update(self, active_uids):
         assert isinstance(active_uids, np.ndarray)

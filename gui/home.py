@@ -36,6 +36,7 @@ class HomeGUI(widgets.AnchorLayout):
             corner_buttons.add(widgets.Button(text='Restart', on_release=lambda *a: nutil.restart_script())).set_size(x=100, y=30)
         corner_buttons.add(widgets.Button(text='Quit', on_release=lambda *a: self.app.stop())).set_size(x=100, y=30)
         corner_buttons.set_size(x=100*len(corner_buttons.children), y=30)
+        self.make_hotkeys()
 
     def update(self):
         self.app.game.update()
@@ -43,18 +44,34 @@ class HomeGUI(widgets.AnchorLayout):
         self.title_label.text = f'{TITLE}\n{enc_str}\n{self.app.game.title_text}'
         self.draft.update()
 
+    def make_hotkeys(self):
+        for i in range(10):
+            self.app.home_hotkeys.register(
+                f'Home number select {i}', str(i),
+                lambda _, x=i: self.app.game.number_select(x)
+            )
+        for action, key, callback in [
+            ('Home enter', 'enter', lambda _: self.app.game.save()),
+            ('Home enter', 'numpadenter', lambda _: self.app.game.save()),
+        ]:
+            self.app.home_hotkeys.register(action, key, callback)
 
-class Menu(widgets.BoxLayout):
+
+class Menu(widgets.AnchorLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
+        self.box = self.add(widgets.BoxLayout())
+        self.box.add(widgets.Label(text='[b][u]Play difficulty:[/u][/b]', markup=True))
         for t, m in {
-            **{b: lambda x=i: self.app.game.button_click(x) for i, b in enumerate(self.app.game.button_names)},
             **{mode: lambda _=i: self.app.game.new_encounter(difficulty_level=_) for i, mode in enumerate(self.app.game.difficulty_levels)},
         }.items():
             b = widgets.Button(
+                # background_down=Assets.get_sprite('ui', 'mask-1x8'),
+                background_normal=Assets.get_sprite('ui', 'mask-8x1'),
+                background_color=(.4,.4,.4),
                 text=t, on_release=lambda *a, x=m: x())
-            self.add(b).set_size(x=150, y=30)
+            self.box.add(b)
+        self.box.set_size(x=150*len(self.box.children), y=30)
 
 
 class Draft(widgets.BoxLayout):

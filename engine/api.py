@@ -41,8 +41,11 @@ class GameAPI:
         logger.warning(f'{self.__class__}.loadout_drag_drop() not implemented for {button} ({origin} -> {target}).')
 
     # GUI properties
-    def button_click(self, index):
-        logger.warning(f'{self.__class__}.button_click() not implemented for {index}.')
+    def save(self):
+        logger.warning(f'{self.__class__}.save() not implemented.')
+
+    def number_select(self, index):
+        logger.warning(f'{self.__class__}.number_select() not implemented for {index}.')
 
     def draft_label(self):
         return f'{self.__class__}.draft_label() not implemented'
@@ -83,7 +86,6 @@ class EncounterAPI:
     map_size = np.array([10_000, 10_000])
     selection_sprite = Assets.get_sprite('ui', 'crosshair-select')
     quickcast_sprite = Assets.get_sprite('ui', 'crosshair-cast')
-    loot_hotkey = f"mouse{Settings.get_setting('loot-mouse', 'Hotkeys')}"
 
     def raise_gui_flag(self, flag):
         self.gui_flags[flag] = True
@@ -208,8 +210,6 @@ class EncounterAPI:
             self.zoom_out()
         elif button == 'scrolldown':
             self.zoom_in()
-        elif button == self.loot_hotkey:
-            self.lootcast(target)
         else:
             logger.warning(f'{self.__class__}.user_click() with button: {button} not implemented.')
 
