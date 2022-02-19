@@ -156,6 +156,7 @@ class List:
         l[index2] = a
         l[index1] = b
 
+
 class AutoIntEnum(enum.IntEnum):
     def _generate_next_value_(name, start, count, last_values):
         return count

@@ -93,16 +93,16 @@ aggro_range: 400
 deaggro_range: 700
 reaggro_range: 500
 camp_spread: 200
-keep_distance: 50
 aggro_flank: 1.5
 -- stats
 hitbox: 60
 gold: 20
 hp.max: 65
 hp.delta: 0.0001
+mana.max: 40
 mana.delta: 0.01
-physical: 5
-air: 25
+air: 5
+water: 40
 
 ====== Jackal
 type: camper
@@ -111,6 +111,7 @@ aggro_range: 400
 deaggro_range: 500
 reaggro_range: 150
 camp_spread: 250
+aggro_flank: 1
 --- stats
 hitbox: 50
 gold: 16
@@ -310,7 +311,7 @@ movespeed: 45
 
 ====== Boo
 type: camper
-abilities: hex, grab, dark touch, slash, dunder beam
+abilities: hex, grab, dark touch, slash, wink
 aggro_range: 600
 deaggro_range: 800
 reaggro_range: 200
@@ -613,6 +614,7 @@ gold: 10000
 === Hero Treasure
 type: treasure
 always_visible
+death_sfx: null
 --- stats
 hp.max: 750
 hp.delta: 0.5
@@ -623,6 +625,7 @@ reflect: 20
 === Lost Treasure
 type: treasure
 always_visible
+death_sfx: null
 --- stats
 hp.max: 750
 hp.delta: 1

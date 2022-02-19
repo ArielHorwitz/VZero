@@ -3,7 +3,7 @@ logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
 
-VERSION = 0.015
+VERSION = 0.016
 
 NAME = f'VZero'
 

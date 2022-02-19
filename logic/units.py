@@ -157,8 +157,8 @@ class Unit(BaseUnit):
         self.cache = defaultdict(lambda: None)
         self.always_visible = True if 'always_visible' in self.p.positional else False
         self.always_active = True if 'always_active' in self.p.positional else False
-        self.death_sfx = raw_data['death_sfx'] if 'death_sfx' in raw_data else f'death-unit{RNG.integers(4)+1}'
-        self.respawn_sfx = raw_data['respawn_sfx'] if 'respawn_sfx' in raw_data else 'respawn-unit'
+        self.death_sfx = raw_data.default['death_sfx'] if 'death_sfx' in raw_data.default else f'death-unit{RNG.integers(4)+1}'
+        self.respawn_sfx = raw_data.default['respawn_sfx'] if 'respawn_sfx' in raw_data.default else 'respawn-unit'
         self.api = api
         self.engine = api.engine
         self.name = self.__start_name = raw_data.default['name'] if 'name' in raw_data.default else name
@@ -391,6 +391,8 @@ class Unit(BaseUnit):
         logger.debug(f'{self} lost status: {status.name}.')
         if status is STATUS.RESPAWN:
             self.respawn()
+        elif status is STATUS.SLOW:
+            Mechanics.apply_walk(self.engine, Mechanics.mask(self.engine, self.uid))
 
     def respawn(self, reset_gold=True):
         logger.info(f'{self} respawned.')

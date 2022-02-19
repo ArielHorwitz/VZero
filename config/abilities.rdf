@@ -463,7 +463,7 @@ duration: 3
 === Scroll
 type: base
 color: lime
-draft_cost: 25
+draft_cost: 5
 cooldown: base scroll
 info: Instantly teleport home.
 --- ACTIVE
@@ -476,6 +476,7 @@ status_block: bounded
 
 === Manuscript
 type: base
+draft_cost: 25
 color: lime
 sfx: scroll
 cooldown: base scroll
@@ -511,7 +512,7 @@ info: Apply sensitivity on target.
 target: other
 mana_cost: 20
 range=scale: 500, air, 800, 125
-cooldown=reduc: 10, water, 3, 30
+cooldown=reduc: 30, water, 15, 75
 --- active.upcast.vfx-line
 --- active.upcast.vfx-sprite
 follow_unit
@@ -522,25 +523,25 @@ fade: 0.5
 --- active.upcast.status
 status: sensitivity
 duration: 10
-stacks=bonus: 25, earth, 0.75
+stacks=scale: 75, earth, 250, 100
 
 
 
 === Dunder Beam
 type: base
 color: yellow
-draft_cost: 20
+draft_cost: 25
 info: Apply slow on enemy.
 -- ACTIVE
 requires_los
 target: enemy
 mana_cost: 20
-cooldown=reduc: 6, water, 2, 75
+cooldown=reduc: 16, water, 8, 75
 range: 500
 --- active.upcast.vfx-line
 --- active.upcast.status
 status: slow
-stacks=bonus: 10, air, 1
+stacks=scale: 30, air, 200, 150
 duration: 6
 
 
@@ -645,7 +646,7 @@ range=scale: 300, air, 700, 50
 --- active.upcast.vfx-line
 --- active.upcast.status
 status: vanity
-stacks_add=scale: 10, water, 40, 100
+stacks_add=scale: 10, physical, 40, 100
 duration: 6
 
 
@@ -671,7 +672,7 @@ stacks=scale: 10, air, 150, 75
 === Dark Touch
 type: base
 color: yellow
-draft_cost: 40
+draft_cost: 25
 off_cooldown: passive
 info: Add stacking darkness on an enemy.
 --- PASSIVE
@@ -696,8 +697,26 @@ show_range: 150
 passive
 
 
+=== Thick Clouds
+type: base
+color: yellow
+draft_cost: 40
+info: Intense darkness aura.
+--- PASSIVE
+point_target
+target: enemy
+area: circle
+radius=scale: 600, earth, 1400, 75
+--- passive.upcast.status
+target: area
+status: darkness
+stacks=scale: 75, fire, 175, 100
+
+
+
 === Meditate
 type: base
+draft_cost: 25
 color: blue
 info: Gain sensitivity.
 --- ACTIVE
@@ -706,11 +725,11 @@ cooldown: 100
 target: self
 --- active.upcast.status
 status: sensitivity
-stacks=bonus: 25, earth, 0.25
+stacks=scale: 50, earth, 150, 100
 duration=scale: 60, water, 120, 100
 --- active.upcast.regen
 stat: hp
-delta=scale: 5, water, 50, 125
+delta=scale: 5, water, 30, 125
 duration: 15
 
 
@@ -788,6 +807,7 @@ stacks=scale: 25, earth, 200, 125
 
 === Spike Blast
 type: base
+draft_cost: 65
 color: blue
 sprite: spikes
 sfx: fireblast
@@ -808,7 +828,7 @@ radius: 400
 cooldown: 5
 --- active.upcast.blast
 target: area
-damage=scale: 1, spikes, 400, 100
+damage=scale: 1, spikes, 400, 125
 --- active.upcast.status
 target: self
 status: spikes
@@ -831,7 +851,7 @@ point_target
 point: fix
 target: other
 include_self
-mana_cost=scale: 40, fire, 100, 100
+mana_cost=scale: 30, fire, 70, 100
 cooldown: 0.15
 range: 60
 area: circle
@@ -883,7 +903,7 @@ info: Blast at range. Virtually no cooldown.
 point_target
 target: other
 include_self
-mana_cost=scale: 60, fire, 125, 100
+mana_cost=scale: 40, fire, 100, 100
 cooldown: 0.15
 range: 400
 area: circle
@@ -896,6 +916,41 @@ center: point
 radius=scale: 30, water, 200, 50
 duration: 0.5
 fade: 0.5
+
+
+
+=== Lavabed
+type: base
+color: 1, 0, 0, 0.5
+sfx: fireblast
+info: Blast in an area in front of you, and apply temporary HP degen.
+-- ACTIVE
+point_target
+!cooldown: 3.5
+mana_cost: 50
+target: enemy
+area: rect
+width: 400
+length: 1000
+include_hitbox
+--- active.upcast.vfx-rect
+duration: 1
+fade: 1
+origin: self
+direction: point
+width: 400
+length: 1000
+include_hitbox
+--- active.upcast.blast
+target: area
+damage=scale: 50, fire, 300, 150
+--- active.upcast.degen
+target: area
+stat: hp
+delta=scale: 10, fire, 30, 100
+duration: 2
+
+
 
 
 === Fireblast
@@ -952,7 +1007,7 @@ fade: 1.5
 type: base
 draft_cost: 25
 color: brown
-info: WIP
+info: Link to an enemy and steal their mana until the link is broken.
 
 --- PASSIVE
 target: selected
@@ -971,6 +1026,7 @@ delta: 10
 target: enemy
 selection_distance: 200
 range: 600
+mana_cost: 40
 --- active.upcast.select
 --- active.upcast.show_select
 
@@ -1609,6 +1665,29 @@ stacks=scale: 20, fire, 500, 50
 
 
 
+=== Healing Aura
+hidden
+type: base
+sprite: fountain
+info: HP regen for nearby allies.
+-- PASSIVE
+point_target
+target: ally
+area: circle
+radius=scale: 250, water, 1000, 150
+include_hitbox
+--- passive.upcast.regen.1
+target: area
+stat: hp
+delta=scale: 5, earth, 30, 100
+--- passive.upcast.regen.2
+target: area
+stat: mana
+delta=scale: 5, earth, 30, 100
+
+
+
+
 === Zombie Aura
 hidden
 type: base
@@ -1662,11 +1741,11 @@ include_hitbox
 --- passive.upcast.regen.1
 target: area
 stat: hp
-delta=scale: 10, time, 100, 25
+delta=scale: 20, time, 100, 25
 --- passive.upcast.regen.2
 target: area
 stat: mana
-delta=scale: 10, time, 100, 25
+delta=scale: 20, time, 100, 25
 --- passive.upcast.status
 target: area
 status: fountain
@@ -1688,11 +1767,11 @@ include_hitbox
 --- passive.upcast.regen.1
 target: area
 stat: hp
-delta=scale: 5, time, 50, 25
+delta=scale: 10, time, 50, 25
 --- passive.upcast.regen.2
 target: area
 stat: mana
-delta=scale: 5, time, 50, 25
+delta=scale: 10, time, 50, 25
 --- passive.upcast.status
 target: area
 status: fountain

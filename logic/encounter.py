@@ -677,7 +677,9 @@ class EncounterAPI(BaseEncounterAPI):
                 s.append(f'{name_}: {ticks2s(v):.2f} ({v:.1f})')
         return njoin(s) if len(s) > 0 else f'No cooldowns'
 
-    def debug_panel_labels(self, verbose):
+    def debug_panel_labels(self, verbose=None):
+        if verbose is None:
+            verbose = self.dev_mode
         bold = {'logic_total', 'logic_stats'}
         timer_strs = []
         for tname, timer in self.engine.timers.items():
@@ -709,9 +711,9 @@ class EncounterAPI(BaseEncounterAPI):
         ])
         text_unit2 = '\n'.join([
             make_title(f'Stats', length=30),
-            f'{self.pretty_stats(uid, verbose=self.dev_mode)}',
+            f'{self.pretty_stats(uid, verbose=verbose)}',
             make_title(f'Statuses', length=30),
-            f'{self.pretty_statuses(uid, verbose=self.dev_mode)}',
+            f'{self.pretty_statuses(uid, verbose=verbose)}',
         ])
         text_unit3 = '\n'.join([
             make_title(f'Abilities', length=30),
@@ -721,7 +723,7 @@ class EncounterAPI(BaseEncounterAPI):
             make_title(f'Unslotted', length=30),
             *(repr(_) for _ in unit.unslotted_abilities),
             make_title(f'Cooldown', length=30),
-            f'{self.pretty_cooldowns(uid, verbose=self.dev_mode)}',
+            f'{self.pretty_cooldowns(uid, verbose=verbose)}',
         ])
 
 

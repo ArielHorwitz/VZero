@@ -497,8 +497,8 @@ class Phase:
                 elif self.area_shape == 'rect':
                     width = self.area_width.get_value(api, uid)
                     length = self.area_length.get_value(api, uid)
-                    hb_radius = api.get_stats(subset_uids, STAT.HITBOX)
-                    offset = hb_radius[uid] if self.include_hitbox else 0
+                    hb_radius = Mechanics.get_stats(api, subset_uids, STAT.HITBOX)
+                    offset = Mechanics.get_stats(api, uid, STAT.HITBOX) if self.include_hitbox else 0
                     rect = Rect.from_point(source_point, target_point, width, length, offset)
                     subset_pos = api.get_position(np.vstack(subset_uids))
                     subset_in_rect = rect.check_colliding_circles(subset_pos, hb_radius)
