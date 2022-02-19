@@ -296,6 +296,26 @@ duration=scale: 1, air, 4, 100
 distance: 500
 
 
+=== Boosted
+type: base
+color: purple
+draft_cost: 25
+info: Push yourself forward.
+-- ACTIVE
+point_target
+point: fix
+target: self
+range: 600
+-- active.upcast.vfx-line
+p1: source
+p1: point
+duration=scale: 1, air, 4, 100
+-- active.upcast.pull
+target: self
+duration=scale: 1, air, 4, 100
+distance: 500
+
+
 === Mesmerise
 type: base
 color: purple

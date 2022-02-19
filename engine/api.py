@@ -142,7 +142,7 @@ class EncounterAPI:
             self.default_upp *= abs(d)**(-1*nsign(d))
         self.default_upp = minmax(
             self.fit_upp(self.engine.get_stats(0, STAT.HITBOX)),
-            self.fit_upp(self.map_size * 0.5),
+            self.fit_upp(self.map_size * 0.9),
             self.default_upp
         )
         logger.info(f'Set upp: {self.default_upp}')

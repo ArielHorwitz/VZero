@@ -1,0 +1,118 @@
+=== Spawn
+--- Default
+fort: 1
+
+=== Marker
+--- default
+dps_meter: 1
+
+=== Shop basic
+--- default
+basic shop: 1
+=== Shop herbal
+--- default
+herbal shop: 1
+=== Shop potion
+--- default
+potion shop: 1
+=== Shop ornament
+--- default
+ornament shop: 1
+=== Lost Treasure
+--- default
+lost treasure: 1
+=== Hero Treasure
+--- default
+hero treasure: 1
+
+
+
+=== Penguin
+--- default
+penguin: 2
+ratzan: 1
+slank: 1
+=== Imp
+--- default
+blood imp: 2
+glob: 1
+jackal: 1
+=== Meef
+--- default
+meef: 3
+slank: 1
+=== Critter
+--- default
+ratzan: 2
+jackal: 2
+
+
+
+=== Robot
+--- default
+robot: 1
+=== Robot Guard
+--- default
+golden dragon: 1
+=== Robot Outskirts
+--- default
+repteye: 1
+zombie: 1
+=== Robot Frontier
+--- default
+folphin: 1
+infester: 1
+
+
+
+
+
+=== Winged Snake
+--- default
+winged snake: 1
+=== Winged Snake Guard
+--- default
+fire elemental: 1
+=== Winged Snake Outskirts
+--- default
+spiker: 1
+boo: 1
+=== Winged Snake Frontier
+--- default
+gnome: 1
+phaser: 1
+
+
+
+=== Barkshroom
+--- default
+barkshroom: 1
+=== Barkshroom Guard
+--- default
+skull: 1
+=== Barkshroom Outskirts
+--- default
+fire troll: 1
+boo: 1
+=== Barkshroom Frontier
+--- default
+crab: 1
+spiker: 1
+
+
+
+
+=== Omegor
+--- default
+omegor: 1
+=== Omegor Guard
+--- default
+lich: 1
+=== Omegor Outskirts
+--- default
+harpy: 1
+boo: 1
+=== Omegor Frontier
+--- default
+crab: 1
+folphin: 1

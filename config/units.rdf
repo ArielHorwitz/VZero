@@ -141,6 +141,7 @@ mana.max: 40
 mana.delta: 0.02
 physical: 5
 air: 20
+reflect: 25
 
 ====== Ratzan
 type: camper
@@ -533,6 +534,26 @@ physical: 175
 water: 150
 reflect: 10
 movespeed: 100
+
+
+====== Omegor
+type: boss
+aggro_range: 500
+deaggro_range: 700
+reaggro_range: 300
+camp_spread: 100
+always_visible
+--- stats
+allegiance: 1000
+hitbox: 220
+gold: 5000
+hp.max: 3000
+hp.delta: 0.4
+physical: 175
+water: 150
+reflect: 10
+movespeed: 100
+
 
 
 

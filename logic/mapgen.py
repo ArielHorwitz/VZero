@@ -1,6 +1,6 @@
 import logging
 logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 import random
 import numpy as np
@@ -9,6 +9,7 @@ from collections import namedtuple, defaultdict
 from data import resource_name
 from data.load import RDF
 from data.tileset import TileMap
+from data.settings import Settings
 
 from engine.common import *
 from logic.units import Unit
@@ -53,7 +54,7 @@ class MapGenerator:
         self.biomes.append(Biome(np.array(center) * self.size, weight, tile))
 
     def generate_map(self):
-        map_data = RDF(RDF.CONFIG_DIR / 'map.rdf')
+        map_data = RDF(RDF.CONFIG_DIR / f'{Settings.get_setting("source_map")}.rdf')
         biomes = map_data['Biomes']
         for tile, biome in biomes.items():
             for raw_point in biome.positional:
@@ -79,7 +80,7 @@ class MapGenerator:
             raise ValueError(f'Missing player spawn in map config!')
 
     def spawn_map(self):
-        spawn_type_options = RDF(RDF.CONFIG_DIR / 'spawn_types.rdf')
+        spawn_type_options = RDF(RDF.CONFIG_DIR / f'{Settings.get_setting("source_spawns")}.rdf')
         for spawn, location in self.spawns:
             spawn_options = tuple(spawn_type_options[spawn].keys())
             spawn_choice = random.choice(spawn_options)

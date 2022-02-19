@@ -53,7 +53,11 @@ def _load_unit_types():
 RAW_UNITS = _load_unit_types()
 
 
-metagame_data = str(VERSION) + str(DEV_BUILD) + ''.join(file_load(RDF.CONFIG_DIR / f'{_}.rdf') for _ in ('abilities', 'items', 'units', 'map', 'spawn_types'))
+metagame_data = str(VERSION) + str(DEV_BUILD) + ''.join(file_load(RDF.CONFIG_DIR / f'{_}.rdf') for _ in (
+    'abilities', 'items', 'units',
+    Settings.get_setting("source_map"),
+    Settings.get_setting("source_spawns"),
+))
 METAGAME_BALANCE = h256(metagame_data)
 METAGAME_BALANCE_SHORT = METAGAME_BALANCE[:4]
 logger.info(f'Metagame Balance: {METAGAME_BALANCE_SHORT} ({METAGAME_BALANCE})')
