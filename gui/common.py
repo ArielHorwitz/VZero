@@ -20,6 +20,7 @@ class CenteredSpriteBox(widgets.AnchorLayout):
         super().__init__(**kwargs)
         self.sb = self.add(SpriteBox(bg_sprite=bg_sprite, fg_sprite=fg_sprite, valign=valign))
         self.sb.size_hint = size_hint
+        self.bind(pos=self.sb.resize, size=self.sb.resize)
 
     def update(self, *a, **k):
         self.sb.update(*a, **k)
@@ -31,7 +32,7 @@ class SpriteBox(widgets.Widget):
             bg_sprite=None, fg_sprite=None,
             margin=None, valign=None,
             **kwargs):
-        valign = 'center' if valign is None else valign
+        valign = 'bottom' if valign is None else valign
         super().__init__(**kwargs)
         if sprite is None:
             sprite = str(Assets.FALLBACK_SPRITE)
@@ -47,9 +48,9 @@ class SpriteBox(widgets.Widget):
         self.label = self.add(widgets.Label(
             text=text, outline_color=(0,0,0,1), outline_width=2,
             halign='center', valign=valign))
-        self.bind(pos=self.reposition, size=self.reposition)
+        self.bind(pos=self.resize, size=self.resize)
 
-    def reposition(self, *a):
+    def resize(self, *a):
         self.sprite_frame.size = self.size
         self.sprite_frame.pos = self.pos
         self.sprite.set_size(x=self.size[0]*self.margin[0], y=self.size[1]*self.margin[1])
@@ -73,28 +74,31 @@ class SpriteBox(widgets.Widget):
 class SpriteLabel(widgets.AnchorLayout):
     def __init__(self, sprite=None, text='',
             bg_mask_color=None, bg_mask=None,
-            margin=None, **kwargs):
-        super().__init__(**kwargs)
-        self.margin = (0.98, 0.9) if margin is None else margin
+            halign='center', valign='center',
+            padding=(2, 2), margin=None,
+            **kwargs):
+        super().__init__(padding=padding, **kwargs)
+        if margin is not None:
+            logger.warning(f'SpriteLabel margin will be deprecated. Please use padding instead')
         self.main = self.add(widgets.BoxLayout())
         if sprite is None:
             sprite = str(Assets.FALLBACK_SPRITE)
         self.sprite_source = sprite
         self.sprite = self.main.add(widgets.Image(source=sprite, allow_stretch=True))
-        self.label = self.main.add(widgets.Label(text=text, halign='center', valign='center'))
+        self.label = self.main.add(widgets.Label(text=text, halign=halign, valign=valign))
         self.main.make_bg((0,0,0,0) if bg_mask_color is None else bg_mask_color)
         self.main._bg.source = Assets.get_sprite('ui', 'mask-4x1') if bg_mask is None else bg_mask
-        self.bind(pos=self.reposition, size=self.reposition)
+        self.label.bind(pos=self.resize, size=self.resize)
 
-    def reposition(self, *a):
-        self.sprite.set_size(x=min(self.size[1], self.size[0]/3))
-        self.main.set_size(self.size[0]*self.margin[0], self.size[1]*self.margin[1])
+    def resize(self, *a):
+        sprite_size = min(self.main.size[1], self.main.size[0]/3)
+        self.sprite.set_size(x=sprite_size, y=sprite_size)
 
     def update(self, sl):
         if sl.sprite != self.sprite_source and sl.sprite is not None:
             self.sprite.source = self.sprite_source = sl.sprite
-        self.label.text = sl.text
-        self.label.text_size = self.label.size
+        if sl.text is not None:
+            self.label.text = sl.text
         if sl.color is not None:
             self.main._bg_color.rgba = sl.color
 
@@ -128,9 +132,9 @@ class SpriteTitleLabel(widgets.AnchorLayout):
             text=text, halign='left', valign='top', color=text_color,
             outline_color=(0,0,0,1), outline_width=outline_width, markup=True,
         ))
-        self.bind(size=self.reposition, pos=self.reposition)
+        self.bind(size=self.resize, pos=self.resize)
 
-    def reposition(self, *a):
+    def resize(self, *a):
         self.main_frame.set_size(
             x=self.size[0]*self.padding[0],
             y=self.size[1]*self.padding[1])
@@ -150,11 +154,13 @@ class Stack(widgets.StackLayout):
     def __init__(self,
             wtype=None, x=None, y=None,
             callback=None,
+            always_consume_touch=False,
             drag_drop_callback=None,
             consider_hover=False,
             **kwargs):
         super().__init__(**kwargs)
         self.__wtype = SpriteLabel if wtype is None else wtype
+        self.__always_consume_touch = always_consume_touch
         self.__x = 250 if x is None else x
         self.__y = 50 if y is None else y
         self.boxes = []
@@ -162,7 +168,7 @@ class Stack(widgets.StackLayout):
         self.drag_drop_callback = drag_drop_callback
         self.dragging = None
         self.consider_hover = consider_hover
-        self.make_bg((0, 0, 0, 1))
+        # self.make_bg((0, 0, 0, 1))
         if self.callback or self.drag_drop_callback:
             self.bind(on_touch_down=lambda w, m: self.on_touch_down(m))
         if self.drag_drop_callback:
@@ -204,8 +210,8 @@ class Stack(widgets.StackLayout):
                 self.callback(i, m.button)
                 if self.drag_drop_callback:
                     self.dragging = i
-                break
-        return True
+                return True
+        return self.__always_consume_touch
 
     def on_touch_up(self, m):
         if self.dragging is None:

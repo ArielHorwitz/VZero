@@ -97,7 +97,7 @@ def _update_bg(widget, *args):
     widget._bg.pos = widget.pos
     widget._bg.size = widget.size
 
-def make_bg(widget, color=None, **kwargs):
+def make_bg(widget, color=None, source=None, **kwargs):
     if color is None:
         color = random_color(**kwargs)
     if hasattr(widget, '_bg'):
@@ -108,10 +108,14 @@ def make_bg(widget, color=None, **kwargs):
         if len(color) == 3:
             color = (*color, 1)
         widget._bg_color.rgba = color
+        if source is not None:
+            widget._bg.source = source
         return color
     with widget.canvas.before:
         widget._bg_color = Color(*color)
         widget._bg = Rectangle(size=widget.size, pos=widget.pos)
+        if source is not None:
+            widget._bg.source = source
         widget.bind(pos=widget._update_bg, size=widget._update_bg)
     return color
 

@@ -3,6 +3,7 @@ logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
 
+from collections import namedtuple
 import statistics
 from nutil.vars import modify_color, List
 from nutil.time import humanize_ms
@@ -12,18 +13,20 @@ from data.load import RDF
 from data.assets import Assets
 from data.settings import Settings
 from engine.common import *
-from engine.api import GameAPI as BaseGameAPI
 from gui.api import SpriteLabel, SpriteTitleLabel, SpriteBox
+from gui.api import ControlEvent
 
 from logic.data import ABILITIES
-from logic.encounter import EncounterAPI
+from logic.encounter import EncounterAPI, DIFFICULTY_LEVELS
 
 
-class GameAPI(BaseGameAPI):
-    difficulty_levels = EncounterAPI.difficulty_levels
+EncounterParams = namedtuple('EncounterParams', ['map_data', 'spawn_data', 'difficulty', 'vp_reward', 'player_abilities'])
 
-    def __init__(self):
-        self.restart_difficulty_flag = None
+
+class GameAPI:
+    def __init__(self, interface):
+        self.gui = interface
+        self.encounter_api = None
         self.silver_bank = 1000
         self.draftables = []
         for aid in AID_LIST:
@@ -31,15 +34,28 @@ class GameAPI(BaseGameAPI):
                 continue
             self.draftables.append(aid)
         self.loadout = [None for _ in range(8)]
-        self.selected_aid = self.draftables[0]
         self.load_loadout(1)
 
     def update(self):
-        if self.restart_difficulty_flag is not None:
-            difficulty = self.restart_difficulty_flag
-            self.restart_difficulty_flag = None
-            self.new_encounter(difficulty)
+        self.gui.request('set_title_text', '[b]Drafting Phase[/b]' if self.encounter_api is None else '[b]Encounter in progress[/b]')
 
+        # Handle GUI event queue
+        event_queue = self.gui.get_flush_queue()
+        for event in event_queue:
+            logger.debug(f'Game received event: {event}')
+            if isinstance(event, ControlEvent):
+                handler_name = f'handle_{event.name}'
+                if not hasattr(self, handler_name):
+                    logger.warning(f'GameLogic missing handler for: {event.name}. Event: {event}')
+                    continue
+                handler = getattr(self, handler_name)
+                handler(event)
+
+    def setup(self):
+        logger.info(f'GameAPI found gui interface: {self.gui.requests}')
+        self.set_widgets()
+
+    # Drafting
     def average_draft_cost(self, loadout=None):
         if loadout is None:
             loadout = self.loadout
@@ -56,15 +72,12 @@ class GameAPI(BaseGameAPI):
         total_penalty = elapsed_minutes + self.draft_cost_minutes(draft_cost)
         return int(1000 * 50 / (50+total_penalty))
 
-    def select_ability(self, aid):
-        self.selected_aid = aid
-        ABILITIES[self.selected_aid].play_sfx(volume='ui')
-
     def draft(self, aid):
         if aid in self.loadout:
             i = self.loadout.index(aid)
             self.loadout[i] = None
             Assets.play_sfx('ui', 'select')
+            self.refresh_draft_gui()
             return
 
         if ABILITIES[aid].draftable or DEV_BUILD:
@@ -72,33 +85,30 @@ class GameAPI(BaseGameAPI):
                 if loadout_aid is None:
                     self.loadout[i] = aid
                     ABILITIES[aid].play_sfx(volume='ui')
+                    self.refresh_draft_gui()
                     return
         Assets.play_sfx('ui', 'target')
 
-    # GUI handlers
-    button_names = []
-
-    @property
-    def title_text(self):
-        return '\n'.join([
-            f'Silver bank: {self.silver_bank}',
-        ])
-
+    # Encounter management
     def restart_encounter(self):
-        self.restart_difficulty_flag = self.encounter_api.difficulty_level
+        difficulty_level = self.encounter_api.difficulty_level
         self.leave_encounter()
+        self.new_encounter(difficulty_level)
 
     def new_encounter(self, difficulty_level=0):
         if self.encounter_api is None:
             logger.info(f'Logic creating encounter with loadout: {self.loadout}')
             self.encounter_api = EncounterAPI(self, difficulty_level, self.loadout)
+            self.gui.request('start_encounter', self.encounter_api)
 
     def leave_encounter(self):
         if self.encounter_api is not None:
             logger.info(f'Logic ending encounter: {self.encounter_api}')
             self.encounter_api.leave()
             self.encounter_api = None
+            self.gui.request('end_encounter')
 
+    # Loadouts
     @staticmethod
     def get_user_loadouts():
         Settings.reload_settings()
@@ -107,14 +117,6 @@ class GameAPI(BaseGameAPI):
         file_dump(RDF.CONFIG_DIR / 'settings.cfg', '\n\n\n=== Loadouts\n', clear=False)
         Settings.reload_settings()
         return []
-
-    def save(self):
-        loadout_str = ', '.join(['null' if aid is None else aid.name.lower() for aid in self.loadout])
-        all_loadouts = self.get_user_loadouts()
-        logger.info(f'saving loadout: {loadout_str}, all loadouts:\n{all_loadouts}')
-        if loadout_str not in all_loadouts:
-            file_dump(RDF.CONFIG_DIR / 'settings.cfg', '\n'+loadout_str+'\n', clear=False)
-            Assets.play_sfx('ui', 'pause')
 
     def load_loadout(self, loadout_number):
         if loadout_number == 0:
@@ -133,72 +135,131 @@ class GameAPI(BaseGameAPI):
                     except:
                         self.loadout.append(None)
             self.loadout.extend([None for _ in range(8-len(self.loadout))])
+        self.refresh_draft_gui()
 
-    def number_select(self, index):
-        Assets.play_sfx('ui', 'select')
-        self.load_loadout(index)
+    # GUI
+    def set_widgets(self):
+        self.gui.request('set_world_control_buttons', [
+            SpriteLabel(Assets.get_sprite('abilities', 'vzero'), 'Proceed to encounter', None),
+            SpriteLabel(Assets.get_sprite('abilities', 'slow'), 'placeholder', None),
+        ])
+        self.gui.request('set_world_stack', [
+            SpriteBox(Assets.get_sprite('ability', 'vzero'), 'enc1', modify_color(COLOR.BLUE, v=0.3), (0,0,0,0)),
+            SpriteBox(str(Assets.FALLBACK_SPRITE), 'enc2', modify_color(COLOR.RED, v=0.3), (0,0,0,0)),
+        ])
+        self.gui.request('set_world_details', SpriteTitleLabel(
+            Assets.get_sprite('ability', 'vzero'), 'World', 'Encounter details missing', modify_color((0.25, 0, 0.5, 1))))
+        self.gui.request('set_draft_control_buttons', [
+            SpriteLabel(str(Assets.FALLBACK_SPRITE), f'Return to world', None),
+            *[SpriteLabel(str(Assets.FALLBACK_SPRITE), f'Play: {d}', None) for d in DIFFICULTY_LEVELS],
+        ])
+        self.refresh_draft_gui()
 
-    def draft_click(self, index, button):
-        aid = self.draftables[index]
-        if button == 'left':
-            self.select_ability(aid)
-        if button == 'right':
-            self.draft(aid)
-
-    def loadout_click(self, index, button):
-        aid = self.loadout[index]
-        if button == 'left':
-            if aid is None:
-                return
-            self.select_ability(aid)
-        if button == 'right':
-            if aid is None:
-                return
-            self.draft(aid)
-
-    def loadout_drag_drop(self, origin, target, button):
-        if button == 'middle' and origin != target:
-            List.swap(self.loadout, origin, target)
-            Assets.play_sfx('ui', 'select')
-
-    # GUI properties
-    def draft_label(self):
-        return f'Draft cost: {round(self.average_draft_cost())} silver'
-
-    def draft_details(self):
-        ability = ABILITIES[self.selected_aid]
-        s = f'{ability.name}\nDraft cost: {ability.draft_cost}'
-        color = ability.color
-        return SpriteTitleLabel(
-            ability.sprite,
-            s, ability.universal_description,
-            modify_color(color, v=0.5))
-
-    def draft_boxes(self):
-        b = []
+    def refresh_draft_gui(self):
+        draft_stack = []
         for aid in self.draftables:
             ability = ABILITIES[aid]
             name = ability.name
             drafted = ability.aid in self.loadout
             bg_color = modify_color(ability.color, v=0 if drafted else 0.7)
             fg_color = modify_color(COLOR.BLACK, a=0.7 if drafted else 0.2)
-            sl = SpriteBox(
-                ability.sprite,
-                str(ability.draft_cost), bg_color, fg_color)
-            b.append(sl)
-        return b
+            sl = SpriteBox(ability.sprite, str(ability.draft_cost), bg_color, fg_color)
+            draft_stack.append(sl)
+        self.gui.request('set_draft_stack', draft_stack)
 
-    def loadout_boxes(self):
-        b = []
+        loadout_stack = []
         for aid in self.loadout:
             if aid is None:
-                b.append(
-                    SpriteLabel(Assets.get_sprite('ui', 'blank'),
-                    '', (0,0,0,0)))
+                sprite = Assets.get_sprite('ui', 'blank')
+                s = ''
+                color = (0.1,0.1,0.1,1)
             else:
                 ability = ABILITIES[aid]
+                sprite = ability.sprite
                 s = f'{ability.name}\n({ability.draft_cost})'
-                b.append(
-                    SpriteLabel(ability.sprite,
-                    s, modify_color(ability.color, v=0.4)))
-        return b
+                color = modify_color(ability.color, v=0.4)
+            loadout_stack.append(SpriteLabel(sprite, s, color))
+        self.gui.request('set_loadout_stack', loadout_stack)
+
+        self.gui.request('set_draft_details', SpriteTitleLabel(
+            str(Assets.FALLBACK_SPRITE),
+            'Encounter details',
+            '\n'.join([
+                f'Draft cost: {round(self.average_draft_cost())} silver',
+                f'Silver bank: {self.silver_bank}',
+                ]),
+            modify_color(COLOR.GREEN, v=0.4),
+        ))
+
+    # GUI Event handlers
+    def handle_world_control_button(self, event):
+        if event.index == 0:
+            self.gui.request('set_view', 'draft')
+        else:
+            logger.warning(f'Unknown world control index: {event}')
+
+    def handle_world_stack_activate(self, event):
+        self.gui.request('set_view', 'draft')
+
+    def handle_world_stack_inspect(self, event):
+        sprite = Assets.get_sprite('ability', 'vzero')
+        color = (0.5, 0, 1)
+        self.gui.request('activate_tooltip', SpriteTitleLabel(sprite, 'World', 'Encounter details missing', None))
+
+    def handle_draft_activate(self, event):
+        self.draft(self.draftables[event.index])
+
+    def handle_draft_inspect(self, event):
+        aid = self.draftables[event.index]
+        ability = ABILITIES[aid]
+        ability.play_sfx(volume='ui')
+        self.gui.request('activate_tooltip', SpriteTitleLabel(
+            ability.sprite,
+            f'{ability.name}\nDraft cost: {ability.draft_cost}',
+            ability.universal_description,
+            (0,0,0,0)))
+
+    def handle_draft_control_button(self, event):
+        if event.index == 0:
+            self.gui.request('set_view', 'world')
+        elif event.index > 0 and event.index <= len(DIFFICULTY_LEVELS):
+            difficulty_index = event.index - 1
+            self.new_encounter(difficulty_index)
+        else:
+            logger.warning(f'Unknown draft control index: {event}')
+
+    def handle_loadout_activate(self, event):
+        aid = self.loadout[event.index]
+        if aid:
+            self.draft(aid)
+
+    def handle_loadout_inspect(self, event):
+        aid = self.loadout[event.index]
+        if aid:
+            ability = ABILITIES[aid]
+            ability.play_sfx(volume='ui')
+            self.gui.request('activate_tooltip', SpriteTitleLabel(
+                ability.sprite,
+                f'{ability.name}\nDraft cost: {ability.draft_cost}',
+                ability.universal_description,
+                (0,0,0,0)
+            ))
+
+    def handle_loadout_drag_drop(self, event):
+        origin, target = event.index
+        if origin != target:
+            List.swap(self.loadout, origin, target)
+            Assets.play_sfx('ui', 'select')
+            self.refresh_draft_gui()
+
+    def handle_save_loadout(self, event):
+        loadout_str = ', '.join(['null' if aid is None else aid.name.lower() for aid in self.loadout])
+        all_loadouts = self.get_user_loadouts()
+        logger.info(f'saving loadout: {loadout_str}, all loadouts:\n{all_loadouts}')
+        if loadout_str not in all_loadouts:
+            file_dump(RDF.CONFIG_DIR / 'settings.cfg', '\n'+loadout_str+'\n', clear=False)
+            Assets.play_sfx('ui', 'pause')
+
+    def handle_select_preset(self, event):
+        Assets.play_sfx('ui', 'select')
+        self.load_loadout(event.index)

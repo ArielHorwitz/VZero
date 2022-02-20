@@ -60,6 +60,7 @@ FEEDBACK_SFX = {
 FEEDBACK_SFX_INTERVAL = Settings.get_setting('feedback_sfx_cooldown', 'UI')
 HUD_STATUSES = {str2stat(s): str2status(s) for s in MECHANICS_NAMES if s is not 'SHOP'}
 
+DIFFICULTY_LEVELS = ['Easy mode', 'Medium challenge', 'Hard difficulty', 'Impossible...']
 DIFFICULTY2STOCKS = {
     0: 100,
     1: 10,
@@ -70,7 +71,6 @@ DIFFICULTY2STOCKS = {
 
 class EncounterAPI(BaseEncounterAPI):
     RNG = np.random.default_rng()
-    difficulty_levels = ['Easy mode', 'Medium challenge', 'Hard difficulty', 'Impossible...']
     enc_over = False
     win = False
 
@@ -120,11 +120,11 @@ class EncounterAPI(BaseEncounterAPI):
     @property
     def menu_text(self):
         if self.enc_over:
-            difficulty = self.difficulty_levels[self.difficulty_level]
+            difficulty = DIFFICULTY_LEVELS[self.difficulty_level]
             if self.win:
                 return '\n'.join([
                     f'[b][u]You win![/u][/b]',
-                    f'{difficulty}',
+                    difficulty,
                     f'Draft cost: {self.units[0].draft_cost}',
                     f'Time: {self.time_str}',
                     f'Stocks: {self.units[0].stocks}',
@@ -138,7 +138,7 @@ class EncounterAPI(BaseEncounterAPI):
         if self.dev_mode:
             dstr = " / ".join(str(round(_, 1)) for _ in self.engine.get_position(0)/100)
         else:
-            d = self.difficulty_levels[self.difficulty_level].split(' ', 1)[0].lower()
+            d = DIFFICULTY_LEVELS[self.difficulty_level].split(' ', 1)[0].lower()
             dstr = f'{self.units[0].networth_str} ({d})'
         paused_str = '' if self.engine.auto_tick else 'Paused'
         view_size = '×'.join(str(round(_)) for _ in np.array(self.gui_size) * self.upp)

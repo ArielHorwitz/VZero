@@ -1,7 +1,50 @@
+import logging
+logger = logging.getLogger(__name__)
+# logger.setLevel(logging.DEBUG)
+
 
 import collections
 import numpy as np
 import enum
+
+
+class Interface:
+    def __init__(self, name=None):
+        if name is None:
+            name = 'Unnamed'
+        self.name = name
+        self.__requests = {}
+        self.__queue = []
+
+    def get_flush_queue(self):
+        r = self.__queue
+        self.__queue = []
+        return r
+
+    def append(self, element):
+        self.__queue.append(element)
+
+    def register(self, callname, callback):
+        if callname in self.__requests:
+            logger.warning(f'Request {callname} already registered in {self}. Overwriting... Current requests: {self.__requests}')
+        self.__requests[callname] = callback
+
+    def request(self, callname, *a, **k):
+        if callname not in self.__requests:
+            logger.warning(f'No request {callname} registered in {self}. Ignoring... Current requests: {self.__requests}')
+            return
+        return self.__requests[callname](*a, **k)
+
+    @property
+    def queue(self):
+        return self.__queue
+
+    @property
+    def requests(self):
+        return self.__requests
+
+    def __repr__(self):
+        return f'<Interface: {self.name} ({len(self.requests)} reqs registered)>'
 
 
 class FIFO:

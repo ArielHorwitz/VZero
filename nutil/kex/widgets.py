@@ -335,24 +335,34 @@ class BoxLayout(kvBoxLayout, KexWidget):
             self.orientation = orientation
         return (self.add(BoxLayout()) for _ in range(count))
 
+
 class GridLayout(kvGridLayout, KexWidget):
     pass
+
 
 class AnchorLayout(kvAnchorLayout, KexWidget):
     pass
 
+
 class StackLayout(kvStackLayout, KexWidget):
     pass
 
+
 class RelativeLayout(kvStackLayout, KexWidget):
     pass
+
 
 class ModalView(kvModalView, KexWidget):
     pass
 
 # BASIC WIDGETS
 class Label(kvLabel, KexWidget):
-    pass
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k)
+        self.bind(size=self._on_resize)
+
+    def _on_resize(self, *a):
+        self.text_size = self.size
 
 
 class Button(kvButton, KexWidget):

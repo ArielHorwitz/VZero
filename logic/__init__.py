@@ -51,6 +51,6 @@ STATUSES = [
 ABILITIES = [*RDF(RDF.CONFIG_DIR / 'abilities.rdf').keys()]
 
 
-def get_api():
+def get_api(interface):
     from logic.game import GameAPI
-    return GameAPI()
+    return GameAPI(interface)

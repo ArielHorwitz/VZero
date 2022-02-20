@@ -8,11 +8,19 @@ import nutil
 from nutil import kex
 from nutil.display import make_title
 from nutil.kex import widgets
-from data import TITLE, DEV_BUILD
+from data import TITLE, DEV_BUILD, NAME as APP_NAME
 from data.assets import Assets
 from data.settings import Settings
-from gui.common import SpriteLabel, SpriteTitleLabel, CenteredSpriteBox, Stack
+from gui.api import ControlEvent
+from gui.common import SpriteLabel, SpriteTitleLabel, CenteredSpriteBox, Stack, Tooltip
 from engine.common import *
+
+
+HOME_SIZE = 1024, 768
+DETAILS_WIDTH = 300
+CONTROL_BUTTON_WORLD = 'Select Encounter'
+CONTROL_BUTTON_ENCOUNTER = 'Return to World'
+
 
 
 class HomeGUI(widgets.AnchorLayout):
@@ -25,83 +33,153 @@ class HomeGUI(widgets.AnchorLayout):
 
         main_frame = main_anchor.add(widgets.BoxLayout(orientation='vertical'))
         main_frame.make_bg((0,0,0,0.5))
-        self.title_label = main_frame.add(widgets.Label(halign='center', valign='middle', markup=True)).set_size(y=100)
-        self.menu = main_frame.add(Menu())
-        self.menu.set_size(y=30)
-        self.draft = main_frame.add(Draft())
+        self.title_label = main_frame.add(widgets.Label(halign='center', valign='middle', markup=True))
+        self.title_label.set_size(y=30)
+        self.app.interface.register('set_title_text', self.set_title_text)
 
-        corner_anchor = main_anchor.add(widgets.AnchorLayout(anchor_x='right', anchor_y='top'))
-        corner_buttons = corner_anchor.add(widgets.BoxLayout())
-        if DEV_BUILD:
-            corner_buttons.add(widgets.Button(text='Restart', on_release=lambda *a: nutil.restart_script())).set_size(x=100, y=30)
-        corner_buttons.add(widgets.Button(text='Quit', on_release=lambda *a: self.app.stop())).set_size(x=100, y=30)
-        corner_buttons.set_size(x=100*len(corner_buttons.children), y=30)
+        self.screen_switch = main_frame.add(widgets.ScreenSwitch(transition=widgets.kvFadeTransition(duration=0.25)))
+        self.draft = Draft()
+        self.world = World()
+        self.screen_switch.add_screen('world', view=self.world)
+        self.screen_switch.add_screen('draft', view=self.draft)
+        self.app.interface.register('set_view', self.switch_screen)
+        self.tooltip = self.add(Tooltip(bounding_widget=self))
+        self.app.interface.register('activate_tooltip', lambda x: self.tooltip.activate(self.app.mouse_pos, x))
+
+        main_anchor.add(AppControlButtons(anchor_x='right', anchor_y='top'))
         self.make_hotkeys()
+
+    def make_hotkeys(self):
+        self.app.home_hotkeys.register('Home enter', 'enter', self.save_loadout)
+        self.app.home_hotkeys.register_keys('Home enter', ['numpadenter'])
+        for i in range(10):
+            self.app.home_hotkeys.register(
+                f'Home select preset {i}', str(i),
+                lambda _, x=i: self.select_preset(x)
+            )
 
     def update(self):
         self.app.game.update()
-        enc_str = f'\nPress [b]Ctrl[/b]+[b]Shift[/b]+[b]F2[/b] to return to encounter\n' if self.app.encounter else ''
-        self.title_label.text = f'{TITLE}\n{enc_str}\n{self.app.game.title_text}'
-        self.draft.update()
 
-    def make_hotkeys(self):
-        for i in range(10):
-            self.app.home_hotkeys.register(
-                f'Home number select {i}', str(i),
-                lambda _, x=i: self.app.game.number_select(x)
-            )
-        for action, key, callback in [
-            ('Home enter', 'enter', lambda _: self.app.game.save()),
-            ('Home enter', 'numpadenter', lambda _: self.app.game.save()),
-        ]:
-            self.app.home_hotkeys.register(action, key, callback)
+    def switch_screen(self, sname):
+        logger.info(f'Home switching to screen: {sname}')
+        self.screen_switch.switch_screen(sname)
+
+    def set_title_text(self, text):
+        self.title_label.text = text
+
+    def save_loadout(self, *a):
+        self.app.interface.append(ControlEvent('save_loadout', 0, f'Save loadout (index always 0)'))
+
+    def select_preset(self, index):
+        self.app.interface.append(ControlEvent('select_preset', index, f'Select preset'))
 
 
-class Menu(widgets.AnchorLayout):
+class World(widgets.BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.box = self.add(widgets.BoxLayout())
-        self.box.add(widgets.Label(text='[b][u]Play difficulty:[/u][/b]', markup=True))
-        for t, m in {
-            **{mode: lambda _=i: self.app.game.new_encounter(difficulty_level=_) for i, mode in enumerate(self.app.game.difficulty_levels)},
-        }.items():
-            b = widgets.Button(
-                # background_down=Assets.get_sprite('ui', 'mask-1x8'),
-                background_normal=Assets.get_sprite('ui', 'mask-8x1'),
-                background_color=(.4,.4,.4),
-                text=t, on_release=lambda *a, x=m: x())
-            self.box.add(b)
-        self.box.set_size(x=150*len(self.box.children), y=30)
+        left_frame = self.add(widgets.BoxLayout(orientation='vertical'))
+        left_frame.set_size(x=DETAILS_WIDTH)
+
+        self.control_buttons = left_frame.add(Stack(wtype=SpriteLabel, callback=self.control_click))
+        self.control_buttons.set_size(y=120).make_bg((1,0.5,0.5,1))
+        self.app.interface.register('set_world_control_buttons', self.control_buttons.update)
+
+        self.details = left_frame.add(SpriteTitleLabel())
+        self.app.interface.register('set_world_details', self.details.update)
+
+        self.encounter_stack = self.add(Stack(
+            wtype=lambda *a, **k: CenteredSpriteBox(*a, size_hint=(.9, .9), valign='bottom', **k),
+            callback=self.world_click, x=50, y=50))
+        self.app.interface.register('set_world_stack', self.encounter_stack.update)
+        self.bind(size=self.resize)
+
+    def resize(self, *a):
+        self.control_buttons.set_boxsize((self.control_buttons.size[0], 40))
+
+    def control_click(self, index, button):
+        self.app.interface.append(ControlEvent('world_control_button', index, 'World control button'))
+
+    def world_click(self, index, button):
+        if button == 'left':
+            self.app.interface.append(ControlEvent('world_stack_inspect', index, 'World stack left click'))
+        elif button == 'right':
+            self.app.interface.append(ControlEvent('world_stack_activate', index, 'World stack right click'))
+
+
+class AppControlButtons(widgets.AnchorLayout):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        corner_buttons = self.add(widgets.BoxLayout())
+        sizex = 0
+        if DEV_BUILD:
+            rebutton = corner_buttons.add(widgets.Button(text=f'Restart {APP_NAME}', on_release=lambda *a: nutil.restart_script()))
+            rebutton.set_size(x=150)
+            sizex += 150
+        qbutton = corner_buttons.add(widgets.Button(text='Quit', on_release=lambda *a: self.app.stop()))
+        qbutton.set_size(x=100)
+        sizex += 100
+        corner_buttons.set_size(x=sizex, y=30)
 
 
 class Draft(widgets.BoxLayout):
     def __init__(self, **kwargs):
-        super().__init__(orientation='vertical', **kwargs)
+        super().__init__(**kwargs)
 
-        self.make_bg((.1,.1,.1,1))
-        top_frame = self.add(widgets.BoxLayout())
-        self.details = top_frame.add(SpriteTitleLabel()).set_size(x=300)
-        self.draft = top_frame.add(Stack(
-            wtype=lambda *a, **k: CenteredSpriteBox(*a, size_hint=(.9, .9), valign='bottom', **k),
-            callback=self.app.game.draft_click,
+        self.draft_details = self.add(DraftDetails())
+        self.draft_details.set_size(x=DETAILS_WIDTH)
+
+        right_frame = self.add(widgets.BoxLayout(orientation='vertical'))
+        self.draft = right_frame.add(Stack(
+            wtype=CenteredSpriteBox,
+            callback=self.draft_click,
             x=50, y=50))
-        self.draft.make_bg((.1,.1,.1,1))
+        self.app.interface.register('set_draft_stack', self.draft.update)
 
-        bottom_frame = self.add(widgets.BoxLayout()).set_size(y=100)
-        self.label = bottom_frame.add(widgets.Label(valign='top'))
-        self.label.make_bg((.1,.15,.1,1))
-        self.label._bg.source = Assets.get_sprite('ui', 'mask-4x1')
-        self.loadout = bottom_frame.add(Stack(
+        self.loadout = right_frame.add(Stack(
             wtype=SpriteLabel, x=175, y=50,
-            callback=self.app.game.loadout_click,
-            drag_drop_callback=self.app.game.loadout_drag_drop,
+            callback=self.loadout_click,
+            drag_drop_callback=self.loadout_drag_drop,
             ))
-        self.loadout.set_size(x=700)
-        self.loadout.make_bg((.1,.1,.1,1))
+        self.app.interface.register('set_loadout_stack', self.loadout.update)
+        self.loadout.set_size(y=100)
+        self.bind(pos=self.reposition, size=self.reposition)
 
-    def update(self):
-        self.draft.update(self.app.game.draft_boxes())
-        self.loadout.update(self.app.game.loadout_boxes())
-        self.details.update(self.app.game.draft_details())
-        self.label.text = self.app.game.draft_label()
-        self.label.text_size = self.label.size
+    def reposition(self, *a):
+        self.loadout.set_boxsize(((self.size[0]-DETAILS_WIDTH)/4, 50))
+
+    def draft_click(self, index, button):
+        if button == 'left':
+            self.app.interface.append(ControlEvent(f'draft_inspect', index, ''))
+        elif button == 'right':
+            self.app.interface.append(ControlEvent(f'draft_activate', index, ''))
+
+    def loadout_click(self, index, button):
+        if button == 'left':
+            self.app.interface.append(ControlEvent(f'loadout_inspect', index, ''))
+        elif button == 'right':
+            self.app.interface.append(ControlEvent(f'loadout_activate', index, ''))
+
+    def loadout_drag_drop(self, origin, target, button):
+        if button == 'middle':
+            self.app.interface.append(ControlEvent(f'loadout_drag_drop', (origin, target), 'Index is tuple of (origin_index, target_index)'))
+
+
+class DraftDetails(widgets.BoxLayout):
+    def __init__(self, **kwargs):
+        super().__init__(orientation='vertical', **kwargs)
+        self.control_buttons = self.add(Stack(wtype=SpriteLabel, callback=self.control_click))
+        self.control_buttons.set_size(y=200).make_bg((0.25,0.5,0.25,1))
+        self.app.interface.register('set_draft_control_buttons', self.control_buttons.update)
+
+        self.details = self.add(SpriteTitleLabel())
+        self.app.interface.register('set_draft_details', self.details.update)
+
+        self.bind(size=self.resize)
+
+    def resize(self, *a):
+        self.control_buttons.set_boxsize((self.control_buttons.size[0], 40))
+
+    def control_click(self, index, button):
+        if button == 'left':
+            self.app.interface.append(ControlEvent('draft_control_button', index, ''))

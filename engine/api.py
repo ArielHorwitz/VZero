@@ -16,54 +16,6 @@ from engine.encounter import Encounter as EncounterEngine
 from engine.common import *
 
 
-class GameAPI:
-    encounter_api = None
-    button_names = []
-    title_text = '« Drafting Phase »'
-
-    def __init__(self):
-        logger.warning(f'{self.__class__}.__init__() not implemented.')
-
-    # GUI handlers
-    def new_encounter(self):
-        logger.warning(f'{self.__class__}.new_encounter() not implemented.')
-
-    def leave_encounter(self):
-        logger.warning(f'{self.__class__}.leave_encounter() not implemented.')
-
-    def draft_click(self, index, button):
-        logger.warning(f'{self.__class__}.draft_click() not implemented for {index} {button}.')
-
-    def loadout_click(self, index, button):
-        logger.warning(f'{self.__class__}.loadout_click() not implemented for {index} {button}.')
-
-    def loadout_drag_drop(self, origin, target, button):
-        logger.warning(f'{self.__class__}.loadout_drag_drop() not implemented for {button} ({origin} -> {target}).')
-
-    # GUI properties
-    def save(self):
-        logger.warning(f'{self.__class__}.save() not implemented.')
-
-    def number_select(self, index):
-        logger.warning(f'{self.__class__}.number_select() not implemented for {index}.')
-
-    def draft_label(self):
-        return f'{self.__class__}.draft_label() not implemented'
-
-    def draft_details(self):
-        return SpriteTitleLabel(None, 'draft_details', '', (0, 0, 0, 0))
-
-    def draft_boxes(self):
-        return [
-            SpriteBox(None, f'Draft #{i}', (0.5, 0.5, 0.5, 1), None) for i in range(20)
-        ]
-
-    def loadout_boxes(self):
-        return [
-            SpriteBox(None, f'Loadout #{i}', (0.25, 0.5, 0.5, 1), None) for i in range(8)
-        ]
-
-
 class EncounterAPI:
     dev_mode = True
     show_debug = True

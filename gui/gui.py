@@ -9,6 +9,7 @@ from pathlib import Path
 import nutil
 from nutil.kex import widgets
 from nutil.time import RateCounter, pingpong
+from nutil.vars import Interface
 from data import TITLE, FPS, DEV_BUILD
 from data.assets import Assets
 from data.settings import Settings
@@ -21,13 +22,14 @@ class App(widgets.App):
     def __init__(self, **kwargs):
         logger.info(f'Initializing GUI @ {FPS} fps.')
         super().__init__(make_bg=False, make_menu=False, **kwargs)
+        self.interface = Interface(name='GUI Home')
         self.home_hotkeys = widgets.InputManager()
         self.enc_hotkeys = widgets.InputManager()
         self.enc_hotkeys.block_repeat = not Settings.get_setting('enable_hold_key', 'General')
         self.app_hotkeys = widgets.InputManager()
         self.icon = str(Path.cwd()/'icon.png')
 
-        self.game = get_api()
+        self.game = get_api(self.interface)
 
         self.switch = self.add(widgets.ScreenSwitch())
         self.home = HomeGUI()
@@ -66,14 +68,24 @@ class App(widgets.App):
             self.app_hotkeys.register(*params)
         if not DEV_BUILD:
             Assets.play_sfx('ui', 'welcome', volume='ui')
+        self.interface.register('start_encounter', self.start_encounter)
+        self.interface.register('end_encounter', self.end_encounter)
+        self.interface.register('full_refresh', self.full_refresh)
+        self.game.setup()
 
     def full_refresh(self):
-        logger.info(f'Reloading settings...')
         Settings.reload_settings()
+        self.switch_screen(self.switch.current_screen.name)
 
-    def switch_screen(self, *a, **k):
-        logger.info(f'GUI Switch screen args: {a} {k}')
-        self.switch.switch_screen(*a, **k)
+    def switch_screen(self, sname):
+        logger.info(f'GUI Switch screen to: {sname}')
+        self.switch.switch_screen(sname)
+        if sname == 'home':
+            self.home_hotkeys.activate()
+            self.enc_hotkeys.deactivate()
+        else:
+            self.home_hotkeys.deactivate()
+            self.enc_hotkeys.activate()
 
     def toggle_window_borderless(self, set_as=None):
         if widgets.kvWindow.fullscreen:
@@ -118,34 +130,28 @@ class App(widgets.App):
         self.fps.tick()
         s = widgets.kvWindow.size
         self.title = f'{TITLE} | {round(self.fps.rate)} FPS, {s[0]}×{s[1]}'
-
-        encounter_api = self.game.encounter_api
-        if self.encounter is None and encounter_api is not None:
-            self.enc_frame.clear_widgets()
-            self.encounter = self.enc_frame.add(Encounter(encounter_api))
-            self.switch_screen('enc')
-            self.home_hotkeys.deactivate()
-            self.enc_hotkeys.activate()
-            logger.info(f'GUI opened encounter')
-            self.full_refresh()
-        elif self.encounter is not None and encounter_api is None:
-            self.enc_hotkeys.clear_all()
-            self.enc_frame.remove_widget(self.encounter)
-            self.enc_frame.add(ENC_PLACEHOLDER)
-            self.encounter = None
-            self.switch_screen('home')
-            self.home_hotkeys.activate()
-            self.enc_hotkeys.deactivate()
-            logger.info(f'GUI closed encounter')
-            self.full_refresh()
-
-        self.enc_hotkeys.deactivate()
-        if self.encounter is None or self.switch.current_screen.name == 'home':
-            self.enc_hotkeys.deactivate()
-            self.home.update()
-        elif self.encounter is not None and self.switch.current_screen.name == 'enc':
-            self.enc_hotkeys.activate()
+        sname = self.switch.current_screen.name
+        # Update relevant frame
+        if self.encounter is not None and sname == 'enc':
             self.encounter.update()
+        elif sname == 'home':
+            self.home.update()
+
+    def start_encounter(self, logic_api):
+        self.enc_frame.clear_widgets()
+        self.encounter = self.enc_frame.add(Encounter(logic_api))
+        self.switch_screen('enc')
+        logger.info(f'GUI opened encounter')
+        self.full_refresh()
+
+    def end_encounter(self):
+        self.enc_hotkeys.clear_all()
+        self.enc_frame.remove_widget(self.encounter)
+        self.enc_frame.add(ENC_PLACEHOLDER)
+        self.encounter = None
+        self.switch_screen('home')
+        logger.info(f'GUI closed encounter')
+        self.full_refresh()
 
 
 class InfoBox(widgets.BoxLayout):
@@ -163,6 +169,6 @@ class InfoBox(widgets.BoxLayout):
             self.add(widgets.Widget())
 
 
+ENC_PLACEHOLDER = InfoBox(f'Press [b]Ctrl[/b]+[b]Shift[/b]+[b]F1[/b] to load an encounter', widgets.Label(text='No encounter in progress.'))
 INFO_PANEL1 = InfoBox(f'Press [b]Ctrl[/b]+[b]Shift[/b]+[b]F2[/b] to return to encounter', widgets.Image(allow_stretch=True, source=Assets.get_sprite('ui', 'info1')))
 INFO_PANEL2 = InfoBox(f'Press [b]Ctrl[/b]+[b]Shift[/b]+[b]F2[/b] to return to encounter', widgets.Image(allow_stretch=True, source=Assets.get_sprite('ui', 'info2')))
-ENC_PLACEHOLDER = InfoBox(f'Press [b]Ctrl[/b]+[b]Shift[/b]+[b]F1[/b] to load an encounter', widgets.Label(text='No encounter in progress.'))
