@@ -143,21 +143,21 @@ class ConsumeTouch(Widget):
             return False
         if self.widget is not None:
             return self.widget.collide_point(*m.pos)
-        return True
+        return False
 
     def on_touch_up(self, m):
         if not self.enable:
             return False
         if self.widget is not None:
             return self.widget.collide_point(*m.pos)
-        return True
+        return False
 
     def on_touch_move(self, m):
         if not self.enable:
             return False
         if self.widget is not None:
             return self.widget.collide_point(*m.pos)
-        return True
+        return False
 
 
 KeyCalls = namedtuple('KeyCalls', ['keys', 'on_press'])

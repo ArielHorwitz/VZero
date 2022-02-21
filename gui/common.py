@@ -307,7 +307,7 @@ class Modal(widgets.AnchorLayout):
             self.remove_widget(self.__frame)
             self.add(widget)
         self.__frame = widget
-        self.consume_touch.widget = self.__frame
+        self.consume_touch.widget = widget
 
     def activate(self):
         self.consume_touch.enable = True

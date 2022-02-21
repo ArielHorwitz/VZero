@@ -1,6 +1,6 @@
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.DEBUG)
 
 import random
 import numpy as np
@@ -39,13 +39,15 @@ class MapGenerator:
         self.player_spawn = self.size/2
         self.spawns = []
         self.biomes = []
-        self.request_redraw = -1
         self.generate_map()
-        self.generate_map_image()
         self.spawn_unit('player', self.player_spawn)
         self.spawn_map()
         for unit in self.engine.units:
             unit.setup()
+
+    def setup(self, interface):
+        self.gui = interface
+        self.generate_map_image()
 
     def add_spawn(self, spawn, location, quadrant=False):
         self.spawns.append((spawn, np.array(location) * self.size))
@@ -138,7 +140,7 @@ class MapGenerator:
             default='brick',
             tilemap=tilemap,
         )
-        self.request_redraw = self.engine.tick - 1
+        self.gui.request('set_map_source', self.image, self.size)
 
     def export_biomes(self):
         biomes = defaultdict(lambda: list())

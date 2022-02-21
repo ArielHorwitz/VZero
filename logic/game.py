@@ -48,17 +48,15 @@ class GameAPI:
         event_queue = self.gui.get_flush_queue()
         for event in event_queue:
             logger.debug(f'Game received event: {event}')
-            if isinstance(event, ControlEvent):
-                handler_name = f'handle_{event.name}'
-                if not hasattr(self, handler_name):
-                    logger.warning(f'GameLogic missing handler for: {event.name}. Event: {event}')
-                    continue
-                handler = getattr(self, handler_name)
-                handler(event)
+            handler_name = f'handle_{event.name}'
+            if not hasattr(self, handler_name):
+                logger.warning(f'GameLogic missing handler for: {event.name}. Event: {event}')
+                continue
+            handler = getattr(self, handler_name)
+            handler(event)
 
     def setup(self):
-        reqs = '\n'.join(f'{k}: {v}' for k, v in self.gui.requests.items())
-        logger.info(f'GameAPI found gui interface:\n{reqs}')
+        logger.info(f'GameAPI found gui interface:\n{self.gui.requests}')
         self.set_widgets()
         self.load_loadout(1)
 
@@ -120,9 +118,8 @@ class GameAPI:
 
     # Encounter management
     def restart_encounter(self):
-        difficulty_level = self.encounter_api.difficulty_level
         self.leave_encounter()
-        self.new_encounter(difficulty_level)
+        self.new_encounter()
 
     def new_encounter(self):
         ep = self.world_encounters[self.selected_encounter]
@@ -130,6 +127,9 @@ class GameAPI:
             logger.info(f'Logic creating encounter with params: {ep} and loadout: {self.loadout}')
             self.encounter_api = EncounterAPI(self, ep, self.loadout)
             self.gui.request('start_encounter', self.encounter_api)
+        else:
+            logger.info(f'Logic requested to start new encounter, but one already exists: {self.encounter_api}')
+            Assets.play_sfx('target', 'ui')
 
     def leave_encounter(self):
         if self.encounter_api is not None:

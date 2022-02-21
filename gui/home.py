@@ -22,7 +22,6 @@ CONTROL_BUTTON_WORLD = 'Select Encounter'
 CONTROL_BUTTON_ENCOUNTER = 'Return to World'
 
 
-
 class HomeGUI(widgets.AnchorLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

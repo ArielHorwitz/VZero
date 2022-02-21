@@ -8,7 +8,6 @@ from data.load import RDF
 
 _DEFAULT_SETTINGS_STR = """
 === General
-dev_build: 0
 default_window: fullscreen
 full_resolution: 1920, 1080
 window_resolution: 1024, 768
@@ -17,6 +16,9 @@ enable_hold_mouse: 1
 enable_hold_key: 0
 source_map: map
 source_spawns: spawns
+dev_build: 0
+auto_log: 1
+log_interval: 3000
 
 === UI
 detailed_mode: 1
@@ -25,7 +27,7 @@ auto_tooltip: 0
 hud_scale: 1
 decorations: 0.75
 feedback_sfx_cooldown: 350
-fog: 40
+fog: 45
 fog_color: 0, 0, 0, 0.6
 
 === Audio
@@ -64,6 +66,7 @@ item7: 7
 item8: 8
 
 reset_view: home
+unpan: end
 zoom_in: =
 zoom_out: -
 pan_up: up

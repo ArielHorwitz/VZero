@@ -26,12 +26,12 @@ class Interface:
 
     def register(self, callname, callback):
         if callname in self.__requests:
-            logger.warning(f'Request {callname} already registered in {self}. Overwriting... Current requests: {self.__requests}')
+            logger.warning(f'Request {callname} already registered in {self}. Overwriting... Current requests: {self.requests}')
         self.__requests[callname] = callback
 
     def request(self, callname, *a, **k):
         if callname not in self.__requests:
-            logger.warning(f'No request {callname} registered in {self}. Ignoring {a} {k}... Current requests: {self.__requests}')
+            logger.warning(f'No request {callname} registered in {self}. Ignoring {a} {k}... Current requests: {self.requests}')
             return
         return self.__requests[callname](*a, **k)
 
@@ -41,10 +41,10 @@ class Interface:
 
     @property
     def requests(self):
-        return self.__requests
+        return list(self.__requests.keys())
 
     def __repr__(self):
-        return f'<Interface: {self.name} ({len(self.requests)} reqs registered)>'
+        return f'<Interface: {self.name} ({len(self.__requests)} reqs registered)>'
 
 
 class FIFO:

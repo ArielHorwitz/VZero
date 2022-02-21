@@ -356,8 +356,16 @@ class Unit(BaseUnit):
         return self.engine.get_stats(self.uid, STAT.HP) > 0
 
     @property
+    def allegiance(self):
+        return self.engine.get_stats(self.uid, STAT.ALLEGIANCE)
+
+    @property
     def empty_item_slots(self):
         return self.item_slots.count(None)
+
+    @property
+    def position(self):
+        return self.engine.get_position(self.uid)
 
     @property
     def view_distance(self):

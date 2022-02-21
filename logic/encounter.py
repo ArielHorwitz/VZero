@@ -6,20 +6,19 @@ import math
 import numpy as np
 from collections import defaultdict
 
-from nutil.vars import NP, nsign_str
+from nutil.vars import nsign, nsign_str, modify_color, is_iterable, minmax, NP
 from nutil.random import SEED
 from nutil.display import njoin, make_title
-from nutil.time import RateCounter, ping, pong
-from nutil.vars import modify_color, is_iterable
+from nutil.time import RateCounter, ping, pong, humanize_ms
 
 from data import resource_name, DEV_BUILD
 from data.load import RDF
 from data.settings import Settings
 from data.assets import Assets
 from gui.api import SpriteTitleLabel, ProgressBar, SpriteBox, SpriteLabel
+from gui.api import ControlEvent, InputEvent, CastEvent
 
 from engine.common import *
-from engine.api import EncounterAPI as BaseEncounterAPI
 from engine.encounter import Encounter as EncounterEngine
 
 from logic import MECHANICS_NAMES
@@ -29,19 +28,16 @@ from logic.mapgen import MapGenerator
 from logic.items import ITEM, ITEMS, ITEM_CATEGORIES, Item
 
 
-LOG_INTERVAL_TICKS = 3000
-RNG = np.random.default_rng()
-STAT_SPRITES = tuple([Assets.get_sprite('ability', s) for s in (
-    'physical', 'fire', 'earth',
-    'air', 'water', 'gold',
-    'respawn')]+[Assets.get_sprite('ui', s) for s in ('crosshair-select', 'distance')])
-SHOP_STATE_KEY = defaultdict(lambda: 0.7, {
-    True: 1,
-    FAIL_RESULT.MISSING_COST: 0.45,
-    FAIL_RESULT.MISSING_TARGET: 0.2,
-    FAIL_RESULT.OUT_OF_RANGE: 1,
-    FAIL_RESULT.ON_COOLDOWN: 0,
-})
+AUTO_LOG = Settings.get_setting('auto_log', 'General')
+LOG_INTERVAL_TICKS = Settings.get_setting('log_interval', 'General')
+
+DIFFICULTY_LEVELS = ['Easy mode', 'Medium challenge', 'Hard difficulty', 'Impossible...']
+DIFFICULTY2STOCKS = {
+    0: 100,
+    1: 10,
+    2: 3,
+    3: 1,
+}
 
 FEEDBACK_SFX = {
     'shop': 'shop',
@@ -56,27 +52,154 @@ FEEDBACK_SFX = {
     FAIL_RESULT.ON_COOLDOWN: 'cooldown',
     FAIL_RESULT.MISSING_COST: 'cost',
 }
-
 FEEDBACK_SFX_INTERVAL = Settings.get_setting('feedback_sfx_cooldown', 'UI')
+
+SELECTION_SPRITE = Assets.get_sprite('ui', 'crosshair-select')
+QUICKCAST_SPRITE = Assets.get_sprite('ui', 'crosshair-cast')
+
+ENEMY_COLOR = (1, 0, 0, 1)
+ALLY_COLOR = (0, 0.7, 0, 1)
+NEUTRAL_COLOR = (0.8, 0.5, 0.2, 1)
+MANA_COLOR = (0, 0.25, 1, 1)
+
+STAT_SPRITES = tuple([Assets.get_sprite('ability', s) for s in (
+    'physical', 'fire', 'earth',
+    'air', 'water', 'gold',
+    'respawn')]+[Assets.get_sprite('ui', s) for s in ('crosshair-select', 'distance')])
 HUD_STATUSES = {str2stat(s): str2status(s) for s in MECHANICS_NAMES if s is not 'SHOP'}
 
-DIFFICULTY_LEVELS = ['Easy mode', 'Medium challenge', 'Hard difficulty', 'Impossible...']
-DIFFICULTY2STOCKS = {
-    0: 100,
-    1: 10,
-    2: 3,
-    3: 1,
-}
+SHOP_STATE_KEY = defaultdict(lambda: 0.7, {
+    True: 1,
+    FAIL_RESULT.MISSING_COST: 0.45,
+    FAIL_RESULT.MISSING_TARGET: 0.2,
+    FAIL_RESULT.OUT_OF_RANGE: 1,
+    FAIL_RESULT.ON_COOLDOWN: 0,
+})
+SHOP_MAIN_TEXT = '\n'.join([
+    '[u]Legend:[/u]',
+    'White: for sale',
+    'Grey: missing gold/slots',
+    'Black: already owned',
+    'Color: for sale at another shop',
+    '',
+    '[u]Refund policy:[/u]',
+    '80% refund on used items',
+    '100% refund on new items (<10 seconds)',
+])
+SHOP_MAIN_TEXT_NOSHOP = '\n'.join([
+    f'Press {Settings.get_setting("toggle_map", "Hotkeys")} to find a shop',
+    *(f'{_+1}. {n.name.lower().capitalize()} shop' for _, n in enumerate(ITEM_CATEGORIES)),
+])
 
 
-class EncounterAPI(BaseEncounterAPI):
-    RNG = np.random.default_rng()
+class EncounterAPI:
     enc_over = False
     win = False
+    player_uid = 0
+    selected_unit = 0
+    map_mode = False
+    view_offset = None
+    view_size = gui_size = np.array([1024, 768])
 
-    # Logic handlers
-    def hp_zero(self, uid):
-        self.engine.units[uid].hp_zero()
+    def __init__(self, game, encounter_params, player_abilities):
+        self.dev_build = DEV_BUILD
+        self.dev_mode = False
+        self.show_debug = False
+        self.game = game
+        self.difficulty_level = encounter_params.difficulty
+        self.engine = EncounterEngine(self)
+        self.map = MapGenerator(self, encounter_params)
+        self.player = self.units[self.player_uid]
+        self.player.set_abilities(player_abilities)
+
+        # GUI related properties
+        self.always_visible = np.zeros(len(self.engine.units), dtype=np.bool)
+        self.always_active = np.zeros(len(self.engine.units), dtype=np.bool)
+        self.default_upp = 2
+        self.__last_log_interval = self.engine.tick - (LOG_INTERVAL_TICKS + 1)
+        self.__last_hud_statuses = []
+        self.__last_fail_sfx_ping = ping()
+        self.map_mode = False
+        self.engine.set_stats(self.player_uid, STAT.STOCKS, DIFFICULTY2STOCKS[self.difficulty_level])
+        # Setup units
+        for unit in self.engine.units:
+            unit.action_phase()
+            self.always_visible[unit.uid] = unit.always_visible
+            self.always_active[unit.uid] = unit.always_active
+
+    def setup(self, interface):
+        self.gui = interface
+        logger.info(f'Encounter setup received interface: {interface}')
+        self.map.setup(self.gui)
+        self.set_widgets()
+        self.set_zoom()
+
+    def update(self):
+        self.detailed_info_mode = self.gui.request('get_detailed_info_mode')
+        self.gui_size = self.gui.request('get_gui_size')
+        self.view_size = self.gui_size * self.upp
+
+        if not self.enc_over:
+            player_action_radius = min(self.units[0].view_distance+1000, 3000)
+            in_action_radius = self.engine.get_distances(self.engine.get_position(0)) < player_action_radius
+            active_uids = self.always_active | in_action_radius
+            self.engine.update(active_uids)
+            if self.__last_log_interval + LOG_INTERVAL_TICKS < self.engine.tick:
+                self.log_player_state()
+                self.__last_log_interval = self.engine.tick
+
+        self.gui.request('set_view_center', self.view_center)
+        self.gui.request('set_move_crosshair', self.engine.get_position(self.player_uid, value_name=VALUE.TARGET))
+        self.gui.request('set_vfx', self.engine.get_visual_effects())
+        self.refresh_gui_sprite_layer()
+        self.refresh_hud()
+        self.refresh_shop()
+        self.refresh_debug()
+
+        # Handle GUI event queue
+        for event in self.gui.get_flush_queue():
+            self._handle_event(event)
+
+    def set_widgets(self):
+        sprites = [unit.sprite for unit in self.units]
+        hp_bar_colors = [self.relative_allegiance_color(self.player_uid, uid) for uid in range(self.unit_count)]
+        mana_bar_colors = [MANA_COLOR for _ in range(self.unit_count)]
+        self.gui.request('set_units', sprites, hp_bar_colors, mana_bar_colors)
+        self.gui.request('set_move_crosshair', self.engine.get_position(self.player_uid, value_name=VALUE.TARGET), (50, 50))
+        self.gui.request('set_top_panel_color', self.top_panel_color)
+        self.gui.request('set_browse_main', self.browse_main())
+        self.gui.request('set_browse_elements', self.browse_elements())
+        self.gui.request('set_menu_text', self.menu_text)
+
+    def refresh_gui_sprite_layer(self):
+        self.gui.request('set_view_fade', 0 if self.engine.auto_tick else 0.5)
+        self.gui.request('set_top_panel_labels', *self.top_panel_labels)
+        self.gui.request('set_fog_center', self.player.position)
+        self.gui.request('set_fog_radius', self.player.view_distance + Mechanics.get_stats(self.engine, self.player_uid, STAT.HITBOX))
+        visible_mask = self.sprite_visible_mask
+        radii = Mechanics.get_stats(self.engine, visible_mask, STAT.HITBOX)
+        positions = self.engine.get_positions(visible_mask)
+        top_bars, bot_bars = self.sprite_bars(visible_mask)
+        statuses = [self.sprite_statuses(uid) for uid in np.flatnonzero(visible_mask)]
+        self.gui.request('update_units', visible_mask, radii, positions, top_bars, bot_bars, statuses)
+
+    def refresh_hud(self):
+        unit = self.units[self.selected_unit]
+        self.gui.request('set_huds', self.hud_left(), self.hud_middle(), self.hud_right(), self.hud_statuses())
+        self.gui.request('set_hud_bars', *self.hud_bars())
+        self.gui.request('set_hud_portrait', unit.sprite, unit.name)
+        self.gui.request('set_hud_middle_label', unit.say)
+
+    def refresh_shop(self):
+        self.gui.request('set_browse_main', self.browse_main())
+        self.gui.request('set_browse_elements', self.browse_elements())
+
+    def refresh_debug(self):
+        if self.show_debug:
+            self.gui.request('set_debug_panels', self.debug_panel_labels())
+
+    def leave(self):
+        self.enc_over = True
 
     def end_encounter(self, win):
         self.enc_over = True
@@ -84,7 +207,61 @@ class EncounterAPI(BaseEncounterAPI):
         Assets.play_sfx('ui', 'win' if win else 'lose', volume='feedback')
         logger.info(f'Encounter over! Win: {self.win}')
         self.toggle_play(set_to=False)
-        self.raise_gui_flag('menu')
+        self.gui.request('set_menu_text', self.menu_text)
+        self.gui.request('menu_show')
+
+    # Utilities
+    def select_unit(self, uid):
+        self.selected_unit = uid
+        logger.info(f'Selected unit: {self.units[uid].name}')
+        for stat, tracker in self.units[uid].regen_trackers.items():
+            tracker.reset(self.engine.get_delta_total(uid, stat))
+
+    @property
+    def units(self):
+        return self.engine.units
+
+    def map_inspect(self, target):
+        play_sfx = False
+        distances = self.engine.get_distances(target)
+        uid = NP.argmin(distances, self.sprite_visible_mask)
+        dist = distances[uid]
+        if dist < 50 * self.upp:
+            play_sfx = True
+        else:
+            uid = 0
+        self.select_unit(uid)
+        self.draw_unit_selection(uid, play_sfx=play_sfx)
+
+    def draw_unit_selection(self, uid, play_sfx=False, volume='ui'):
+        if play_sfx:
+            Assets.play_sfx('ui', 'select', volume=volume)
+        hb = self.engine.get_stats(uid, STAT.HITBOX)
+        self.engine.add_visual_effect(VFX.SPRITE, 60, {
+            'uid': uid,
+            'fade': 100,
+            'source': SELECTION_SPRITE,
+            'size': (hb*2.1, hb*2.1),
+            'color': (0, 0, 0),
+        })
+
+    def toggle_play(self, set_to=None, play_sfx=True):
+        set_to = set_to if set_to is not None else not self.engine.auto_tick
+        changed = set_to != self.engine.auto_tick
+        self.engine.set_auto_tick(set_to)
+        logger.debug(f'ELogic toggled play')
+        if play_sfx and changed:
+            if self.engine.auto_tick is True:
+                Assets.play_sfx('ui', 'play')
+            else:
+                Assets.play_sfx('ui', 'pause')
+
+    @property
+    def map_size(self):
+        return self.map.size
+
+    def hp_zero(self, uid):
+        self.engine.units[uid].hp_zero()
 
     def status_zero(self, uid, status):
         unit = self.engine.units[uid]
@@ -112,10 +289,79 @@ class EncounterAPI(BaseEncounterAPI):
             'fade': 60,
         })
 
-    # GUI handlers
+    def relative_allegiance_color(self, observing_uid, target_uid):
+        obs_allegiance = self.units[observing_uid].allegiance
+        target_allegiance = self.units[target_uid].allegiance
+        if obs_allegiance == target_allegiance:
+            return ALLY_COLOR
+        hostile = target_allegiance > 0
+        return ENEMY_COLOR if hostile else NEUTRAL_COLOR
+
+    # GUI utilities
     @property
-    def player_los(self):
-        return self.units[0].view_distance
+    def upp(self):
+        return self.fit_upp(self.map_size * 1.1) if self.map_mode else self.default_upp
+
+    @property
+    def view_center(self):
+        if self.map_mode:
+            return self.map_size / 2
+        return self.engine.get_position(0) if self.view_offset is None else self.view_offset
+
+    def toggle_map(self):
+        self.map_mode = not self.map_mode
+        self.view_offset = None
+        # self.set_zoom()
+        self.gui.request('set_view_center', self.view_center)
+        self.gui.request('set_upp', self.upp)
+
+    def set_zoom(self, d=None, v=None):
+        if v is not None:
+            self.default_upp = v
+            return
+        if d is None:
+            self.default_upp = 1 / (Settings.get_setting('default_zoom')/100)
+        else:
+            self.default_upp *= abs(d)**(-1*nsign(d))
+        self.default_upp = minmax(
+            self.fit_upp(self.engine.get_stats(self.player_uid, STAT.HITBOX)),
+            self.fit_upp(self.map_size * 0.9),
+            self.default_upp
+        )
+        self.gui.request('set_upp', self.upp)
+
+    def fit_upp(self, real_size):
+        return max(np.array(real_size) / self.gui_size)
+
+    def zoom_in(self):
+        if not self.map_mode:
+            self.set_zoom(d=1.15)
+
+    def zoom_out(self):
+        if not self.map_mode:
+            self.set_zoom(d=-1.15)
+
+    def pan(self, d, a=None):
+        if a is None:
+            a = min(self.view_size) * 0.15
+        if self.view_offset is None:
+            self.view_offset = self.view_center
+        hoff = (d=='right') - (d=='left')
+        voff = (d=='up') - (d=='down')
+        offset = np.array([a*hoff, a*voff])
+        self.view_offset += offset
+
+    def toggle_show_debug(self, set_as=None):
+        if set_as is None:
+            set_as = not self.show_debug
+        self.show_debug = set_as
+        self.gui.request('debug_show' if self.show_debug else 'debug_hide')
+        logger.info(f'Toggle show_debug, now: {self.show_debug}')
+
+    # GUI elements
+    @property
+    def time_str(self):
+        return humanize_ms(self.engine.ticktime * self.engine.tick, show_hours=False)
 
     @property
     def menu_text(self):
@@ -133,6 +379,7 @@ class EncounterAPI(BaseEncounterAPI):
                 return f'You lose :(\n{difficulty}\nBetter luck next time!'
         return f'[b]Paused[/b]'
 
+    @property
     def top_panel_labels(self):
         bstr = f'DEV BUILD' if self.dev_build else f'Balance patch: {METAGAME_BALANCE_SHORT}'
         if self.dev_mode:
@@ -159,108 +406,17 @@ class EncounterAPI(BaseEncounterAPI):
         return 1, 1, 1, 1
 
     @property
-    def control_buttons(self):
-        return ['Pause' if self.engine.auto_tick else 'Play', 'Shop']
-
-    def control_button_click(self, index):
-        if index == 0:
-            self.toggle_play()
-            self.raise_gui_flag('browse_dismiss')
-            self.raise_gui_flag('menu_dismiss' if self.engine.auto_tick else 'menu')
-        elif index == 1:
-            self.selected_unit = 0
-            self.raise_gui_flag('browse_toggle')
-
-    def walkcast(self, target):
-        self.units[0].use_walk(target)
-
-    def lootcast(self, target):
-        self.units[0].use_loot(target)
-
-    def quickcast(self, ability_index, target, alt=0):
-        self.units[0].use_ability_slot(ability_index, target, alt)
-
-    def itemcast(self, item_index, target, alt=0):
-        self.units[0].use_item_slot(item_index, target, alt)
-
-    def itemsell(self, item_index, target):
-        self.units[0].sell_item(item_index)
-        self.log_player_state()
-
-    def user_hotkey(self, hotkey, target):
-        zoom_scale = 1.15
-
-        if hotkey == 'toggle_menu':
-            self.toggle_play()
-            self.raise_gui_flag('browse_dismiss')
-            self.raise_gui_flag('menu_dismiss' if self.engine.auto_tick else 'menu')
-        elif hotkey == 'toggle_play':
-            self.toggle_play()
-        elif hotkey == 'toggle_shop':
-            self.selected_unit = 0
-            self.raise_gui_flag('browse_toggle')
-        elif hotkey == 'toggle_map':
-            self.map_mode = not self.map_mode
-            self.view_offset = None
-        elif hotkey == 'zoom_in':
-            self.zoom_in()
-        elif hotkey == 'zoom_out':
-            self.zoom_out()
-        elif hotkey.startswith('pan_'):
-            self.pan(d=hotkey[4:])
-        elif hotkey == 'reset_view':
-            self.map_mode = False
-            self.view_offset = None
-            self.set_zoom()
-        elif hotkey.startswith('dev') and self.dev_build:
-            if hotkey == 'dev1':
-                self.show_debug = not self.show_debug
-                logger.info(f'Toggle show_debug, now: {self.show_debug}')
-            elif hotkey == 'dev2':
-                self.engine._do_ticks(1)
-            elif hotkey == 'dev3':
-                logger.info(f'Dev doing 3000 ticks...')
-                self.engine._do_ticks(3000)
-            elif hotkey == 'dev4':
-                self.dev_mode = not self.dev_mode
-                logger.info(f'Toggle dev_mode, now: {self.dev_mode}')
-                self.map.refresh()
-
-    @property
-    def map_size(self):
-        return self.map.size
-
-    @property
-    def map_image_source(self):
-        return self.map.image
-
-    @property
-    def request_redraw(self):
-        return self.map.request_redraw
-
-    # Sprites
-    def sprite_bar_color(self, uid):
-        allegiance = self.engine.get_stats(uid, STAT.ALLEGIANCE)
-        if allegiance == 0:
-            return (0, 0.7, 0, 1), (0, 0.25, 1, 1)
-        elif allegiance < 0:
-            return (0.8, 0.5, 0.2, 1), (0, 0.25, 1, 1)
-        else:
-            return (1, 0, 0, 1), (0, 0.25, 1, 1)
-
     def sprite_visible_mask(self):
-        max_los = self.player_los
-        if self.dev_mode:
-            max_los = max(max_los, np.linalg.norm(self.view_size) / 2)
-        in_los = self.engine.unit_distance(0) <= max_los
-        is_ally = self.engine.get_stats(slice(None), STAT.ALLEGIANCE) == self.engine.get_stats(0, STAT.ALLEGIANCE)
+        max_los = self.player.view_distance if not self.dev_mode else float('inf')
+        in_los = self.engine.unit_distance(self.player_uid) <= max_los
+        is_ally = self.engine.get_stats(slice(None), STAT.ALLEGIANCE) == self.engine.get_stats(self.player_uid, STAT.ALLEGIANCE)
         return in_los | is_ally | self.always_visible
 
-    def sprite_bars(self):
-        max_hps = self.engine.get_stats(slice(None), STAT.HP, value_name=VALUE.MAX)
-        hps = self.engine.get_stats(slice(None), STAT.HP) / max_hps
-        max_manas = self.engine.get_stats(slice(None), STAT.MANA, value_name=VALUE.MAX)
-        manas = self.engine.get_stats(slice(None), STAT.MANA) / max_manas
+    def sprite_bars(self, mask):
+        max_hps = self.engine.get_stats(mask, STAT.HP, value_name=VALUE.MAX)
+        hps = self.engine.get_stats(mask, STAT.HP) / max_hps
+        max_manas = self.engine.get_stats(mask, STAT.MANA, value_name=VALUE.MAX)
+        manas = self.engine.get_stats(mask, STAT.MANA) / max_manas
         manas[hps<=0] = 0
         return hps, manas
 
@@ -287,7 +443,6 @@ class EncounterAPI(BaseEncounterAPI):
 
         return icons
 
-    # HUD
     hud_left_hotkeys = []
     hud_right_hotkeys = []
     for i in range(8):
@@ -403,76 +558,10 @@ class EncounterAPI(BaseEncounterAPI):
         unit.regen_trackers[STAT.MANA].push(self.engine.get_delta_total(uid, STAT.MANA))
         delta_hp = f'{nsign_str(round(s2ticks(unit.regen_trackers[STAT.HP].mean), 1))} /s'
         delta_mana = f'{nsign_str(round(s2ticks(unit.regen_trackers[STAT.MANA].mean), 1))} /s'
-        bar_colors = self.sprite_bar_color(uid)
         return [
-            ProgressBar(hp/max_hp, f'HP: {hp:.1f}/{max_hp:.1f} {delta_hp}', bar_colors[0]),
-            ProgressBar(mana/max_mana, f'Mana: {mana:.1f}/{max_mana:.1f} {delta_mana}', bar_colors[1]),
+            ProgressBar(hp/max_hp, f'HP: {hp:.1f}/{max_hp:.1f} {delta_hp}', self.relative_allegiance_color(self.player_uid, uid)),
+            ProgressBar(mana/max_mana, f'Mana: {mana:.1f}/{max_mana:.1f} {delta_mana}', MANA_COLOR),
         ]
-
-    def hud_drag_drop(self, hud, origin, target, button):
-        if self.selected_unit == 0 and button == 'middle' and origin != target:
-            if hud == 'left':
-                self.units[0].swap_ability_slots(origin, target)
-                Assets.play_sfx('ui', 'select')
-            if hud == 'right':
-                self.units[0].swap_item_slots(origin, target)
-                Assets.play_sfx('ui', 'select')
-
-    def hud_click(self, hud, index, button):
-        if button == 'left':
-            if hud == 'left':
-                aid = self.units[self.selected_unit].ability_slots[index]
-                if aid is None:
-                    return None
-                ability = self.abilities[aid]
-                stl = SpriteTitleLabel(
-                    ability.sprite, ability.name,
-                    ability.description(self.engine, self.selected_unit), None)
-                return stl
-            elif hud == 'right':
-                iid = self.engine.units[self.selected_unit].item_slots[index]
-                if iid is None:
-                    return
-                item = ITEMS[iid]
-                text = item.shop_text(self.engine, 0)
-                stl = SpriteTitleLabel(
-                    Assets.get_sprite('ability', item.name), item.shop_name, text, None)
-                return stl
-            elif hud == 'middle':
-                if index < 6:
-                    stat = [
-                        STAT.PHYSICAL, STAT.FIRE, STAT.EARTH,
-                        STAT.AIR, STAT.WATER, STAT.GOLD,
-                    ][index]
-                    current = self.engine.get_stats(self.selected_unit, stat)
-                    delta = self.engine.get_stats(self.selected_unit, stat, value_name=VALUE.DELTA)
-                    dval = round(s2ticks(delta)*60, 2)
-                    ds = ''
-                    if dval != 0:
-                        ds = f'\n{nsign_str(dval)} /m'
-                    s = f'{current:.2f}{ds}'
-                    title = f'{stat.name.lower().capitalize()}'
-                elif index == 6:
-                    title = f'Respawn timer'
-                    s = 'Next respawn time in seconds'
-                elif index == 7:
-                    title = 'Hitbox radius'
-                    s = 'Radius of hitbox'
-                elif index == 8:
-                    title = f'Distance'
-                    s = f'Unit\'s distance from me'
-                else:
-                    return None
-                return SpriteTitleLabel(STAT_SPRITES[index], title, f'{s}', None)
-            elif hud == 'status':
-                return self.hud_status_tooltip(index)
-        elif button == 'right':
-            if self.selected_unit == 0 and hud == 'right':
-                self.itemsell(index, (0,0))
-
-    def hud_portrait_click(self):
-        unit = self.units[self.selected_unit]
-        return SpriteTitleLabel(unit.sprite, unit.name, unit.say, None)
 
     def hud_status_tooltip(self, index):
         status = self.__last_hud_statuses[index]
@@ -483,15 +572,13 @@ class EncounterAPI(BaseEncounterAPI):
             sprite = Assets.get_sprite('ability', 'respawn')
             title = 'Respawn timer'
             label = 'Respawn time in seconds'
-        if status is STATUS.SHOP:
+        elif status is STATUS.SHOP:
             shop_name, shop_color = Item.item_category_gui(self.engine.get_status(self.selected_unit, STATUS.SHOP))
             if shop_name is None:
                 shop_name = 'no'
             sprite = Assets.get_sprite('unit', f'{shop_name}-shop')
             title = f'{shop_name.capitalize()} Shop'
             label = f'Near {shop_name} shop'
-            self.raise_gui_flag('browse')
-            return None
         elif isinstance(status, STAT):
             sprite = Assets.get_sprite('ability', status.name)
             title = status.name.lower().capitalize()
@@ -533,7 +620,6 @@ class EncounterAPI(BaseEncounterAPI):
             label = 'Healing from a fountain'
         return SpriteTitleLabel(sprite, title, label, None)
 
-    # Browse
     def browse_main(self):
         shop_status = Mechanics.get_status(self.engine, 0, STAT.SHOP)
         shop_name, shop_color = Item.item_category_gui(shop_status)
@@ -548,24 +634,12 @@ class EncounterAPI(BaseEncounterAPI):
                 f'You have: [b]{gold_count}[/b] gold',
                 f'[u][b]{warning}[/b][/u]',
                 f'',
-                f'[u]Legend:[/u]',
-                f'White: for sale',
-                f'Grey: missing gold/slots',
-                f'Black: already owned',
-                f'Color: for sale at another shop',
-                f'',
-                f'[u]Refund policy:[/u]',
-                f'80% refund on used items',
-                f'100% refund on new items (<10 seconds)',
+                SHOP_MAIN_TEXT,
             ])
         else:
             title = 'Out of shop range'
             shop_color = (0.25,0.25,0.25,1)
-            map_hotkey = Settings.get_setting('toggle_map', 'Hotkeys')
-            main_text = '\n'.join([
-                f'Press {map_hotkey} to find a shop',
-                *(f'{_+1}. {n.name.lower().capitalize()} shop' for _, n in enumerate(ITEM_CATEGORIES)),
-            ])
+            main_text = SHOP_MAIN_TEXT_NOSHOP
         return SpriteTitleLabel(
             Assets.get_sprite('unit', f'{shop_name}-shop'),
             title, main_text,
@@ -586,54 +660,26 @@ class EncounterAPI(BaseEncounterAPI):
                 s, bg_color, None))
         return sts
 
-    def browse_click(self, index, button):
-        if button == 'right':
-            self.units[0].buy_item(index)
-            self.log_player_state()
-        if button == 'left':
-            item = ITEMS[index]
-            return SpriteTitleLabel(
-                Assets.get_sprite('ability', item.name),
-                item.shop_name, item.shop_text(self.engine, 0),
-                None)
-
     # Misc
     abilities = ABILITIES
     items = ITEMS
     ItemCls = Item
 
-    def select_unit(self, uid):
-        self.selected_unit = uid
-        logger.info(f'Selected unit: {self.units[uid].name}')
-        for stat, tracker in self.units[uid].regen_trackers.items():
-            tracker.reset(self.engine.get_delta_total(uid, stat))
-
-    def update(self, *a, **k):
-        super().update(*a, **k)
-        if self.enc_over:
-            return
-        player_action_radius = min(self.units[0].view_distance+1000, 3000)
-        in_action_radius = self.engine.get_distances(self.engine.get_position(0)) < player_action_radius
-        active_uids = self.always_active | in_action_radius
-        self.engine.update(active_uids)
-        if self.__last_log_interval + LOG_INTERVAL_TICKS < self.engine.tick:
-            self.log_player_state()
-            self.__last_log_interval = self.engine.tick
-
-    def log_player_state(self):
-        logger.info('\n'.join([
-            '\n\n\n',
-            f'__ PLAYER STATE __',
-            f'Tick: {self.engine.tick} Active UIDs: {np.flatnonzero(self.engine.active_uids)}',
-            f'__ STATS __',
-            self.pretty_stats(0, verbose=True),
-            f'__ STATUSES __',
-            self.pretty_statuses(0, verbose=True),
-            f'__ COOLDOWNS __',
-            self.pretty_cooldowns(0, verbose=True),
-            f'__ UNIT DEBUG_STR __',
-            self.units[0].debug_str(verbose=True),
-        ]))
+    def log_player_state(self, force=False):
+        if AUTO_LOG or force:
+            logger.info('\n'.join([
+                '\n\n\n',
+                f'__ PLAYER STATE __',
+                f'Tick: {self.engine.tick} Active UIDs: {np.flatnonzero(self.engine.active_uids)}',
+                f'__ STATS __',
+                self.pretty_stats(self.player_uid, verbose=True),
+                f'__ STATUSES __',
+                self.pretty_statuses(self.player_uid, verbose=True),
+                f'__ COOLDOWNS __',
+                self.pretty_cooldowns(self.player_uid, verbose=True),
+                f'__ UNIT DEBUG_STR __',
+                self.player.debug_str(verbose=True),
+            ]))
 
     @property
     def unit_count(self):
@@ -729,40 +775,290 @@ class EncounterAPI(BaseEncounterAPI):
 
         return logic_performance, logic_overview, text_unit1, text_unit2, text_unit3
 
-    def __init__(self, game, encounter_params, player_abilities):
-        self.dev_build = DEV_BUILD
-        self.dev_mode = False
-        self.show_debug = False
-        self.game = game
-        self.difficulty_level = encounter_params.difficulty
-        self.engine = EncounterEngine(self)
-        self.map = MapGenerator(self, encounter_params)
-        self.engine.units[0].set_abilities(player_abilities)
-        self.always_visible = np.zeros(len(self.engine.units), dtype=np.bool)
-        self.always_active = np.zeros(len(self.engine.units), dtype=np.bool)
-        self.__last_log_interval = self.engine.tick - (LOG_INTERVAL_TICKS + 1)
-        self.__last_hud_statuses = []
-        self.__last_fail_sfx_ping = ping()
-        self.map_mode = False
-        self.set_zoom()
-        self.engine.set_stats(0, STAT.STOCKS, DIFFICULTY2STOCKS[self.difficulty_level])
-        # Setup units
-        for unit in self.engine.units:
-            unit.action_phase()
-            self.always_visible[unit.uid] = unit.always_visible
-            self.always_active[unit.uid] = unit.always_active
-
-    def leave(self):
-        self.enc_over = True
-
     def debug(self, *args, dev_mode=-1, tick=None, **kwargs):
         logger.info(f'Logic Debug called (extra args: {args} {kwargs})')
 
     def debug_pointer(self, pos, **params):
         self.engine.add_visual_effect(VFX.SPRITE, 50, {
-            'source': self.quickcast_sprite,
+            'source': QUICKCAST_SPRITE,
             'point': pos,
             'size': (250, 250),
             'color': (0, 0, 0, 1),
             **params,
         })
+
+    # GUI event handlers
+    def _handle_event(self, event):
+        logger.debug(f'ELogic handling event: {event}')
+        if self.gui.request('menu_showing') and event.name != 'toggle_menu':
+            self.play_feedback(FAIL_RESULT.INACTIVE)
+            return
+        if isinstance(event, CastEvent):
+            self.__handle_cast(event)
+            return
+        if isinstance(event, InputEvent):
+            handler_name = f'_ihandle_{event.name}'
+            if not hasattr(self, handler_name):
+                logger.warning(f'ELogic missing input handler for: {event.name}. Event: {event}')
+                return
+            handler = getattr(self, handler_name)
+            handler(event)
+            return
+        if isinstance(event, ControlEvent):
+            if event.name.startswith('dev'):
+                self.__handle_dev(event)
+                return
+            elif event.name.startswith('pan'):
+                self.__handle_pan(event)
+            handler_name = f'_chandle_{event.name}'
+            if not hasattr(self, handler_name):
+                logger.warning(f'ELogic missing control handler for: {event.name}. Event: {event}')
+                return
+            handler = getattr(self, handler_name)
+            handler(event)
+            return
+        logger.warning(f'Unknown event type: {event}')
+        return
+
+    def __handle_cast(self, event):
+        if event.name == 'ability':
+            self.units[0].use_ability_slot(event.index, event.pos, event.alt)
+        elif event.name == 'item':
+            self.units[0].use_item_slot(event.index, event.pos, event.alt)
+        else:
+            logger.warning(f'Unknown cast type: {event.name} (from event: {event})')
+
+    def __handle_pan(self, event):
+        self.pan(d=event.name[4:])
+
+    def __handle_dev(self, event):
+        if not self.dev_build:
+            return
+        if event.name == 'dev1':
+            self.toggle_show_debug()
+        elif event.name == 'dev2':
+            self.engine._do_ticks(1)
+        elif event.name == 'dev3':
+            logger.info(f'Dev doing 3000 ticks...')
+            self.engine._do_ticks(3000)
+        elif event.name == 'dev4':
+            self.dev_mode = not self.dev_mode
+            logger.info(f'Toggle dev_mode, now: {self.dev_mode}')
+            self.map.refresh()
+            self.gui.request('set_top_panel_color', self.top_panel_color)
+
+    # GUI input event handlers
+    def _ihandle_activate(self, event):
+        self.player.use_walk(event.pos)
+
+    def _ihandle_inspect(self, event):
+        self.map_inspect(event.pos)
+
+    def _ihandle_loot(self, event):
+        self.player.use_loot(event.pos)
+
+    def _ihandle_zoomin(self, event):
+        self.zoom_in()
+
+    def _ihandle_zoomout(self, event):
+        self.zoom_out()
+
+    def _ihandle_focus(self, event):
+        self.view_offset = event.pos
+
+    def _ihandle_back(self, event):
+        self.map_mode = False
+        self.view_offset = None
+        self.set_zoom()
+
+    def _ihandle_forward(self, event):
+        self.map_mode = not self.map_mode
+        self.view_offset = None
+
+    # GUI control event handlers
+    def _chandle_toggle_play(self, event):
+        self.toggle_play()
+
+    def _chandle_toggle_menu(self, event):
+        showing_menu = self.gui.request('menu_showing')
+        self.toggle_play(set_to=showing_menu)
+        self.gui.request('menu_hide' if showing_menu else 'menu_show')
+        self.gui.request('browse_hide')
+        self.toggle_show_debug(set_as=False)
+
+    def _chandle_toggle_map(self, event):
+        self.toggle_map()
+
+    def _chandle_toggle_shop(self, event):
+        self.selected_unit = 0
+        showing = self.gui.request('browse_showing')
+        self.gui.request('browse_hide' if showing else 'browse_show')
+
+    def _chandle_reset_view(self, event):
+        self.map_mode = False
+        self.view_offset = None
+        self.set_zoom()
+        self.gui.request('set_upp', self.upp)
+
+    def _chandle_unpan(self, event):
+        self.view_offset = None
+        self.map_mode = False
+        self.gui.request('set_upp', self.upp)
+
+    def _chandle_zoom_in(self, event):
+        self.zoom_in()
+
+    def _chandle_zoom_out(self, event):
+        self.zoom_out()
+
+    def _chandle_left_hud_drag_drop(self, event):
+        origin, target = event.index
+        if self.selected_unit == self.player_uid and origin != target:
+            self.player.swap_ability_slots(origin, target)
+            Assets.play_sfx('ui', 'select')
+
+    def _chandle_right_hud_drag_drop(self, event):
+        origin, target = event.index
+        if self.selected_unit == self.player_uid and origin != target:
+            self.player.swap_item_slots(origin, target)
+            Assets.play_sfx('ui', 'select')
+
+    def _chandle_hud_portrait_inspect(self, event):
+        unit = self.units[self.selected_unit]
+        self.gui.request('activate_tooltip', SpriteTitleLabel(unit.sprite, unit.name, unit.say, None))
+
+    def _chandle_left_hud_inspect(self, event):
+        aid = self.units[self.selected_unit].ability_slots[index]
+        if aid is None:
+            return
+        ability = self.abilities[aid]
+        self.gui.request('activate_tooltip', SpriteTitleLabel(
+            ability.sprite, ability.name,
+            ability.description(self.engine, self.selected_unit), None))
+
+    def _chandle_left_hud_inspect(self, event):
+        aid = self.units[self.selected_unit].ability_slots[event.index]
+        if aid is None:
+            return
+        self.tooltip_ability(self.abilities[aid])
+
+    def _chandle_right_hud_inspect(self, event):
+        uid = self.selected_unit
+        iid = self.engine.units[uid].item_slots[event.index]
+        if iid is None:
+            return
+        item = ITEMS[iid]
+        text = item.shop_text(self.engine, uid)
+        self.gui.request('activate_tooltip', SpriteTitleLabel(
+            Assets.get_sprite('ability', item.name), item.shop_name, text, None))
+
+    def _chandle_middle_hud_inspect(self, event):
+        if event.index < 6:
+            stat = [
+                STAT.PHYSICAL, STAT.FIRE, STAT.EARTH,
+                STAT.AIR, STAT.WATER, STAT.GOLD,
+            ][event.index]
+            current = self.engine.get_stats(self.selected_unit, stat)
+            delta = self.engine.get_stats(self.selected_unit, stat, value_name=VALUE.DELTA)
+            dval = round(s2ticks(delta)*60, 2)
+            ds = ''
+            if dval != 0:
+                ds = f'\n{nsign_str(dval)} /m'
+            s = f'{current:.2f}{ds}'
+            title = f'{stat.name.lower().capitalize()}'
+        elif event.index == 6:
+            title = f'Respawn timer'
+            s = 'Next respawn time in seconds'
+        elif event.index == 7:
+            title = 'Hitbox radius'
+            s = 'Radius of hitbox'
+        elif event.index == 8:
+            title = f'Distance'
+            s = f'Unit\'s distance from me'
+        else:
+            return
+        self.gui.request('activate_tooltip', SpriteTitleLabel(STAT_SPRITES[event.index], title, s, None))
+
+    def _chandle_status_hud_inspect(self, event):
+        status = self.__last_hud_statuses[event.index]
+        if status is STATUS.SHOP:
+            self.gui.request('browse_show')
+            return
+        sprite = str(Assets.FALLBACK_SPRITE)
+        title = 'Unknown status'
+        label = 'Missing tooltip'
+        if status is STATUS.RESPAWN:
+            sprite = Assets.get_sprite('ability', 'respawn')
+            title = 'Respawn timer'
+            label = 'Respawn time in seconds'
+        elif status is STATUS.SHOP:
+            shop_name, shop_color = Item.item_category_gui(self.engine.get_status(self.selected_unit, STATUS.SHOP))
+            if shop_name is None:
+                shop_name = 'no'
+            sprite = Assets.get_sprite('unit', f'{shop_name}-shop')
+            title = f'{shop_name.capitalize()} Shop'
+            label = f'Near {shop_name} shop'
+        elif isinstance(status, STAT):
+            sprite = Assets.get_sprite('ability', status.name)
+            title = status.name.lower().capitalize()
+            v = Mechanics.get_status(self.engine, self.selected_unit, status)
+            sp = Mechanics.scaling(v)
+            sp_asc = Mechanics.scaling(v, ascending=True)
+            if status is STAT.STOCKS:
+                label = f'Number of remaining deaths available before losing.'
+            elif status is STAT.LOS:
+                view_distance = self.units[self.selected_unit].view_distance
+                label = f'Base view distance, obscured by [i]darkness[/i].\nActual view distance: [b]{view_distance}[/b]'
+            elif status is STAT.DARKNESS:
+                view_distance = self.units[self.selected_unit].view_distance
+                label = f'Reducing view distance by [b]{int(100*sp_asc)}%[/b].\nActual view distance: [b]{view_distance}[/b]'
+            elif status is STAT.MOVESPEED:
+                speed = s2ticks(Mechanics.get_movespeed(self.engine, self.selected_unit)[0])
+                label = f'Base movespeed, encumbered by [i]slow[/i].\nActual movement speed: [b]{round(speed)}/s[/b]'
+            elif status is STAT.SLOW:
+                label = f'Slowed by [b]{round(sp_asc*100)}%[/b]'
+            elif status is STAT.SPIKES:
+                label = f'Returns [b]{round(v)}[/b] [i]pure damage[/i] when hit by [i]normal damage[/i]'
+            elif status is STAT.ARMOR:
+                label = f'Reducing incoming [i]normal damage[/i] by [b]{round(sp_asc*100)}%[/b]'
+            elif status is STAT.LIFESTEAL:
+                label = f'Lifestealing [b]{round(v)}%[/b] of outgoing [i]normal damage[/i]'
+            elif status is STAT.BOUNDED:
+                label = f'Prevented from [i]moving[/i] or [i]teleporting[/i]'
+            elif status is STAT.CUTS:
+                label = f'Taking extra [b]{round(v)}[/b] [i]normal damage[/i] per hit'
+            elif status is STAT.VANITY:
+                label = f'Incoming [i]blast damage[/i] amplified by [b]{int(v)}%[/b]'
+            elif status is STAT.REFLECT:
+                label = f'Reflecting [b]{round(v)}%[/b] of incoming [i]blast damage[/i] as pure damage'
+            elif status is STAT.SENSITIVITY:
+                label = f'Amplifying incoming and outgoing [i]status effects[/i] by [b]{int(100*sp_asc)}%[/b]'
+        elif status == 'fountain':
+            sprite = Assets.get_sprite('unit', 'fort')
+            title = 'Fountain healing'
+            label = 'Healing from a fountain'
+        self.gui.request('activate_tooltip', SpriteTitleLabel(sprite, title, label, None))
+
+    def _chandle_right_hud_activate(self, event):
+        if self.selected_unit != self.player_uid:
+            return
+        self.player.sell_item(event.index)
+        self.log_player_state()
+
+    def _chandle_modal_inspect(self, event):
+        item = ITEMS[event.index]
+        self.gui.request('activate_tooltip', SpriteTitleLabel(
+            Assets.get_sprite('ability', item.name),
+            item.shop_name, item.shop_text(self.engine, 0),
+            None))
+
+    def _chandle_modal_activate(self, event):
+        self.player.buy_item(event.index)
+        self.log_player_state()
+
+    def tooltip_ability(self, ability, uid=None):
+        if uid is None:
+            uid = self.selected_unit
+        self.gui.request('activate_tooltip', SpriteTitleLabel(
+            ability.sprite, ability.name,
+            ability.description(self.engine, uid), None))
