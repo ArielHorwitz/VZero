@@ -729,14 +729,14 @@ class EncounterAPI(BaseEncounterAPI):
 
         return logic_performance, logic_overview, text_unit1, text_unit2, text_unit3
 
-    def __init__(self, game, difficulty_level, player_abilities):
+    def __init__(self, game, encounter_params, player_abilities):
         self.dev_build = DEV_BUILD
         self.dev_mode = False
         self.show_debug = False
         self.game = game
-        self.difficulty_level = difficulty_level
+        self.difficulty_level = encounter_params.difficulty
         self.engine = EncounterEngine(self)
-        self.map = MapGenerator(self)
+        self.map = MapGenerator(self, encounter_params)
         self.engine.units[0].set_abilities(player_abilities)
         self.always_visible = np.zeros(len(self.engine.units), dtype=np.bool)
         self.always_active = np.zeros(len(self.engine.units), dtype=np.bool)
@@ -745,7 +745,7 @@ class EncounterAPI(BaseEncounterAPI):
         self.__last_fail_sfx_ping = ping()
         self.map_mode = False
         self.set_zoom()
-        self.engine.set_stats(0, STAT.STOCKS, DIFFICULTY2STOCKS[difficulty_level])
+        self.engine.set_stats(0, STAT.STOCKS, DIFFICULTY2STOCKS[self.difficulty_level])
         # Setup units
         for unit in self.engine.units:
             unit.action_phase()

@@ -78,20 +78,20 @@ class HomeGUI(widgets.AnchorLayout):
 class World(widgets.BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        left_frame = self.add(widgets.BoxLayout(orientation='vertical'))
-        left_frame.set_size(x=DETAILS_WIDTH)
-
-        self.control_buttons = left_frame.add(Stack(wtype=SpriteLabel, callback=self.control_click))
-        self.control_buttons.set_size(y=120).make_bg((1,0.5,0.5,1))
-        self.app.interface.register('set_world_control_buttons', self.control_buttons.update)
-
-        self.details = left_frame.add(SpriteTitleLabel())
-        self.app.interface.register('set_world_details', self.details.update)
-
         self.encounter_stack = self.add(Stack(
             wtype=lambda *a, **k: CenteredSpriteBox(*a, size_hint=(.9, .9), valign='bottom', **k),
-            callback=self.world_click, x=50, y=50))
+            callback=self.world_click, x=75, y=75))
         self.app.interface.register('set_world_stack', self.encounter_stack.update)
+
+        details_frame = self.add(widgets.BoxLayout(orientation='vertical'))
+        details_frame.set_size(x=DETAILS_WIDTH)
+
+        self.details = details_frame.add(SpriteTitleLabel())
+        self.app.interface.register('set_world_details', self.details.update)
+
+        self.control_buttons = details_frame.add(Stack(wtype=SpriteLabel, callback=self.control_click))
+        self.control_buttons.set_size(y=200).make_bg((1,0.5,0.5,1))
+        self.app.interface.register('set_world_control_buttons', self.control_buttons.update)
         self.bind(size=self.resize)
 
     def resize(self, *a):
@@ -125,24 +125,24 @@ class AppControlButtons(widgets.AnchorLayout):
 class Draft(widgets.BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
-        self.draft_details = self.add(DraftDetails())
-        self.draft_details.set_size(x=DETAILS_WIDTH)
-
-        right_frame = self.add(widgets.BoxLayout(orientation='vertical'))
-        self.draft = right_frame.add(Stack(
+        main_frame = self.add(widgets.BoxLayout(orientation='vertical'))
+        self.draft = main_frame.add(Stack(
             wtype=CenteredSpriteBox,
             callback=self.draft_click,
             x=50, y=50))
         self.app.interface.register('set_draft_stack', self.draft.update)
 
-        self.loadout = right_frame.add(Stack(
+        self.loadout = main_frame.add(Stack(
             wtype=SpriteLabel, x=175, y=50,
             callback=self.loadout_click,
             drag_drop_callback=self.loadout_drag_drop,
             ))
         self.app.interface.register('set_loadout_stack', self.loadout.update)
         self.loadout.set_size(y=100)
+
+        self.draft_details = self.add(DraftDetails())
+        self.draft_details.set_size(x=DETAILS_WIDTH)
+
         self.bind(pos=self.reposition, size=self.reposition)
 
     def reposition(self, *a):
@@ -168,12 +168,12 @@ class Draft(widgets.BoxLayout):
 class DraftDetails(widgets.BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(orientation='vertical', **kwargs)
+        self.details = self.add(SpriteTitleLabel())
+        self.app.interface.register('set_draft_details', self.details.update)
+
         self.control_buttons = self.add(Stack(wtype=SpriteLabel, callback=self.control_click))
         self.control_buttons.set_size(y=200).make_bg((0.25,0.5,0.25,1))
         self.app.interface.register('set_draft_control_buttons', self.control_buttons.update)
-
-        self.details = self.add(SpriteTitleLabel())
-        self.app.interface.register('set_draft_details', self.details.update)
 
         self.bind(size=self.resize)
 

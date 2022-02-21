@@ -31,7 +31,7 @@ class Interface:
 
     def request(self, callname, *a, **k):
         if callname not in self.__requests:
-            logger.warning(f'No request {callname} registered in {self}. Ignoring... Current requests: {self.__requests}')
+            logger.warning(f'No request {callname} registered in {self}. Ignoring {a} {k}... Current requests: {self.__requests}')
             return
         return self.__requests[callname](*a, **k)
 

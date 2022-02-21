@@ -357,8 +357,8 @@ class ModalView(kvModalView, KexWidget):
 
 # BASIC WIDGETS
 class Label(kvLabel, KexWidget):
-    def __init__(self, *a, **k):
-        super().__init__(*a, **k)
+    def __init__(self, *a, halign='center', valign='center', **k):
+        super().__init__(*a, halign=halign, valign=valign, **k)
         self.bind(size=self._on_resize)
 
     def _on_resize(self, *a):
