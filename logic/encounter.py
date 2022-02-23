@@ -58,32 +58,33 @@ DIFFICULTY2STOCKS = {
 }
 
 FEEDBACK_SFX = {
-    'shop': 'shop',
-    'select': 'select',
-    'ouch': 'ouch',
-    'ouch2': 'ouch2',
-    FAIL_RESULT.INACTIVE: 'target',
-    FAIL_RESULT.MISSING_TARGET: 'target',
-    FAIL_RESULT.OUT_OF_BOUNDS: 'target',
-    FAIL_RESULT.OUT_OF_ORDER: 'target',
-    FAIL_RESULT.OUT_OF_RANGE: 'range',
-    FAIL_RESULT.ON_COOLDOWN: 'cooldown',
-    FAIL_RESULT.MISSING_COST: 'cost',
+    'shop': 'ui.shop',
+    'select': 'ui.select',
+    'ouch': 'ui.ouch',
+    'ouch2': 'ui.ouch2',
+    FAIL_RESULT.INACTIVE: 'ui.target',
+    FAIL_RESULT.MISSING_TARGET: 'ui.target',
+    FAIL_RESULT.OUT_OF_BOUNDS: 'ui.target',
+    FAIL_RESULT.OUT_OF_ORDER: 'ui.target',
+    FAIL_RESULT.OUT_OF_RANGE: 'ui.range',
+    FAIL_RESULT.ON_COOLDOWN: 'ui.cooldown',
+    FAIL_RESULT.MISSING_COST: 'ui.cost',
 }
 FEEDBACK_SFX_INTERVAL = Settings.get_setting('feedback_sfx_cooldown', 'UI')
 
-SELECTION_SPRITE = Assets.get_sprite('ui', 'crosshair-select')
-QUICKCAST_SPRITE = Assets.get_sprite('ui', 'crosshair-cast')
+SELECTION_SPRITE = Assets.get_sprite('ui.crosshair-select')
+QUICKCAST_SPRITE = Assets.get_sprite('ui.crosshair-cast')
 
 ENEMY_COLOR = (1, 0, 0, 1)
 ALLY_COLOR = (0, 0.7, 0, 1)
 NEUTRAL_COLOR = (0.8, 0.5, 0.2, 1)
 MANA_COLOR = (0, 0.25, 1, 1)
 
-STAT_SPRITES = tuple([Assets.get_sprite('ability', s) for s in (
-    'physical', 'fire', 'earth',
-    'air', 'water', 'gold',
-    'respawn')]+[Assets.get_sprite('ui', s) for s in ('crosshair-select', 'distance')])
+STAT_SPRITES = tuple([Assets.get_sprite(s) for s in (
+    'mechanics.physical', 'mechanics.fire', 'mechanics.earth',
+    'mechanics.air', 'mechanics.water', 'mechanics.gold',
+    'mechanics.respawn', 'ui.crosshair-select', 'ui.distance'
+)])
 HUD_STATUSES = {str2stat(s): str2status(s) for s in MECHANICS_NAMES if s is not 'SHOP'}
 
 SHOP_STATE_KEY = defaultdict(lambda: 0.7, {
@@ -224,7 +225,7 @@ class EncounterAPI:
     def end_encounter(self, win):
         self.enc_over = True
         self.win = win
-        Assets.play_sfx('ui', 'win' if win else 'lose', volume='feedback')
+        Assets.play_sfx('ui.win' if win else 'ui.lose', volume='feedback')
         logger.info(f'Encounter over! Win: {self.win}')
         self.toggle_play(set_to=False)
         self.gui.request('set_menu_text', self.menu_text)
@@ -253,9 +254,9 @@ class EncounterAPI:
         self.select_unit(uid)
         self.draw_unit_selection(uid, play_sfx=play_sfx)
 
-    def draw_unit_selection(self, uid, play_sfx=False, volume='ui'):
+    def draw_unit_selection(self, uid, play_sfx=False):
         if play_sfx:
-            Assets.play_sfx('ui', 'select', volume=volume)
+            Assets.play_sfx('ui.select', volume='feedback')
         hb = self.engine.get_stats(uid, STAT.HITBOX)
         self.engine.add_visual_effect(VFX.SPRITE, 60, {
             'uid': uid,
@@ -272,9 +273,9 @@ class EncounterAPI:
         logger.debug(f'ELogic toggled play')
         if play_sfx and changed:
             if self.engine.auto_tick is True:
-                Assets.play_sfx('ui', 'play')
+                Assets.play_sfx('ui.play', volume='ui')
             else:
-                Assets.play_sfx('ui', 'pause')
+                Assets.play_sfx('ui.pause', volume='ui')
 
     @property
     def map_size(self):
@@ -294,7 +295,7 @@ class EncounterAPI:
             return
         if pong(self.__last_fail_sfx_ping) > FEEDBACK_SFX_INTERVAL:
             if feedback in FEEDBACK_SFX:
-                Assets.play_sfx('ui', FEEDBACK_SFX[feedback], volume='feedback')
+                Assets.play_sfx(FEEDBACK_SFX[feedback], volume='feedback')
                 self.__last_fail_sfx_ping = ping()
 
     ouch_feedback_uids = {0, 1}  # Assuming player then fort are created first
@@ -303,7 +304,7 @@ class EncounterAPI:
             return
         sfx, color = ('ouch', COLOR.RED) if 0 in uids else ('ouch2', COLOR.BLUE)
 
-        Assets.play_sfx('ui', sfx, volume='feedback')
+        Assets.play_sfx(f'ui.{sfx}', volume='feedback')
         self.engine.add_visual_effect(VFX.BACKGROUND, 60, params={
             'color': modify_color(color, a=0.3),
             'fade': 60,
@@ -445,21 +446,21 @@ class EncounterAPI:
         respawn = self.engine.get_status(uid, STATUS.RESPAWN)
         if respawn > 0:
             duration = self.engine.get_status(uid, STATUS.RESPAWN, STATUS_VALUE.DURATION)
-            icons.append(Assets.get_sprite('ability', 'respawn'))
+            icons.append(Assets.get_sprite('mechanics.respawn'))
 
         if self.engine.get_status(uid, STATUS.FOUNTAIN) > 0:
-            icons.append(Assets.get_sprite('unit', 'fort'))
+            icons.append(Assets.get_sprite('units.fort'))
 
         shop = self.engine.get_status(uid, STATUS.SHOP)
         if shop > 0:
             shop = list(ITEM_CATEGORIES)[round(shop)-1].name.lower().capitalize()
-            icons.append(Assets.get_sprite('unit', 'basic-shop'))
+            icons.append(Assets.get_sprite('units.basic-shop'))
 
         for status in HUD_STATUSES.values():
             d = self.engine.get_status(uid, status, STATUS_VALUE.DURATION)
             if d > 0:
                 name = status.name.lower().capitalize()
-                icons.append(Assets.get_sprite('ability', name))
+                icons.append(Assets.get_sprite(f'mechanics.{name}'))
 
         return icons
 
@@ -476,7 +477,7 @@ class EncounterAPI:
         sls = []
         for i, aid in enumerate(self.units[uid].ability_slots):
             if aid is None:
-                sls.append(SpriteBox(str(Assets.get_sprite('ui', 'blank')), f'\n{self.hud_left_hotkeys[i]}' if self.detailed_info_mode else '', (0,0,0,0), (1,1,1,1)))
+                sls.append(SpriteBox(str(Assets.get_sprite('ui.blank')), f'\n{self.hud_left_hotkeys[i]}' if self.detailed_info_mode else '', (0,0,0,0), (1,1,1,1)))
                 continue
             ability = self.abilities[aid]
             s, color = ability.gui_state(self.engine, uid)
@@ -490,7 +491,7 @@ class EncounterAPI:
         sls = []
         for i, iid in enumerate(self.units[uid].item_slots):
             if iid is None:
-                sls.append(SpriteBox(Assets.get_sprite('ui', 'blank'), f'\n{self.hud_right_hotkeys[i]}' if self.detailed_info_mode else '', (0,0,0,0), (1,1,1,1)))
+                sls.append(SpriteBox(Assets.get_sprite('ui.blank'), f'\n{self.hud_right_hotkeys[i]}' if self.detailed_info_mode else '', (0,0,0,0), (1,1,1,1)))
                 continue
             item = ITEMS[iid]
             s, color = item.gui_state(self.engine, uid)
@@ -531,7 +532,7 @@ class EncounterAPI:
         if respawn > 0:
             duration = self.engine.get_status(uid, STATUS.RESPAWN, STATUS_VALUE.DURATION)
             strs.append(SpriteBox(
-                Assets.get_sprite('ability', 'respawn'),
+                Assets.get_sprite('mechanics.respawn'),
                 f'\n{format_time(duration)}s',
                 (0,0,0,0), (0,0,0,0),
             ))
@@ -539,7 +540,7 @@ class EncounterAPI:
 
         if self.engine.get_status(uid, STATUS.FOUNTAIN) > 0:
             strs.append(SpriteBox(
-                Assets.get_sprite('unit', 'fort'), '',
+                Assets.get_sprite('units.fort'), '',
                 (0,0,0,0), (0,0,0,0),
             ))
             self.__last_hud_statuses.append('fountain')
@@ -548,7 +549,7 @@ class EncounterAPI:
         shop_name, shop_color = Item.item_category_gui(shop_status)
         if shop_name is not None:
             strs.append(SpriteBox(
-                Assets.get_sprite('unit', f'{shop_name}-shop'), f'{shop_name.capitalize()}',
+                Assets.get_sprite(f'units.{shop_name}-shop'), f'{shop_name.capitalize()}',
                 (0,0,0,0), (0,0,0,0),
             ))
             self.__last_hud_statuses.append(STATUS.SHOP)
@@ -560,7 +561,7 @@ class EncounterAPI:
                 duration = self.engine.get_status(uid, status, STATUS_VALUE.DURATION)
                 ds = f'* {format_time(duration)}s' if duration > 0 else ''
                 strs.append(SpriteBox(
-                    Assets.get_sprite('ability', name), f'{ds}\n{round(v)}',
+                    Assets.get_sprite(f'mechanics.{name}'), f'{ds}\n{round(v)}',
                     (0,0,0,0), (0,0,0,0),
                 ))
                 self.__last_hud_statuses.append(stat)
@@ -583,63 +584,6 @@ class EncounterAPI:
             ProgressBar(mana/max_mana, f'Mana: {mana:.1f}/{max_mana:.1f} {delta_mana}', MANA_COLOR),
         ]
 
-    def hud_status_tooltip(self, index):
-        status = self.__last_hud_statuses[index]
-        sprite = str(Assets.FALLBACK_SPRITE)
-        title = 'Unknown status'
-        label = 'Missing tooltip'
-        if status is STATUS.RESPAWN:
-            sprite = Assets.get_sprite('ability', 'respawn')
-            title = 'Respawn timer'
-            label = 'Respawn time in seconds'
-        elif status is STATUS.SHOP:
-            shop_name, shop_color = Item.item_category_gui(self.engine.get_status(self.selected_unit, STATUS.SHOP))
-            if shop_name is None:
-                shop_name = 'no'
-            sprite = Assets.get_sprite('unit', f'{shop_name}-shop')
-            title = f'{shop_name.capitalize()} Shop'
-            label = f'Near {shop_name} shop'
-        elif isinstance(status, STAT):
-            sprite = Assets.get_sprite('ability', status.name)
-            title = status.name.lower().capitalize()
-            v = Mechanics.get_status(self.engine, self.selected_unit, status)
-            sp = Mechanics.scaling(v)
-            sp_asc = Mechanics.scaling(v, ascending=True)
-            if status is STAT.STOCKS:
-                label = f'Number of remaining deaths available before losing.'
-            elif status is STAT.LOS:
-                view_distance = self.units[self.selected_unit].view_distance
-                label = f'Base view distance, obscured by [i]darkness[/i].\nActual view distance: [b]{view_distance}[/b]'
-            elif status is STAT.DARKNESS:
-                view_distance = self.units[self.selected_unit].view_distance
-                label = f'Reducing view distance by [b]{int(100*sp_asc)}%[/b].\nActual view distance: [b]{view_distance}[/b]'
-            elif status is STAT.MOVESPEED:
-                speed = s2ticks(Mechanics.get_movespeed(self.engine, self.selected_unit)[0])
-                label = f'Base movespeed, encumbered by [i]slow[/i].\nActual movement speed: [b]{round(speed)}/s[/b]'
-            elif status is STAT.SLOW:
-                label = f'Slowed by [b]{round(sp_asc*100)}%[/b]'
-            elif status is STAT.SPIKES:
-                label = f'Returns [b]{round(v)}[/b] [i]pure damage[/i] when hit by [i]normal damage[/i]'
-            elif status is STAT.ARMOR:
-                label = f'Reducing incoming [i]normal damage[/i] by [b]{round(sp_asc*100)}%[/b]'
-            elif status is STAT.LIFESTEAL:
-                label = f'Lifestealing [b]{round(v)}%[/b] of outgoing [i]normal damage[/i]'
-            elif status is STAT.BOUNDED:
-                label = f'Prevented from [i]moving[/i] or [i]teleporting[/i]'
-            elif status is STAT.CUTS:
-                label = f'Taking extra [b]{round(v)}[/b] [i]normal damage[/i] per hit'
-            elif status is STAT.VANITY:
-                label = f'Incoming [i]blast damage[/i] amplified by [b]{int(v)}%[/b]'
-            elif status is STAT.REFLECT:
-                label = f'Reflecting [b]{round(v)}%[/b] of incoming [i]blast damage[/i] as pure damage'
-            elif status is STAT.SENSITIVITY:
-                label = f'Amplifying incoming and outgoing [i]status effects[/i] by [b]{int(100*sp_asc)}%[/b]'
-        elif status == 'fountain':
-            sprite = Assets.get_sprite('unit', 'fort')
-            title = 'Fountain healing'
-            label = 'Healing from a fountain'
-        return SpriteTitleLabel(sprite, title, label, None)
-
     def browse_main(self):
         shop_status = Mechanics.get_status(self.engine, 0, STAT.SHOP)
         shop_name, shop_color = Item.item_category_gui(shop_status)
@@ -661,7 +605,7 @@ class EncounterAPI:
             shop_color = (0.25,0.25,0.25,1)
             main_text = SHOP_MAIN_TEXT_NOSHOP
         return SpriteTitleLabel(
-            Assets.get_sprite('unit', f'{shop_name}-shop'),
+            Assets.get_sprite(f'units.{shop_name}-shop'),
             title, main_text,
             modify_color(shop_color, v=0.5)
         )
@@ -935,13 +879,13 @@ class EncounterAPI:
         origin, target = event.index
         if self.selected_unit == self.player_uid and origin != target:
             self.player.swap_ability_slots(origin, target)
-            Assets.play_sfx('ui', 'select')
+            Assets.play_sfx('ui.select', volume='ui')
 
     def _chandle_right_hud_drag_drop(self, event):
         origin, target = event.index
         if self.selected_unit == self.player_uid and origin != target:
             self.player.swap_item_slots(origin, target)
-            Assets.play_sfx('ui', 'select')
+            Assets.play_sfx('ui.select', volume='ui')
 
     def _chandle_hud_portrait_inspect(self, event):
         unit = self.units[self.selected_unit]
@@ -970,7 +914,7 @@ class EncounterAPI:
         item = ITEMS[iid]
         text = item.shop_text(self.engine, uid)
         self.gui.request('activate_tooltip', SpriteTitleLabel(
-            Assets.get_sprite('ability', item.name), item.shop_name, text, None))
+            item.sprite, item.shop_name, text, None))
 
     def _chandle_middle_hud_inspect(self, event):
         if event.index < 6:
@@ -1004,22 +948,22 @@ class EncounterAPI:
         if status is STATUS.SHOP:
             self.gui.request('browse_show')
             return
-        sprite = str(Assets.FALLBACK_SPRITE)
+        sprite = Assets.FALLBACK_SPRITE
         title = 'Unknown status'
         label = 'Missing tooltip'
         if status is STATUS.RESPAWN:
-            sprite = Assets.get_sprite('ability', 'respawn')
+            sprite = Assets.get_sprite('mechanics.respawn')
             title = 'Respawn timer'
             label = 'Respawn time in seconds'
         elif status is STATUS.SHOP:
             shop_name, shop_color = Item.item_category_gui(self.engine.get_status(self.selected_unit, STATUS.SHOP))
             if shop_name is None:
                 shop_name = 'no'
-            sprite = Assets.get_sprite('unit', f'{shop_name}-shop')
+            sprite = Assets.get_sprite(f'units.{shop_name}-shop')
             title = f'{shop_name.capitalize()} Shop'
             label = f'Near {shop_name} shop'
         elif isinstance(status, STAT):
-            sprite = Assets.get_sprite('ability', status.name)
+            sprite = Assets.get_sprite(f'mechanics.{status.name}')
             title = status.name.lower().capitalize()
             v = Mechanics.get_status(self.engine, self.selected_unit, status)
             sp = Mechanics.scaling(v)
@@ -1054,7 +998,7 @@ class EncounterAPI:
             elif status is STAT.SENSITIVITY:
                 label = f'Amplifying incoming and outgoing [i]status effects[/i] by [b]{int(100*sp_asc)}%[/b]'
         elif status == 'fountain':
-            sprite = Assets.get_sprite('unit', 'fort')
+            sprite = Assets.get_sprite('units.fort')
             title = 'Fountain healing'
             label = 'Healing from a fountain'
         self.gui.request('activate_tooltip', SpriteTitleLabel(sprite, title, label, None))
@@ -1068,9 +1012,8 @@ class EncounterAPI:
     def _chandle_modal_inspect(self, event):
         item = ITEMS[event.index]
         self.gui.request('activate_tooltip', SpriteTitleLabel(
-            Assets.get_sprite('ability', item.name),
-            item.shop_name, item.shop_text(self.engine, 0),
-            None))
+            item.sprite, item.shop_name, item.shop_text(self.engine, 0), None
+        ))
 
     def _chandle_modal_activate(self, event):
         self.player.buy_item(event.index)

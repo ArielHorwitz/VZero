@@ -1144,31 +1144,26 @@ mana.delta=scale: 2, time, 75, 75
 
 === Physical Essence
 type: base
-sprite: physical
 draft_cost: 40
 -- stats
 physical=scale: 10, time, 100, 50
 === Fire Essence
 type: base
-sprite: fire
 draft_cost: 40
 -- stats
 fire=scale: 10, time, 100, 50
 === Earth Essence
 type: base
-sprite: earth
 draft_cost: 40
 -- stats
 earth=scale: 10, time, 100, 50
 === Air Essence
 type: base
-sprite: air
 draft_cost: 40
 -- stats
 air=scale: 10, time, 100, 50
 === Water Essence
 type: base
-sprite: water
 draft_cost: 40
 -- stats
 water=scale: 10, time, 100, 50
@@ -1252,7 +1247,6 @@ movespeed=scale: 5, water, 60, 100
 === Buckler
 hidden
 type: base
-sfx: shield
 --- stats
 armor=scale: 5, earth, 20, 100
 reflect=scale: 10, physical, 35, 100

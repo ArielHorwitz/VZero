@@ -34,7 +34,7 @@ class Mechanics:
         api.set_stats(loot_target, STAT.GOLD, 0)
         api.set_stats(loot_target, (STAT.POS_X, STAT.POS_Y), (-1_000_000, -1_000_000))
         api.set_stats(uid, STAT.GOLD, looted_gold, additive=True)
-        Assets.play_sfx('ui', 'loot', volume='sfx')
+        Assets.play_sfx('ui.loot', volume='sfx')
         logger.debug(f'{api.units[uid]} looted {looted_gold} gold from {api.units[loot_target]}.')
         return loot_pos, looted_gold
 

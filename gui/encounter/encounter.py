@@ -104,7 +104,7 @@ class Encounter(widgets.RelativeLayout):
         with self.canvas:
             widgets.kvColor(0, 0, 0)
             self.move_crosshair = widgets.kvRectangle(
-                source=Assets.get_sprite('ui', 'crosshair-move'),
+                source=Assets.get_sprite('ui.crosshair-move'),
                 allow_stretch=True, size=MIN_CROSSHAIR_SIZE)
             widgets.kvColor(1, 1, 1)
 
@@ -133,6 +133,10 @@ class Encounter(widgets.RelativeLayout):
     def canvas_click(self, w, m):
         if not self.collide_point(*m.pos):
             return False
+        if not isinstance(m.button, str):
+            m = f'canvas_click m.button not a str: {m.button} mouse ctx: {m}'
+            logger.critical(m)
+            raise RuntimeError(m)
         event_name = MOUSE_EVENTS[m.button] if m.button in MOUSE_EVENTS else m.button
         self.interface.append(InputEvent(event_name, self.mouse_real_pos, ''))
         if m.button == 'right' and self.__enable_hold_mouse:

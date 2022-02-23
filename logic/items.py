@@ -43,7 +43,8 @@ class Item:
     def __init__(self, iid, name, raw_data):
         self.iid = iid
         self.name = name
-        self.sprite = Assets.get_sprite('ability', raw_data.default['sprite'] if 'sprite' in raw_data.default else self.name)
+        sprite_name = raw_data.default['sprite'] if 'sprite' in raw_data.default else self.name
+        self.sprite = Assets.get_sprite(f'abilities.{sprite_name}')
         self.category = getattr(ITEM_CATEGORIES, raw_data.default['category'].upper())
         self.color = CATEGORY_COLORS[self.category]
         self.cost = raw_data.default['cost']

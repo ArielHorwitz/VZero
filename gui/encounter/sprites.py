@@ -42,7 +42,7 @@ class Sprites(widgets.RelativeLayout, EncounterViewComponent):
         if self.fog_size:
             with self.canvas.after:
                 self.fog = widgets.Image(
-                    source=Assets.get_sprite('ui', 'fog'),
+                    source=Assets.get_sprite('ui.fog'),
                     color=self.fog_color,
                     allow_stretch=True)
 

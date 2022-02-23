@@ -68,7 +68,7 @@ class App(widgets.App):
         ]:
             self.app_hotkeys.register(*params)
         if not DEV_BUILD:
-            Assets.play_sfx('ui', 'welcome', volume='ui')
+            Assets.play_sfx('ui.welcome', volume='ui')
         self.interface.register('start_encounter', self.start_encounter)
         self.interface.register('end_encounter', self.end_encounter)
         self.interface.register('full_refresh', self.full_refresh)
@@ -180,5 +180,5 @@ class InfoBox(widgets.BoxLayout):
 
 
 ENC_PLACEHOLDER = InfoBox(f'Press [b]Ctrl[/b]+[b]Shift[/b]+[b]F1[/b] to load an encounter', widgets.Label(text='No encounter in progress.'))
-INFO_PANEL1 = InfoBox(f'Press [b]Ctrl[/b]+[b]Shift[/b]+[b]F2[/b] to return to encounter', widgets.Image(allow_stretch=True, source=Assets.get_sprite('ui', 'info1')))
-INFO_PANEL2 = InfoBox(f'Press [b]Ctrl[/b]+[b]Shift[/b]+[b]F2[/b] to return to encounter', widgets.Image(allow_stretch=True, source=Assets.get_sprite('ui', 'info2')))
+INFO_PANEL1 = InfoBox(f'Press [b]Ctrl[/b]+[b]Shift[/b]+[b]F2[/b] to return to encounter', widgets.Image(allow_stretch=True, source=Assets.get_sprite('ui.info1')))
+INFO_PANEL2 = InfoBox(f'Press [b]Ctrl[/b]+[b]Shift[/b]+[b]F2[/b] to return to encounter', widgets.Image(allow_stretch=True, source=Assets.get_sprite('ui.info2')))

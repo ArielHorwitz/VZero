@@ -69,7 +69,7 @@ class GameAPI:
             ])
             self.world_encounters.append(EncounterParams(
                 replayable=True, map=map, difficulty=0, vp_reward=0,
-                color=modify_color(colors[0], v=0.3), sprite=str(Assets.FALLBACK_SPRITE),
+                color=modify_color(colors[0], v=0.3), sprite=Assets.get_sprite(f'maps.{map}'),
                 description=desc,
             ))
         replayable = False
@@ -77,7 +77,7 @@ class GameAPI:
             for i in range(count):
                 map = self.seed.choice(maps)
                 color = modify_color(colors[difficulty_index], v=0.3)
-                sprite = Assets.get_sprite('unit', 'repteye' if map == '4c' else 'player')
+                sprite = Assets.get_sprite(f'maps.{map}')
                 vp_reward = vp_rewards[difficulty_index]
                 desc = '\n'.join([
                     f'{DIFFICULTY_LEVELS[difficulty_index]}',
@@ -99,11 +99,11 @@ class GameAPI:
         if self.encounter_api is None:
             if self.selected_encounter in self.expired_encounters:
                 logger.info(f'GLogic requested to start new encounter {self.selected_encounter}, but already expired: {self.expired_encounters}')
-                Assets.play_sfx('target', 'ui')
+                Assets.play_sfx('ui.target', volume='ui')
                 return
             if self.silver_bank < self.average_draft_cost():
                 logger.info(f'GLogic requested to start new encounter with {self.silver_bank} silver, but draft costs: {self.average_draft_cost()}')
-                Assets.play_sfx('cost', 'ui')
+                Assets.play_sfx('ui.cost', volume='ui')
                 return
             ep = self.world_encounters[self.selected_encounter]
             logger.info(f'GLogic creating encounter with params: {ep} and loadout: {self.loadout}')
@@ -115,7 +115,7 @@ class GameAPI:
             self.gui.request('start_encounter', self.encounter_api)
         else:
             logger.info(f'GLogic requested to start new encounter, but one already exists: {self.encounter_api}')
-            Assets.play_sfx('target', 'ui')
+            Assets.play_sfx('ui.target', volume='ui')
 
     def leave_encounter(self):
         if self.encounter_api is not None:
@@ -151,7 +151,7 @@ class GameAPI:
         if aid in self.loadout:
             i = self.loadout.index(aid)
             self.loadout[i] = None
-            Assets.play_sfx('ui', 'select')
+            Assets.play_sfx('ui.select', volume='ui')
             self.refresh_draft_gui()
             return
 
@@ -162,7 +162,7 @@ class GameAPI:
                     ABILITIES[aid].play_sfx(volume='ui')
                     self.refresh_draft_gui()
                     return
-        Assets.play_sfx('ui', 'target')
+        Assets.play_sfx('ui.target', volume='ui')
 
     # Loadouts
     @staticmethod
@@ -199,14 +199,15 @@ class GameAPI:
 
     def refresh_world(self):
         sbs = []
+        label = ''
         for i, p in enumerate(self.world_encounters):
             sbs.append(SpriteBox(
-                p.sprite, p.map, p.color,
+                p.sprite, label, p.color,
                 (0,0,0,0.9) if i in self.expired_encounters else (0,0,0,0),
             ))
         self.gui.request('set_world_stack', sbs)
         self.gui.request('set_world_details', SpriteTitleLabel(
-            Assets.get_sprite('ability', 'vzero'), 'World', self.world_label, (0.25, 0, 0.5, 1)))
+            Assets.get_sprite('abilities.vzero'), 'World', self.world_label, (0.25, 0, 0.5, 1)))
         self.refresh_draft_gui()
 
     def refresh_draft_gui(self):
@@ -224,7 +225,7 @@ class GameAPI:
         loadout_stack = []
         for aid in self.loadout:
             if aid is None:
-                sprite = Assets.get_sprite('ui', 'blank')
+                sprite = Assets.get_sprite('ui.blank')
                 s = ''
                 color = (0.1,0.1,0.1,1)
             else:
@@ -250,7 +251,7 @@ class GameAPI:
 
         self.gui.request('set_draft_control_buttons', [
             SpriteLabel(ep.sprite, f'Play encounter', None),
-            SpriteLabel(Assets.get_sprite('ability', 'vzero'), f'Return to world', None),
+            SpriteLabel(Assets.get_sprite('abilities.vzero'), f'Return to world', None),
         ])
 
     @property
@@ -332,7 +333,7 @@ class GameAPI:
         origin, target = event.index
         if origin != target:
             List.swap(self.loadout, origin, target)
-            Assets.play_sfx('ui', 'select')
+            Assets.play_sfx('ui.select', volume='ui')
             self.refresh_draft_gui()
 
     def handle_save_loadout(self, event):
@@ -341,8 +342,8 @@ class GameAPI:
         logger.info(f'Saving loadout: {loadout_str}, all loadouts:\n{all_loadouts}')
         if loadout_str not in all_loadouts:
             file_dump(RDF.CONFIG_DIR / 'settings.cfg', '\n'+loadout_str+'\n', clear=False)
-            Assets.play_sfx('ui', 'pause')
+            Assets.play_sfx('ui.pause', volume='ui')
 
     def handle_select_preset(self, event):
-        Assets.play_sfx('ui', 'select')
+        Assets.play_sfx('ui.select', volume='ui')
         self.load_loadout(event.index)

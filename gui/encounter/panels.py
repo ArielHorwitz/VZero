@@ -49,7 +49,7 @@ class LogicLabel(widgets.AnchorLayout, EncounterViewComponent):
     def __init__(self, **kwargs):
         super().__init__(anchor_x='center', anchor_y='top', **kwargs)
         self.main_frame = main_frame = self.add(widgets.BoxLayout())
-        main_frame.make_bg((1,1,1,1), source=Assets.get_sprite('ui', 'panel-top'))
+        main_frame.make_bg((1,1,1,1), source=Assets.get_sprite('ui.panel-top'))
         main_frame.set_size(y=self.overlay_height)
 
         self.labels = [main_frame.add(widgets.Label(halign='center', valign='top', outline_width=2)) for i in range(4)]
@@ -57,7 +57,7 @@ class LogicLabel(widgets.AnchorLayout, EncounterViewComponent):
         a = main_frame.add(widgets.AnchorLayout(anchor_y='top'))
         self.debug_label = a.add(widgets.Label(halign='center', valign='top', outline_width=2))
         self.debug_label.set_size(x=160, y=25)
-        self.debug_label.make_bg((0,0,0,0), source=Assets.get_sprite('ui', 'mask-4x1'))
+        self.debug_label.make_bg((0,0,0,0), source=Assets.get_sprite('ui.mask-4x1'))
 
         self.enc.interface.register('set_top_panel_labels', self.set_labels)
         self.enc.interface.register('set_top_panel_color', self.set_color)
@@ -83,7 +83,7 @@ class Decoration(widgets.AnchorLayout, EncounterViewComponent):
         for side in ('left', 'right'):
             anchor = self.add(widgets.AnchorLayout(anchor_x=side, anchor_y='center'))
             frame = anchor.add(widgets.BoxLayout())
-            frame.make_bg((1,1,1,Settings.get_setting('decorations', 'UI')), source=Assets.get_sprite('ui', f'side-{side}'))
+            frame.make_bg((1,1,1,Settings.get_setting('decorations', 'UI')), source=Assets.get_sprite(f'ui.side-{side}'))
             frame.set_size(x=40)
         self.bind(pos=self.reposition, size=self.reposition)
 
@@ -104,7 +104,7 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
 
         self.portrait_frame = portrait_frame = main_frame.add(widgets.BoxLayout(orientation='vertical'))
         portrait_frame.set_size(x=HUD_PORTRAIT, y=HUD_PORTRAIT)
-        portrait_frame.make_bg((1,1,1,1), source=Assets.get_sprite('ui', 'portrait'))
+        portrait_frame.make_bg((1,1,1,1), source=Assets.get_sprite('ui.portrait'))
         portrait_frame.bind(on_touch_down=self.portrait_click)
         self.name_label = portrait_frame.add(widgets.Label(halign='center', valign='middle'))
         self.portrait = portrait_frame.add(widgets.Image(allow_stretch=True, keep_ratio=True))
@@ -125,7 +125,7 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
 
         bars = center_frame.add(widgets.BoxLayout(orientation='vertical'))
         bars.set_size(x=BAR_WIDTH, y=BAR_HEIGHT)
-        s = Assets.get_sprite('ui', 'stat-bar')
+        s = Assets.get_sprite('ui.stat-bar')
         self.bars = [bars.add(widgets.Progress(source=s)) for _ in range(2)]
 
         main_panel = center_frame.add(widgets.BoxLayout())
@@ -133,11 +133,11 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
 
         padding = 0.95, 0.95
         left_panel = main_panel.add(widgets.AnchorLayout())
-        left_panel.set_size(HUD_WIDTH, HUD_HEIGHT).make_bg((1,1,1,1), source=Assets.get_sprite('ui', 'hud-left'))
+        left_panel.set_size(HUD_WIDTH, HUD_HEIGHT).make_bg((1,1,1,1), source=Assets.get_sprite('ui.hud-left'))
         self.left_hud = left_panel.add(Stack(
             wtype=lambda *a, **k: CenteredSpriteBox(*a,
-                bg_sprite=Assets.get_sprite('ui', 'sprite-box-mask'),
-                fg_sprite=Assets.get_sprite('ui', 'sprite-box'),
+                bg_sprite=Assets.get_sprite('ui.sprite-box-mask'),
+                fg_sprite=Assets.get_sprite('ui.sprite-box'),
                 **k),
             callback=lambda i, b: self.click('left', i, b),
             drag_drop_callback=lambda *a: self.hud_drag_drop('left', *a),
@@ -145,7 +145,7 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
         self.left_hud.set_size(hx=padding[0], hy=padding[1])
 
         middle_panel = main_panel.add(widgets.BoxLayout(orientation='vertical'))
-        middle_panel.set_size(x=MIDDLE_HUD).make_bg((1,1,1,1), source=Assets.get_sprite('ui', 'hud-middle'))
+        middle_panel.set_size(x=MIDDLE_HUD).make_bg((1,1,1,1), source=Assets.get_sprite('ui.hud-middle'))
         middle_hud_anchor = middle_panel.add(widgets.AnchorLayout())
         middle_hud_size = MIDDLE_HUD*padding[0], HUD_HEIGHT*padding[1]*0.75
         self.middle_hud = middle_hud_anchor.add(Stack(
@@ -153,15 +153,15 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
             x=middle_hud_size[0]/3, y=middle_hud_size[1]/3))
         self.middle_hud.set_size(x=middle_hud_size[0], y=middle_hud_size[1])
         self.middle_label = middle_panel.add(widgets.Label(halign='center', valign='middle'))
-        self.middle_label.make_bg((0,0,0,0.3), source=Assets.get_sprite('ui', 'mask-4x1'))
+        self.middle_label.make_bg((0,0,0,0.3), source=Assets.get_sprite('ui.mask-4x1'))
         self.middle_label.set_size(y=HUD_HEIGHT-middle_hud_size[1])
 
         right_panel = main_panel.add(widgets.AnchorLayout())
-        right_panel.set_size(HUD_WIDTH, HUD_HEIGHT).make_bg((1,1,1,1), source=Assets.get_sprite('ui', 'hud-right'))
+        right_panel.set_size(HUD_WIDTH, HUD_HEIGHT).make_bg((1,1,1,1), source=Assets.get_sprite('ui.hud-right'))
         self.right_hud = right_panel.add(Stack(
             wtype=lambda *a, **k: CenteredSpriteBox(*a,
-                bg_sprite=Assets.get_sprite('ui', 'sprite-box-mask'),
-                fg_sprite=Assets.get_sprite('ui', 'sprite-box'),
+                bg_sprite=Assets.get_sprite('ui.sprite-box-mask'),
+                fg_sprite=Assets.get_sprite('ui.sprite-box'),
                 **k),
             callback=lambda i, b: self.click('right', i, b),
             drag_drop_callback=lambda *a: self.hud_drag_drop('right', *a),
@@ -248,8 +248,8 @@ class ModalBrowse(Modal, EncounterViewComponent):
         self.main.set_size(x=main_width)
         self.stack = self.frame.add(Stack(
             wtype=lambda *a, **k: SpriteBox(*a,
-                bg_sprite=Assets.get_sprite('ui', 'sprite-box-mask'),
-                fg_sprite=Assets.get_sprite('ui', 'sprite-box'),
+                bg_sprite=Assets.get_sprite('ui.sprite-box-mask'),
+                fg_sprite=Assets.get_sprite('ui.sprite-box'),
                 valign='bottom', **k),
             x=item_box_size, y=item_box_size,
             callback=self.click))
@@ -310,7 +310,7 @@ class Menu(Modal, EncounterViewComponent):
         self.set_frame(self.frame)
         self.consume_touch.widget = self
         self.frame.set_size(x=200, y=250)
-        self.frame.make_bg((0, 0, 0, 1), source=Assets.get_sprite('ui', 'mask-1x2'))
+        self.frame.make_bg((0, 0, 0, 1), source=Assets.get_sprite('ui.mask-1x2'))
 
         self.label = self.frame.add(widgets.Label(text='', halign='center', valign='middle', markup=True, line_height=1.2))
         self.label.set_size(y=100)

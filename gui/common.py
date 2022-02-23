@@ -15,10 +15,9 @@ TOOLTIP_SIZE = 400, 600
 class CenteredSpriteBox(widgets.AnchorLayout):
     def __init__(self,
             size_hint=(.9, .9),
-            bg_sprite=None, fg_sprite=None, valign=None,
             **kwargs):
-        super().__init__(**kwargs)
-        self.sb = self.add(SpriteBox(bg_sprite=bg_sprite, fg_sprite=fg_sprite, valign=valign))
+        super().__init__()
+        self.sb = self.add(SpriteBox(**kwargs))
         self.sb.size_hint = size_hint
         self.bind(pos=self.sb.resize, size=self.sb.resize)
 
@@ -35,7 +34,7 @@ class SpriteBox(widgets.Widget):
         valign = 'bottom' if valign is None else valign
         super().__init__(**kwargs)
         if sprite is None:
-            sprite = str(Assets.FALLBACK_SPRITE)
+            sprite = Assets.FALLBACK_SPRITE
         self.sprite_source = sprite
         self.sprite_frame = self.add(widgets.AnchorLayout())
         self.sprite = self.sprite_frame.add(widgets.Image(source=sprite, allow_stretch=True))
@@ -82,12 +81,12 @@ class SpriteLabel(widgets.AnchorLayout):
             logger.warning(f'SpriteLabel margin will be deprecated. Please use padding instead')
         self.main = self.add(widgets.BoxLayout())
         if sprite is None:
-            sprite = str(Assets.FALLBACK_SPRITE)
+            sprite = Assets.FALLBACK_SPRITE
         self.sprite_source = sprite
         self.sprite = self.main.add(widgets.Image(source=sprite, allow_stretch=True))
         self.label = self.main.add(widgets.Label(text=text, halign=halign, valign=valign))
         self.main.make_bg((0,0,0,0) if bg_mask_color is None else bg_mask_color)
-        self.main._bg.source = Assets.get_sprite('ui', 'mask-4x1') if bg_mask is None else bg_mask
+        self.main._bg.source = Assets.get_sprite('ui.mask-4x1') if bg_mask is None else bg_mask
         self.label.bind(pos=self.resize, size=self.resize)
 
     def resize(self, *a):
@@ -113,14 +112,14 @@ class SpriteTitleLabel(widgets.AnchorLayout):
         self.make_bg((0,0,0,0))
         self.padding = 0.9, 0.9
         self.main_frame = self.add(widgets.BoxLayout(orientation='vertical'))
-        self._bg.source = Assets.get_sprite('ui', 'mask-1x2')
+        self._bg.source = Assets.get_sprite('ui.mask-1x2')
         if sprite is None:
-            sprite = str(Assets.FALLBACK_SPRITE)
+            sprite = Assets.FALLBACK_SPRITE
 
         top = self.main_frame.add(widgets.BoxLayout())
         top.set_size(y=50)
         top.make_bg((0,0,0,0.2) if top_bg is None else top_bg)
-        top._bg.source = Assets.get_sprite('ui', 'mask-4x1')
+        top._bg.source = Assets.get_sprite('ui.mask-4x1')
         self.sprite_source = sprite
         self.sprite = top.add(widgets.Image(source=sprite, allow_stretch=True))
         self.sprite.set_size(x=50)
@@ -239,7 +238,7 @@ class Tooltip(widgets.BoxLayout):
         self.stl.set_size(hx=0.96, hy=0.9)
         self.__frame.set_size(*TOOLTIP_SIZE)
         self.__frame.make_bg(modify_color((1,1,1), v=0.85))
-        self.__frame._bg.source = Assets.get_sprite('ui', 'tooltip')
+        self.__frame._bg.source = Assets.get_sprite('ui.tooltip')
         self.bind(on_touch_down=self._check_click)
         self.__hover_bind = None
         self.__dismiss_origin = np.array([0, 0])

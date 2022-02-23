@@ -41,7 +41,8 @@ class BaseAbility:
             self.color = 1, 1, 1
         self.draft_cost = round(raw_data.default['draft_cost'] if 'draft_cost' in raw_data.default else self.draft_cost)
         self.sfx = raw_data.default['sfx'] if 'sfx' in raw_data.default else self.name
-        self.sprite = Assets.get_sprite('ability', raw_data.default['sprite'] if 'sprite' in raw_data.default else self.name)
+        sprite_name = raw_data.default["sprite"] if "sprite" in raw_data.default else self.name
+        self.sprite = Assets.get_sprite(f'abilities.{sprite_name}')
         self.__shared_cooldown_name = raw_data.default['cooldown'] if 'cooldown' in raw_data.default else self.name
 
         self.stats = self._parse_stats(raw_data['stats'] if 'stats' in raw_data else RDFSubCategory())
@@ -253,7 +254,7 @@ class BaseAbility:
         return hasattr(PHASE, s.upper())
 
     def play_sfx(self, volume='sfx', replay=True, **kwargs):
-        Assets.play_sfx('ability', self.sfx, volume=volume, replay=replay, **kwargs)
+        Assets.play_sfx(f'abilities.{self.sfx}', volume=volume, replay=replay, **kwargs)
 
 
 ABILITY_CLASSES = {
@@ -900,7 +901,7 @@ class EffectLoot(Effect):
         else:
             diameter = max(75, 500 * Mechanics.scaling(loot_gold, 150, ascending=True))
             api.add_visual_effect(VFX.SPRITE, 25, {
-                'source': Assets.get_sprite('ability', 'gold'),
+                'source': Assets.get_sprite('mechanics.gold'),
                 'point': loot_pos,
                 'size': (diameter, diameter),
                 'fade': 25,
@@ -1176,9 +1177,10 @@ class EffectUnselect(EffectSelect):
 
     def apply(self, api, uid, targets):
         api.units[uid].cache[self.ability.cached_selected_key] = None
-        if uid not in api.logic.miss_feedback_uids:
-            return
-        Assets.play_sfx('ui', 'inactive', volume='feedback')
+        # if uid not in api.logic.miss_feedback_uids:
+        #     return
+        # Assets.play_sfx('ui.inactive', volume='feedback')
+        api.logic.play_feedback('inactive', uid)
 
 
 class EffectShowSelect(EffectSelect):
@@ -1273,10 +1275,11 @@ class EffectSFX(Effect):
         self.category = raw_data['category'] if 'category' in raw_data else 'ability'
         self.sfx = raw_data['sfx'] if 'sfx' in raw_data else phase.ability.sfx
         self.volume =  resolve_formula('volume', raw_data, 1)
-        self.__volume = Settings.get_volume('sfx')
+        self.__volume = 'sfx'
 
     def apply(self, api, uid, targets):
-        Assets.play_sfx(self.category, self.sfx, volume=self.__volume * self.volume.get_value(api, uid))
+        volume = Settings.get_volume(self.__volume) * self.volume.get_value(api, uid)
+        Assets.play_sfx(f'{self.category}.{self.sfx}', volume=volume)
 
 
 class EffectVFXFlash(Effect):

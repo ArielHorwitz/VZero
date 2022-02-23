@@ -26,7 +26,7 @@ class HomeGUI(widgets.AnchorLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.make_bg((1,1,1,1))
-        self._bg.source = Assets.get_sprite('ui', 'home')
+        self._bg.source = Assets.get_sprite('ui.home')
 
         main_anchor = self.add(widgets.AnchorLayout()).set_size(1024, 768)
 
@@ -78,7 +78,7 @@ class World(widgets.BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.encounter_stack = self.add(Stack(
-            wtype=lambda *a, **k: CenteredSpriteBox(*a, size_hint=(.9, .9), valign='bottom', **k),
+            wtype=lambda *a, **k: CenteredSpriteBox(*a, margin=(.5, .5), valign='bottom', **k),
             callback=self.world_click, x=75, y=75))
         self.app.interface.register('set_world_stack', self.encounter_stack.update)
 

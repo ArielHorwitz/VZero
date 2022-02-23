@@ -157,11 +157,12 @@ class Unit:
         self.cache = defaultdict(lambda: None)
         self.always_visible = True if 'always_visible' in self.p.positional else False
         self.always_active = True if 'always_active' in self.p.positional else False
-        self.death_sfx = raw_data.default['death_sfx'] if 'death_sfx' in raw_data.default else f'death-unit{RNG.integers(4)+1}'
-        self.respawn_sfx = raw_data.default['respawn_sfx'] if 'respawn_sfx' in raw_data.default else 'respawn-unit'
+        self.death_sfx = raw_data.default['death_sfx'] if 'death_sfx' in raw_data.default else f'ui.death-unit{RNG.integers(4)+1}'
+        self.respawn_sfx = f'ui.{raw_data.default["respawn_sfx"]}' if 'respawn_sfx' in raw_data.default else 'ui.respawn-unit'
         self.api = api
         self.engine = api.engine
-        self.name = self.__start_name = raw_data.default['name'] if 'name' in raw_data.default else name
+        self.name = raw_data.default['name'] if 'name' in raw_data.default else name
+        self.sprite = Assets.get_sprite(f'units.{self.name}')
         self.regen_trackers = defaultdict(lambda: FIFO(int(FPS*2)))
         # Abilities
         self._ability_slots = Slots(8)
@@ -350,10 +351,6 @@ class Unit:
             self.api.abilities[paid].off_cooldown(self.engine, self.uid)
 
     @property
-    def sprite(self):
-        return Assets.get_sprite('unit', self.__start_name)
-
-    @property
     def size(self):
         hb = self.engine.get_stats(self.uid, STAT.HITBOX)
         return np.array([hb, hb])*2
@@ -397,10 +394,10 @@ class Unit:
     def play_death_sfx(self):
         v = Settings.get_volume('monster_death')
         if v > 0:
-            Assets.play_sfx('ui', self.death_sfx, volume=v)
+            Assets.play_sfx(self.death_sfx, volume=v)
 
     def play_respawn_sfx(self):
-        Assets.play_sfx('ui', self.respawn_sfx, volume='feedback')
+        Assets.play_sfx(self.respawn_sfx, volume='feedback')
 
     def status_zero(self, status):
         logger.debug(f'{self} lost status: {status.name}.')
@@ -477,10 +474,13 @@ class Player(Unit):
         self.engine.set_stats(self.uid, STAT.STOCKS, STARTING_PLAYER_STOCKS)
         self._respawn_timer = 500
         self._respawn_timer_scaling = 100
-        self.death_sfx = 'death-player'
-        self.respawn_sfx = 'respawn-player'
+        self.death_sfx = 'ui.death-player'
+        self.respawn_sfx = 'ui.respawn-player'
         if not self.api.dev_build:
             self.play_respawn_sfx()
+
+    def play_death_sfx(self):
+        Assets.play_sfx(self.death_sfx, volume='feedback')
 
     def respawn(self):
         super().respawn(reset_gold=False)
@@ -494,7 +494,7 @@ class Player(Unit):
 class Creep(Unit):
     say = 'I\'m coming for that fort!'
     def _setup(self):
-        self.respawn_sfx = 'respawn-wave' if self.respawn_sfx == 'respawn-unit' else self.respawn_sfx
+        self.respawn_sfx = 'ui.respawn-wave' if self.respawn_sfx == 'ui.respawn-unit' else self.respawn_sfx
         self.color = (1, 0, 0)
         self.wave_interval = int(float(self.p['wave']) * 100)
         self.wave_offset = int(float(self.p['wave_offset']) * 100)
@@ -643,7 +643,7 @@ class Boss(Camper):
 
     def _setup(self):
         super()._setup()
-        self.death_sfx = ''
+        self.death_sfx = None
 
     def check_win_condition(self):
         if self.stocks <= 0:
@@ -675,7 +675,7 @@ class Fountain(Unit):
     def _setup(self):
         self.set_abilities([ABILITY.FOUNTAIN_AURA])
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
-        self.death_sfx = ''
+        self.death_sfx = None
 
 
 class Fort(Fountain):
@@ -683,7 +683,7 @@ class Fort(Fountain):
     def _setup(self):
         self.set_abilities([ABILITY.FORT_AURA])
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
-        self.death_sfx = ''
+        self.death_sfx = None
 
     def check_win_condition(self):
         if self.stocks <= 0:

@@ -101,16 +101,13 @@ class VisualEffect:
         self.params = {} if params is None else params
 
         if eid is self.VFX.SFX:
-            category = 'ability'
+            category = 'abilities'
             if 'category' in params:
                 category = params['category']
             volume = 'sfx'
             if 'volume' in params:
                 volume = params['volume']
-            Assets.play_sfx(
-                category, params['sfx'],
-                volume=Settings.get_volume(volume),
-                allow_exception=False)
+            Assets.play_sfx(f'{category}.{params["sfx"]}', volume=volume)
             self.total_ticks = 0
 
     def tick(self, ticks):
