@@ -19,7 +19,7 @@ from gui.encounter.sprites import Sprites
 from gui.encounter.vfx import VFX as VFXLayer
 from gui.encounter.panels import Decoration, Menu, LogicLabel, HUD, ModalBrowse, ViewFade, DebugPanel
 
-from engine.common import *
+from logic.common import *
 
 
 DEFAULT_UPP = 2

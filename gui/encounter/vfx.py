@@ -12,7 +12,7 @@ from gui.encounter import EncounterViewComponent
 from gui import center_position, cc_int
 from data.settings import Settings
 from data.assets import Assets
-from engine import VFX as VFXEnum
+from logic import VFX as VFXEnum
 
 
 class VFX(widgets.RelativeLayout, EncounterViewComponent):

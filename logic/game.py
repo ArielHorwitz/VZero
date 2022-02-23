@@ -1,6 +1,6 @@
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.DEBUG)
 
 
 from collections import namedtuple
@@ -13,16 +13,16 @@ from data import DEV_BUILD
 from data.load import RDF
 from data.assets import Assets
 from data.settings import Settings
-from engine.common import *
+from logic.common import *
 from gui.api import SpriteLabel, SpriteTitleLabel, SpriteBox
 from gui.api import ControlEvent
 
-from logic.data import ABILITIES
+from logic.abilities import ABILITIES
 from logic.encounter import EncounterAPI, DIFFICULTY_LEVELS
 
 
 EncounterParams = namedtuple('EncounterParams', [
-    'map', 'difficulty', 'vp_reward',
+    'replayable', 'map', 'difficulty', 'vp_reward',
     'color', 'sprite', 'description',
 ])
 
@@ -47,26 +47,33 @@ class GameAPI:
         # Handle GUI event queue
         event_queue = self.gui.get_flush_queue()
         for event in event_queue:
-            logger.debug(f'Game received event: {event}')
-            handler_name = f'handle_{event.name}'
-            if not hasattr(self, handler_name):
-                logger.warning(f'GameLogic missing handler for: {event.name}. Event: {event}')
-                continue
-            handler = getattr(self, handler_name)
-            handler(event)
+            self.__handle_event(event)
 
     def setup(self):
-        logger.info(f'GameAPI found gui interface:\n{self.gui.requests}')
+        logger.info(f'GLogic found gui interface:\n{self.gui.requests}')
         self.set_widgets()
         self.load_loadout(1)
 
     def generate_world(self):
         self.silver_bank = 1000
+        self.victory_points = 0
         maps = ['default', '4c']
         vp_rewards = [0, 5, 20, 50]
-        colors = [COLOR.GREEN, COLOR.BLUE, COLOR.PURPLE, COLOR.RED]
+        colors = [COLOR.WHITE, COLOR.YELLOW, COLOR.CYAN, COLOR.PURPLE]
         self.world_encounters = []
-        for difficulty_index, count in ((0, 5), (1, 20), (2, 10), (3, 5)):
+        self.expired_encounters = set()
+        for map in maps:
+            desc = '\n'.join([
+                f'Sandbox: no rewards, replayable.',
+                f'Map: {map}'
+            ])
+            self.world_encounters.append(EncounterParams(
+                replayable=True, map=map, difficulty=0, vp_reward=0,
+                color=modify_color(colors[0], v=0.3), sprite=str(Assets.FALLBACK_SPRITE),
+                description=desc,
+            ))
+        replayable = False
+        for difficulty_index, count in ((1, 20), (2, 10), (3, 5)):
             for i in range(count):
                 map = self.seed.choice(maps)
                 color = modify_color(colors[difficulty_index], v=0.3)
@@ -78,9 +85,50 @@ class GameAPI:
                     f'Reward: {vp_reward} Victory Points',
                 ])
                 self.world_encounters.append(EncounterParams(
-                    map, difficulty_index, vp_reward,
+                    replayable, map, difficulty_index, vp_reward,
                     color, sprite, desc,
                 ))
+        assert len(self.world_encounters) > 0
+
+    # Encounter management
+    def restart_encounter(self):
+        self.leave_encounter()
+        self.new_encounter()
+
+    def new_encounter(self):
+        if self.encounter_api is None:
+            if self.selected_encounter in self.expired_encounters:
+                logger.info(f'GLogic requested to start new encounter {self.selected_encounter}, but already expired: {self.expired_encounters}')
+                Assets.play_sfx('target', 'ui')
+                return
+            if self.silver_bank < self.average_draft_cost():
+                logger.info(f'GLogic requested to start new encounter with {self.silver_bank} silver, but draft costs: {self.average_draft_cost()}')
+                Assets.play_sfx('cost', 'ui')
+                return
+            ep = self.world_encounters[self.selected_encounter]
+            logger.info(f'GLogic creating encounter with params: {ep} and loadout: {self.loadout}')
+            if not ep.replayable:
+                self.expired_encounters.add(self.selected_encounter)
+            self.silver_bank -= self.average_draft_cost()
+            self.refresh_world()
+            self.encounter_api = EncounterAPI(self, ep, self.loadout)
+            self.gui.request('start_encounter', self.encounter_api)
+        else:
+            logger.info(f'GLogic requested to start new encounter, but one already exists: {self.encounter_api}')
+            Assets.play_sfx('target', 'ui')
+
+    def leave_encounter(self):
+        if self.encounter_api is not None:
+            logger.info(f'GLogic ending encounter: {self.encounter_api}')
+            win, ep = self.encounter_api.leave()
+            if win:
+                self.victory_points += ep.vp_reward
+            self.encounter_api = None
+            self.gui.request('end_encounter')
+            self.gui.request('set_view', 'world')
+            self.refresh_world()
+        else:
+            logger.warning(f'GLogic requested to end encounter but none exists')
 
     # Drafting
     def average_draft_cost(self, loadout=None):
@@ -116,29 +164,6 @@ class GameAPI:
                     return
         Assets.play_sfx('ui', 'target')
 
-    # Encounter management
-    def restart_encounter(self):
-        self.leave_encounter()
-        self.new_encounter()
-
-    def new_encounter(self):
-        ep = self.world_encounters[self.selected_encounter]
-        if self.encounter_api is None:
-            logger.info(f'Logic creating encounter with params: {ep} and loadout: {self.loadout}')
-            self.encounter_api = EncounterAPI(self, ep, self.loadout)
-            self.gui.request('start_encounter', self.encounter_api)
-        else:
-            logger.info(f'Logic requested to start new encounter, but one already exists: {self.encounter_api}')
-            Assets.play_sfx('target', 'ui')
-
-    def leave_encounter(self):
-        if self.encounter_api is not None:
-            logger.info(f'Logic ending encounter: {self.encounter_api}')
-            self.encounter_api.leave()
-            self.encounter_api = None
-            self.gui.request('end_encounter')
-            self.gui.request('set_view', 'world')
-
     # Loadouts
     @staticmethod
     def get_user_loadouts():
@@ -170,10 +195,18 @@ class GameAPI:
 
     # GUI
     def set_widgets(self):
-        # self.gui.request('set_world_control_buttons', [SpriteLabel('sprite', 'label', None)])
-        self.gui.request('set_world_stack', [SpriteBox(p.sprite, p.map, p.color, (0,0,0,0)) for p in self.world_encounters])
+        self.refresh_world()
+
+    def refresh_world(self):
+        sbs = []
+        for i, p in enumerate(self.world_encounters):
+            sbs.append(SpriteBox(
+                p.sprite, p.map, p.color,
+                (0,0,0,0.9) if i in self.expired_encounters else (0,0,0,0),
+            ))
+        self.gui.request('set_world_stack', sbs)
         self.gui.request('set_world_details', SpriteTitleLabel(
-            Assets.get_sprite('ability', 'vzero'), 'World', self.world_label, modify_color((0.25, 0, 0.5, 1))))
+            Assets.get_sprite('ability', 'vzero'), 'World', self.world_label, (0.25, 0, 0.5, 1)))
         self.refresh_draft_gui()
 
     def refresh_draft_gui(self):
@@ -223,10 +256,26 @@ class GameAPI:
     @property
     def world_label(self):
         return '\n'.join([
-            f'Silver bank: {self.silver_bank}'
+            f'Victory Points: {self.victory_points}',
+            f'Silver bank: {self.silver_bank}',
         ])
 
     # GUI event handlers
+    def __handle_event(self, event):
+        logger.debug(f'Game received event: {event}')
+        handler_name = f'handle_{event.name}'
+        if not hasattr(self, handler_name):
+            logger.warning(f'GLogic missing handler for: {event.name}. Event: {event}')
+            return
+        handler = getattr(self, handler_name)
+        handler(event)
+
+    def handle_leave_encounter(self, event):
+        self.leave_encounter()
+
+    def handle_restart_encounter(self, event):
+        self.restart_encounter()
+
     def handle_world_control_button(self, event):
         # if event.index == 0:
         #     self.gui.request('set_view', 'draft')
@@ -289,7 +338,7 @@ class GameAPI:
     def handle_save_loadout(self, event):
         loadout_str = ', '.join(['null' if aid is None else aid.name.lower() for aid in self.loadout])
         all_loadouts = self.get_user_loadouts()
-        logger.info(f'saving loadout: {loadout_str}, all loadouts:\n{all_loadouts}')
+        logger.info(f'Saving loadout: {loadout_str}, all loadouts:\n{all_loadouts}')
         if loadout_str not in all_loadouts:
             file_dump(RDF.CONFIG_DIR / 'settings.cfg', '\n'+loadout_str+'\n', clear=False)
             Assets.play_sfx('ui', 'pause')

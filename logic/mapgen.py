@@ -11,7 +11,7 @@ from data.load import RDF
 from data.tileset import TileMap
 from data.settings import Settings
 
-from engine.common import *
+from logic.common import *
 from logic.units import Unit
 
 

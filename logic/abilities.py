@@ -9,10 +9,10 @@ import math
 import numpy as np
 from nutil.vars import normalize, is_floatable, nsign_str, modify_color, try_float, NP, AutoIntEnum, is_iterable
 from nutil.random import SEED
-from data.load import SubCategory as RDFSubCategory
+from data.load import RDF, SubCategory as RDFSubCategory
 from data.assets import Assets
 from data.settings import Settings
-from engine.common import *
+from logic.common import *
 from logic.mechanics import Mechanics, Rect
 
 
@@ -1458,3 +1458,23 @@ EFFECT_CLASSES = {
     'push': EffectPush,
     'pull': EffectPull,
 }
+
+
+def _load_abilities():
+    raw_data = RDF(RDF.CONFIG_DIR / 'abilities.rdf')
+    raw_items = tuple(raw_data.items())
+    abilities = []
+    for aid in ABILITY:
+        name, raw_data = raw_items[aid]
+        if 'type' not in raw_data.default:
+            raise CorruptedDataError(f'Ability {aid.name} missing a type.')
+        ability_cls = ABILITY_CLASSES[raw_data.default['type']]
+        ability = ability_cls(aid, name, raw_data)
+        assert len(abilities) == aid
+        abilities.append(ability)
+    for ability in abilities:
+        ability._setup()
+    logger.info(f'Loaded {len(abilities)} abilities.')
+    return abilities
+
+ABILITIES = _load_abilities()

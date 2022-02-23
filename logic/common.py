@@ -1,14 +1,14 @@
 from data import FPS, TPS, resource_name
-from engine import ABILITY
-from engine import STAT
-from engine import VALUE
-from engine import STATUS
-from engine import STATUS_VALUE
-from engine import FAIL_RESULT
-from engine import VisualEffect
-from engine import COLOR
-from engine import VFX
-from engine import internal_name
+from logic import internal_name
+from logic import ABILITY
+from logic import STAT
+from logic import VALUE
+from logic import STATUS
+from logic import STATUS_VALUE
+from logic import FAIL_RESULT
+from logic import VisualEffect
+from logic import COLOR
+from logic import VFX
 
 
 def str2stat(name):

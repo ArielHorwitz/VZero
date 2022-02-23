@@ -11,7 +11,7 @@ from gui import cc_int, center_position, center_sprite
 from gui.encounter import EncounterViewComponent
 from data.assets import Assets
 from data.settings import Settings
-from engine.common import *
+from logic.common import *
 
 
 MIN_HITBOX_SCALE = 0.25

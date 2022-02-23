@@ -18,14 +18,32 @@ from data.assets import Assets
 from gui.api import SpriteTitleLabel, ProgressBar, SpriteBox, SpriteLabel
 from gui.api import ControlEvent, InputEvent, CastEvent
 
-from engine.common import *
-from engine.encounter import Encounter as EncounterEngine
+from logic.common import *
 
 from logic import MECHANICS_NAMES
-from logic.data import ABILITIES, METAGAME_BALANCE_SHORT
+from logic.abilities import ABILITIES
+from logic.engine import Engine as EncounterEngine
 from logic.mechanics import Mechanics
 from logic.mapgen import MapGenerator
 from logic.items import ITEM, ITEMS, ITEM_CATEGORIES, Item
+
+
+
+from nutil.file import file_load
+from nutil.random import h256
+from data import VERSION, DEV_BUILD
+from data.settings import Settings
+
+
+metagame_data = str(VERSION) + str(DEV_BUILD) + ''.join(str(RDF(RDF.CONFIG_DIR / f'{_}.rdf').raw_dict) for _ in (
+    'abilities', 'items', 'units',
+    Settings.get_setting("source_map"),
+    Settings.get_setting("source_spawns"),
+))
+METAGAME_BALANCE = h256(metagame_data)
+METAGAME_BALANCE_SHORT = METAGAME_BALANCE[:4]
+logger.info(f'Metagame Balance: {METAGAME_BALANCE_SHORT} ({METAGAME_BALANCE})')
+
 
 
 AUTO_LOG = Settings.get_setting('auto_log', 'General')
@@ -106,6 +124,7 @@ class EncounterAPI:
         self.dev_mode = False
         self.show_debug = False
         self.game = game
+        self.encounter_params = encounter_params
         self.difficulty_level = encounter_params.difficulty
         self.engine = EncounterEngine(self)
         self.map = MapGenerator(self, encounter_params)
@@ -200,6 +219,7 @@ class EncounterAPI:
 
     def leave(self):
         self.enc_over = True
+        return self.win, self.encounter_params
 
     def end_encounter(self, win):
         self.enc_over = True

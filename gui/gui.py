@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 import contextlib
 import numpy as np
 from pathlib import Path
-import nutil
+from nutil import restart_script
 from nutil.kex import widgets
 from nutil.time import RateCounter, pingpong
 from nutil.vars import Interface
@@ -15,13 +15,14 @@ from data.assets import Assets
 from data.settings import Settings
 from gui.home import HomeGUI
 from gui.encounter.encounter import Encounter
-from engine import get_api
+from logic import get_api
 
 
 class App(widgets.App):
     def __init__(self, **kwargs):
         logger.info(f'Initializing GUI @ {FPS} fps.')
         super().__init__(make_bg=False, make_menu=False, **kwargs)
+        self.__quit_flag = 0
         self.interface = Interface(name='GUI Home')
         self.home_hotkeys = widgets.InputManager()
         self.enc_hotkeys = widgets.InputManager()
@@ -127,15 +128,19 @@ class App(widgets.App):
         return (1, 0, 0, (FPS-self.fps.rate)/45)
 
     def mainloop_hook(self, dt):
+        if self.__quit_flag == 1:
+            self.stop()
+            return
+        elif self.__quit_flag == 2:
+            restart_script()
+            return
         self.fps.tick()
         s = widgets.kvWindow.size
         self.title = f'{TITLE} | {round(self.fps.rate)} FPS, {s[0]}×{s[1]}'
+        self.home.update()
         sname = self.switch.current_screen.name
-        # Update relevant frame
         if self.encounter is not None and sname == 'enc':
             self.encounter.update()
-        elif sname == 'home':
-            self.home.update()
 
     def start_encounter(self, logic_api):
         self.enc_frame.clear_widgets()
@@ -153,6 +158,11 @@ class App(widgets.App):
         logger.info(f'GUI closed encounter')
         self.full_refresh()
 
+    def do_quit(self):
+        self.__quit_flag = 1
+
+    def do_restart(self):
+        self.__quit_flag = 2
 
 class InfoBox(widgets.BoxLayout):
     def __init__(self, label, widget=None, label_color=None, **kwargs):

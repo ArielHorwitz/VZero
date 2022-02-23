@@ -10,14 +10,14 @@ from nutil.vars import normalize, collide_point, is_iterable, List, nsign_str, n
 from nutil.display import make_title
 from nutil.time import ratecounter
 from nutil.random import SEED
+from data.load import RDF
 from data.assets import Assets
 from data.settings import Settings
 
-from engine.common import *
-from engine.unit import Unit as BaseUnit
-from logic.data import RAW_UNITS, ABILITIES
-from logic.items import ITEMS, ITEM_CATEGORIES
+from logic.common import *
 from logic.mechanics import Mechanics
+from logic.abilities import ABILITIES
+from logic.items import ITEMS, ITEM_CATEGORIES
 RNG = np.random.default_rng()
 
 
@@ -96,7 +96,7 @@ class Slots:
         self.refresh()
 
 
-class Unit(BaseUnit):
+class Unit:
     _respawn_timer = 12000  # ~ 2 minutes
     say = ''
     win_on_death = False
@@ -149,7 +149,7 @@ class Unit(BaseUnit):
         return unit_cls(api, uid, unit_name, raw_data)
 
     def __init__(self, api, uid, name, raw_data):
-        super().__init__(uid)
+        self.__uid = uid
         self._raw_data = raw_data
         self.p = raw_data.default
         raw_stats = raw_data['stats'] if 'stats' in raw_data else {}
@@ -175,6 +175,10 @@ class Unit(BaseUnit):
             self.default_abilities = [str2ability(a) for a in self.p['abilities'].split(', ')]
 
         logger.info(f'Created unit: {name} with data: {self._raw_data}')
+
+    @property
+    def uid(self):
+        return self.__uid
 
     def swap_ability_slots(self, i1, i2):
         self._ability_slots.swap_slots(i1, i2)
@@ -330,6 +334,9 @@ class Unit(BaseUnit):
         self._ability_slots.add_unslotted(self.builtin_loot)
         self._load_ability(self.builtin_loot)
         self._setup()
+
+    def action_phase(self):
+        pass
 
     def passive_phase(self):
         paids = set(self.abilities) | set(ITEMS[iid].aid for iid in self.items) - {None}
@@ -728,3 +735,19 @@ UNIT_CLASSES = {
     'fountain': Fountain,
     'dps_meter': DPSMeter,
 }
+
+
+def _load_unit_types():
+    all_raw_data = RDF(RDF.CONFIG_DIR / 'units.rdf')
+    units = {}
+    for unit_name, raw_data in all_raw_data.items():
+        iname = internal_name(unit_name)
+        if iname in units:
+            raise CorruptedDataError(f'Unit name duplication: {iname}')
+        raw_data.default['name'] = unit_name
+        units[iname] = raw_data
+    logger.info(f'Loaded {len(units)} units.')
+    return units
+
+
+RAW_UNITS = _load_unit_types()

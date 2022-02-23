@@ -8,7 +8,7 @@ from collections import defaultdict
 import numpy as np
 from nutil.vars import normalize, modify_color
 from data.assets import Assets
-from engine.common import *
+from logic.common import *
 
 
 MAX_MOVESPEED = 500

@@ -13,7 +13,7 @@ from data.assets import Assets
 from data.settings import Settings
 from gui.api import ControlEvent
 from gui.common import SpriteLabel, SpriteTitleLabel, CenteredSpriteBox, Stack, Tooltip
-from engine.common import *
+from logic.common import *
 
 
 HOME_SIZE = 1024, 768
@@ -112,10 +112,10 @@ class AppControlButtons(widgets.AnchorLayout):
         corner_buttons = self.add(widgets.BoxLayout())
         sizex = 0
         if DEV_BUILD:
-            rebutton = corner_buttons.add(widgets.Button(text=f'Restart {APP_NAME}', on_release=lambda *a: nutil.restart_script()))
+            rebutton = corner_buttons.add(widgets.Button(text=f'Restart {APP_NAME}', on_release=lambda *a: self.app.do_restart()))
             rebutton.set_size(x=150)
             sizex += 150
-        qbutton = corner_buttons.add(widgets.Button(text='Quit', on_release=lambda *a: self.app.stop()))
+        qbutton = corner_buttons.add(widgets.Button(text='Quit', on_release=lambda *a: self.app.do_quit()))
         qbutton.set_size(x=100)
         sizex += 100
         corner_buttons.set_size(x=sizex, y=30)

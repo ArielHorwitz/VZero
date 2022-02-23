@@ -20,7 +20,7 @@ from gui.api import MOUSE_EVENTS, ControlEvent, InputEvent
 from gui.common import SpriteLabel, CenteredSpriteBox, SpriteTitleLabel, SpriteBox, Stack, Modal
 from gui.encounter import EncounterViewComponent
 
-from engine.common import *
+from logic.common import *
 
 
 Box = namedtuple('Box', ['box', 'sprite', 'label'])
@@ -352,7 +352,7 @@ class Menu(Modal, EncounterViewComponent):
 
     def click_restart(self):
         if self.confirm_restart:
-            self.app.game.restart_encounter()
+            self.app.interface.append(ControlEvent('restart_encounter', 0, self.restart_btn.text))
         else:
             self.unconfirm()
             self.confirm_restart = True
@@ -360,7 +360,7 @@ class Menu(Modal, EncounterViewComponent):
 
     def click_leave(self):
         if self.confirm_leave:
-            self.app.game.leave_encounter()
+            self.app.interface.append(ControlEvent('leave_encounter', 0, self.leave_btn.text))
         else:
             self.unconfirm()
             self.confirm_leave = True
@@ -368,7 +368,7 @@ class Menu(Modal, EncounterViewComponent):
 
     def click_quit(self):
         if self.confirm_quit:
-            self.app.stop()
+            self.app.do_quit()
         else:
             self.unconfirm()
             self.confirm_quit = True
