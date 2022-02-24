@@ -738,7 +738,7 @@ UNIT_CLASSES = {
 
 
 def _load_unit_types():
-    all_raw_data = RDF(RDF.CONFIG_DIR / 'units.rdf')
+    all_raw_data = RDF.from_file(RDF.CONFIG_DIR / 'units.rdf', convert_float=True)
     units = {}
     for unit_name, raw_data in all_raw_data.items():
         iname = internal_name(unit_name)

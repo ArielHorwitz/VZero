@@ -1,0 +1,44 @@
+
+=== Gameplay
+On the [b]home[/b] screen, you can explore the world and the available encounters.
+~
+Pick an encounter, draft your abilities and play to kill the boss without losing your Fort.
+If you win, you will get the [b]Victory Point[/b] reward. Beware, encounters cost you silver!
+
+
+--- Version
+This help section has been updated to the [i]base game of version [b]0.016[/b][/i]
+
+
+=== World
+The world map shows you all the available encounters. Each encounter will have a variable:
+~
+» [b]Map[/b] - determines the monsters and bosses
+» [b]Difficulty[/b] - determines how many stocks you start with
+» [b]Victory Point[/b] reward
+~
+You can usually only play an encounter once, win or lose.
+
+--- Sandbox
+The sandbox maps can be replayed without consequence.
+~
+Use the sandbox maps to test abilities and loadouts.
+
+
+=== Encounter
+You can usually only play an encounter once, win or lose. Win by killing the boss, lose if your Fort dies or you die.
+~
+The map's difficulty will determine how many stocks you have. Having extra stocks will allow you to respawn without losing.
+~
+Looting dead monsters and buying items from a shop is critical to success. Once in an encounter your abilities are set, but items allow you to customize any loadout.
+~
+Items will give you stats (that make you or your abilities stronger), and new abilities as well.
+While this will vary by loadout, the [b]networth[/b] indicator is a good measure for how strong you are.
+
+--- Monsters
+Monsters generally fall in to one of the following categories:
+~
+» [b]Campers[/b] - territorial and aggressive. Most common source of gold.
+» [b]Creeps[/b] - aggressive waves, intent on destroying your Fort.
+» [b]Treasures[/b] - passive and difficult to crack, but yield much gold.
+» [b]Neutrals[/b] - passive and usually offer some service, like an item shop.

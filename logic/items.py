@@ -32,7 +32,7 @@ assert all([icat in CATEGORY_COLORS for icat in ITEM_CATEGORIES])
 SELL_MULTIPLIER = 0.8
 QUICK_RESELL_WINDOW = 1000
 
-ALL_ITEM_NAMES = list(RDF(RDF.CONFIG_DIR / 'items.rdf').keys())
+ALL_ITEM_NAMES = list(RDF.from_file(RDF.CONFIG_DIR / 'items.rdf').keys())
 if not DEV_BUILD:
     logger.info(f'Skipping dev items')
     ALL_ITEM_NAMES = list(filter(lambda x: not x.lower().startswith('dev '), ALL_ITEM_NAMES))
@@ -189,7 +189,7 @@ def _load_raw_stats(raw_stats):
 
 
 def _load_items():
-    raw_items = RDF(RDF.CONFIG_DIR / 'items.rdf')
+    raw_items = RDF.from_file(RDF.CONFIG_DIR / 'items.rdf', convert_float=True)
     items = []
     for iid in ITEM:
         name = ALL_ITEM_NAMES[iid]

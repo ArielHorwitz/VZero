@@ -1,30 +1,20 @@
 
-=== General
-dev_build: 0
+=== general
 auto_log: 0
+default_window: windowed
 
-default_window: borderless
-
-source_map: map-4c
-!source_map: map-default
-source_spawns: spawns-4c
-!source_spawns: spawns-default
-
-=== UI
+=== ui
 detailed_mode: 0
 auto_tooltip: 1
 fog_color: 0, 0, 0, 0.7
 
-
-=== Audio
+=== audio
 volume_master: 0.15
 
-
-=== Hotkeys
+=== hotkeys
 toggle_map: tab
 toggle_shop: g
 loot: t
-
 ability1: q
 ability2: w
 ability3: e
@@ -33,7 +23,6 @@ ability5: a
 ability6: s
 ability7: d
 ability8: f
-
 item1: 1
 item2: 2
 item3: 3
@@ -43,15 +32,8 @@ item6: 6
 item7: 7
 item8: 8
 
-
-=== Loadouts
-
+=== loadouts
 dev_stats, dev_stone, dev_blast, dev_snipe, null, null, null, null
-
 map_editor_eraser, map_editor_toggle, map_editor_pipette, map_editor_droplet, null, dev_stone, null, null
-
-ominous_bond, mesmerise, bloodlust, bash, water_essence, run, physical_essence, exocrust
-
 exocrust, shield, kevlar, vortex, earth_essence, natural_medicine, ether_diffusion, fire_essence
-
-null, null, null, null, null, null, null, null
+ominous_bond, mesmerise, bloodlust, bash, water_essence, run, physical_essence, exocrust

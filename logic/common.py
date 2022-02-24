@@ -1,4 +1,4 @@
-from data import FPS, TPS, resource_name
+from data import FPS, TPS, resource_name, CorruptedDataError
 from logic import internal_name
 from logic import ABILITY
 from logic import STAT
@@ -60,7 +60,3 @@ def ticks2s(t=1):
 STAT_LIST = list(STAT)
 STAT2STATUS = {s: str2status(s.name) for s in STAT if hasattr(STATUS, s.name)}
 AID_LIST = list(ABILITY)
-
-
-class CorruptedDataError(Exception):
-    pass

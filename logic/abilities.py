@@ -1464,7 +1464,7 @@ EFFECT_CLASSES = {
 
 
 def _load_abilities():
-    raw_data = RDF(RDF.CONFIG_DIR / 'abilities.rdf')
+    raw_data = RDF.from_file(RDF.CONFIG_DIR / 'abilities.rdf', convert_float=True)
     raw_items = tuple(raw_data.items())
     abilities = []
     for aid in ABILITY:

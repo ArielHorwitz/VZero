@@ -234,6 +234,7 @@ def collide_points(r1, r2, points):
     return np.all(np.logical_and(points >= r1, points < r2), axis=1)
 
 def modify_color(color, v=1, a=1):
+    assert 3 <= len(color) <= 4
     if len(color) == 4:
         a = color[3]*a
         color = color[:3]

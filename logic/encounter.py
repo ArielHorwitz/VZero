@@ -35,10 +35,8 @@ from data import VERSION, DEV_BUILD
 from data.settings import Settings
 
 
-metagame_data = str(VERSION) + str(DEV_BUILD) + ''.join(str(RDF(RDF.CONFIG_DIR / f'{_}.rdf').raw_dict) for _ in (
+metagame_data = str(VERSION) + str(DEV_BUILD) + ''.join(str(RDF.from_file(RDF.CONFIG_DIR / f'{_}.rdf').raw_dict) for _ in (
     'abilities', 'items', 'units',
-    Settings.get_setting("source_map"),
-    Settings.get_setting("source_spawns"),
 ))
 METAGAME_BALANCE = h256(metagame_data)
 METAGAME_BALANCE_SHORT = METAGAME_BALANCE[:4]
@@ -190,6 +188,7 @@ class EncounterAPI:
         self.gui.request('set_browse_main', self.browse_main())
         self.gui.request('set_browse_elements', self.browse_elements())
         self.gui.request('set_menu_text', self.menu_text)
+        self.gui.request('set_menu_leave_text', 'Give up', 'Ditch encounter?')
 
     def refresh_gui_sprite_layer(self):
         self.gui.request('set_view_fade', 0 if self.engine.auto_tick else 0.5)
@@ -225,6 +224,7 @@ class EncounterAPI:
     def end_encounter(self, win):
         self.enc_over = True
         self.win = win
+        self.gui.request('set_menu_leave_text', 'Return to world', 'Let\'s get outta here...')
         Assets.play_sfx('ui.win' if win else 'ui.lose', volume='feedback')
         logger.info(f'Encounter over! Win: {self.win}')
         self.toggle_play(set_to=False)

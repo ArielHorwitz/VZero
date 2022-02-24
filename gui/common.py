@@ -5,6 +5,8 @@ logger = logging.getLogger(__name__)
 import numpy as np
 from nutil.vars import modify_color
 from nutil.kex import widgets
+
+from data import DEV_BUILD, APP_NAME
 from data.assets import Assets
 from data.settings import Settings
 
@@ -84,7 +86,7 @@ class SpriteLabel(widgets.AnchorLayout):
             sprite = Assets.FALLBACK_SPRITE
         self.sprite_source = sprite
         self.sprite = self.main.add(widgets.Image(source=sprite, allow_stretch=True))
-        self.label = self.main.add(widgets.Label(text=text, halign=halign, valign=valign))
+        self.label = self.main.add(widgets.Label(text=text, halign=halign, valign=valign, markup=True))
         self.main.make_bg((0,0,0,0) if bg_mask_color is None else bg_mask_color)
         self.main._bg.source = Assets.get_sprite('ui.mask-4x1') if bg_mask is None else bg_mask
         self.label.bind(pos=self.resize, size=self.resize)

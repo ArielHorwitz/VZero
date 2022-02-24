@@ -91,10 +91,6 @@ class GameAPI:
         assert len(self.world_encounters) > 0
 
     # Encounter management
-    def restart_encounter(self):
-        self.leave_encounter()
-        self.new_encounter()
-
     def new_encounter(self):
         if self.encounter_api is None:
             if self.selected_encounter in self.expired_encounters:
@@ -110,12 +106,13 @@ class GameAPI:
             if not ep.replayable:
                 self.expired_encounters.add(self.selected_encounter)
             self.silver_bank -= self.average_draft_cost()
-            self.refresh_world()
             self.encounter_api = EncounterAPI(self, ep, self.loadout)
             self.gui.request('start_encounter', self.encounter_api)
+            self.refresh_world()
         else:
             logger.info(f'GLogic requested to start new encounter, but one already exists: {self.encounter_api}')
             Assets.play_sfx('ui.target', volume='ui')
+            self.gui.request('switch_screen', 'encounter')
 
     def leave_encounter(self):
         if self.encounter_api is not None:
@@ -168,9 +165,9 @@ class GameAPI:
     @staticmethod
     def get_user_loadouts():
         Settings.reload_settings()
-        if 'Loadouts' in Settings.USER_SETTINGS:
-            return Settings.USER_SETTINGS['Loadouts'].default.positional
-        file_dump(RDF.CONFIG_DIR / 'settings.cfg', '\n\n\n=== Loadouts\n', clear=False)
+        if 'loadouts' in Settings.USER_SETTINGS:
+            return Settings.USER_SETTINGS['loadouts'].default.positional
+        file_dump(RDF.CONFIG_DIR / 'settings.rdf', '\n\n\n=== loadouts\n', clear=False)
         Settings.reload_settings()
         return []
 
@@ -208,6 +205,14 @@ class GameAPI:
         self.gui.request('set_world_stack', sbs)
         self.gui.request('set_world_details', SpriteTitleLabel(
             Assets.get_sprite('abilities.vzero'), 'World', self.world_label, (0.25, 0, 0.5, 1)))
+
+        if self.encounter_api is not None:
+            s = self.encounter_api.encounter_params.sprite
+            world_controls = [SpriteLabel(s, f'Encounter in progress!', None)]
+            self.gui.request('set_world_control_buttons', world_controls)
+        else:
+            self.gui.request('set_world_control_buttons', [])
+
         self.refresh_draft_gui()
 
     def refresh_draft_gui(self):
@@ -249,8 +254,13 @@ class GameAPI:
             ep.color,
         ))
 
+        if self.encounter_api is None:
+            draft_control = SpriteLabel(ep.sprite, f'Play encounter', None)
+        else:
+            s = self.encounter_api.encounter_params.sprite
+            draft_control = SpriteLabel(s, f'Encounter in progress!', None)
         self.gui.request('set_draft_control_buttons', [
-            SpriteLabel(ep.sprite, f'Play encounter', None),
+            draft_control,
             SpriteLabel(Assets.get_sprite('abilities.vzero'), f'Return to world', None),
         ])
 
@@ -274,15 +284,11 @@ class GameAPI:
     def handle_leave_encounter(self, event):
         self.leave_encounter()
 
-    def handle_restart_encounter(self, event):
-        self.restart_encounter()
-
     def handle_world_control_button(self, event):
-        # if event.index == 0:
-        #     self.gui.request('set_view', 'draft')
-        # else:
-        #     logger.warning(f'Unknown world control index: {event}')
-        pass
+        if event.index == 0:
+            self.gui.request('switch_screen', 'encounter')
+        else:
+            logger.warning(f'Unknown world control index: {event}')
 
     def handle_world_stack_activate(self, event):
         self.selected_encounter = event.index
@@ -308,7 +314,10 @@ class GameAPI:
 
     def handle_draft_control_button(self, event):
         if event.index == 0:
-            self.new_encounter()
+            if self.encounter_api is not None:
+                self.gui.request('switch_screen', 'encounter')
+            else:
+                self.new_encounter()
         elif event.index == 1:
             self.gui.request('set_view', 'world')
 
@@ -341,8 +350,14 @@ class GameAPI:
         all_loadouts = self.get_user_loadouts()
         logger.info(f'Saving loadout: {loadout_str}, all loadouts:\n{all_loadouts}')
         if loadout_str not in all_loadouts:
-            file_dump(RDF.CONFIG_DIR / 'settings.cfg', '\n'+loadout_str+'\n', clear=False)
-            Assets.play_sfx('ui.pause', volume='ui')
+            Settings.USER_SETTINGS['loadouts'].default.positional.insert(0, loadout_str)
+        else:
+            index = Settings.USER_SETTINGS['loadouts'].default.positional.index(loadout_str)
+            Settings.USER_SETTINGS['loadouts'].default.positional.pop(index)
+            Settings.USER_SETTINGS['loadouts'].default.positional.insert(0, loadout_str)
+
+        Settings.USER_SETTINGS.save(RDF.CONFIG_DIR / 'settings.rdf')
+        Assets.play_sfx('ui.pause', volume='ui')
 
     def handle_select_preset(self, event):
         Assets.play_sfx('ui.select', volume='ui')

@@ -57,7 +57,7 @@ class MapGenerator:
         self.biomes.append(Biome(np.array(center) * self.size, weight, tile))
 
     def generate_map(self):
-        map_data = RDF(RDF.CONFIG_DIR / f'map-{self.encounter_params.map}.rdf')
+        map_data = RDF.from_file(RDF.CONFIG_DIR / f'map-{self.encounter_params.map}.rdf', convert_float=True)
         biomes = map_data['Biomes']
         for tile, biome in biomes.items():
             for raw_point in biome.positional:
@@ -83,7 +83,7 @@ class MapGenerator:
             raise ValueError(f'Missing player spawn in map config!')
 
     def spawn_map(self):
-        spawn_type_options = RDF(RDF.CONFIG_DIR / f'spawns-{self.encounter_params.map}.rdf')
+        spawn_type_options = RDF.from_file(RDF.CONFIG_DIR / f'spawns-{self.encounter_params.map}.rdf', convert_float=True)
         for spawn, location in self.spawns:
             spawn_options = tuple(spawn_type_options[spawn].keys())
             spawn_choice = random.choice(spawn_options)

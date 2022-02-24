@@ -8,7 +8,7 @@ import nutil
 from nutil import kex
 from nutil.display import make_title
 from nutil.kex import widgets
-from data import TITLE, DEV_BUILD, NAME as APP_NAME
+from data import TITLE, DEV_BUILD
 from data.assets import Assets
 from data.settings import Settings
 from gui.api import ControlEvent
@@ -28,12 +28,10 @@ class HomeGUI(widgets.AnchorLayout):
         self.make_bg((1,1,1,1))
         self._bg.source = Assets.get_sprite('ui.home')
 
-        main_anchor = self.add(widgets.AnchorLayout()).set_size(1024, 768)
-
-        main_frame = main_anchor.add(widgets.BoxLayout(orientation='vertical'))
+        main_frame = self.add(widgets.BoxLayout(orientation='vertical'))
+        main_frame.set_size(*HOME_SIZE)
         main_frame.make_bg((0,0,0,0.5))
-        self.title_label = main_frame.add(widgets.Label(halign='center', valign='middle', markup=True))
-        self.title_label.set_size(y=30)
+        self.app_control = main_frame.add(self.app.generate_app_control_buttons())
         self.app.interface.register('set_title_text', self.set_title_text)
 
         self.screen_switch = main_frame.add(widgets.ScreenSwitch(transition=widgets.kvFadeTransition(duration=0.25)))
@@ -45,7 +43,6 @@ class HomeGUI(widgets.AnchorLayout):
         self.tooltip = self.add(Tooltip(bounding_widget=self))
         self.app.interface.register('activate_tooltip', lambda x: self.tooltip.activate(self.app.mouse_pos, x))
 
-        main_anchor.add(AppControlButtons(anchor_x='right', anchor_y='top'))
         self.make_hotkeys()
 
     def make_hotkeys(self):
@@ -65,7 +62,7 @@ class HomeGUI(widgets.AnchorLayout):
         self.screen_switch.switch_screen(sname)
 
     def set_title_text(self, text):
-        self.title_label.text = text
+        self.app_control.title.text = text
 
     def save_loadout(self, *a):
         self.app.interface.append(ControlEvent('save_loadout', 0, f'Save loadout (index always 0)'))
@@ -77,21 +74,23 @@ class HomeGUI(widgets.AnchorLayout):
 class World(widgets.BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.encounter_stack = self.add(Stack(
-            wtype=lambda *a, **k: CenteredSpriteBox(*a, margin=(.5, .5), valign='bottom', **k),
-            callback=self.world_click, x=75, y=75))
-        self.app.interface.register('set_world_stack', self.encounter_stack.update)
 
         details_frame = self.add(widgets.BoxLayout(orientation='vertical'))
         details_frame.set_size(x=DETAILS_WIDTH)
-
-        self.details = details_frame.add(SpriteTitleLabel())
-        self.app.interface.register('set_world_details', self.details.update)
-
+        # controls
         self.control_buttons = details_frame.add(Stack(wtype=SpriteLabel, callback=self.control_click))
         self.control_buttons.set_size(y=200).make_bg((1,0.5,0.5,1))
         self.app.interface.register('set_world_control_buttons', self.control_buttons.update)
         self.bind(size=self.resize)
+        # details
+        self.details = details_frame.add(SpriteTitleLabel())
+        self.app.interface.register('set_world_details', self.details.update)
+
+        # encounters
+        self.encounter_stack = self.add(Stack(
+            wtype=lambda *a, **k: CenteredSpriteBox(*a, margin=(.5, .5), valign='bottom', **k),
+            callback=self.world_click, x=75, y=75))
+        self.app.interface.register('set_world_stack', self.encounter_stack.update)
 
     def resize(self, *a):
         self.control_buttons.set_boxsize((self.control_buttons.size[0], 40))
@@ -106,31 +105,21 @@ class World(widgets.BoxLayout):
             self.app.interface.append(ControlEvent('world_stack_activate', index, 'World stack right click'))
 
 
-class AppControlButtons(widgets.AnchorLayout):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        corner_buttons = self.add(widgets.BoxLayout())
-        sizex = 0
-        if DEV_BUILD:
-            rebutton = corner_buttons.add(widgets.Button(text=f'Restart {APP_NAME}', on_release=lambda *a: self.app.do_restart()))
-            rebutton.set_size(x=150)
-            sizex += 150
-        qbutton = corner_buttons.add(widgets.Button(text='Quit', on_release=lambda *a: self.app.do_quit()))
-        qbutton.set_size(x=100)
-        sizex += 100
-        corner_buttons.set_size(x=sizex, y=30)
-
-
 class Draft(widgets.BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        # details
+        self.draft_details = self.add(DraftDetails())
+        self.draft_details.set_size(x=DETAILS_WIDTH)
+
+        # draft
         main_frame = self.add(widgets.BoxLayout(orientation='vertical'))
         self.draft = main_frame.add(Stack(
             wtype=CenteredSpriteBox,
             callback=self.draft_click,
             x=50, y=50))
         self.app.interface.register('set_draft_stack', self.draft.update)
-
+        # loadout
         self.loadout = main_frame.add(Stack(
             wtype=SpriteLabel, x=175, y=50,
             callback=self.loadout_click,
@@ -138,9 +127,6 @@ class Draft(widgets.BoxLayout):
             ))
         self.app.interface.register('set_loadout_stack', self.loadout.update)
         self.loadout.set_size(y=100)
-
-        self.draft_details = self.add(DraftDetails())
-        self.draft_details.set_size(x=DETAILS_WIDTH)
 
         self.bind(pos=self.reposition, size=self.reposition)
 
@@ -167,12 +153,12 @@ class Draft(widgets.BoxLayout):
 class DraftDetails(widgets.BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(orientation='vertical', **kwargs)
-        self.details = self.add(SpriteTitleLabel())
-        self.app.interface.register('set_draft_details', self.details.update)
-
         self.control_buttons = self.add(Stack(wtype=SpriteLabel, callback=self.control_click))
         self.control_buttons.set_size(y=200).make_bg((0.25,0.5,0.25,1))
         self.app.interface.register('set_draft_control_buttons', self.control_buttons.update)
+
+        self.details = self.add(SpriteTitleLabel())
+        self.app.interface.register('set_draft_details', self.details.update)
 
         self.bind(size=self.resize)
 

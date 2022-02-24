@@ -16,6 +16,7 @@ class Assets:
     missing_sfx = set()
     missing_images = set()
     FALLBACK_SPRITE = str(ASSETS_DIR / 'fallback.png')
+    BLANK_SPRITE = str(ASSETS_DIR / 'blank.png')
     SPRITE_CACHE = {}
     SFX_CACHE = {}
 

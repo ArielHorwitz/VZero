@@ -21,7 +21,7 @@ class Sprites(widgets.RelativeLayout, EncounterViewComponent):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.fog_size = Settings.get_setting('fog', 'UI')
-        self.fog_color = str2color(Settings.get_setting('fog_color', 'UI'))
+        self.fog_color = Settings.get_setting('fog_color', 'UI')
         self.fog_center = np.array([0, 0])
         self.fog_radius = 500
         self.set_units([], [], [])

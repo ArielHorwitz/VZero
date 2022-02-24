@@ -27,9 +27,12 @@ from kivy.uix.label import Label as kvLabel
 from kivy.uix.button import Button as kvButton
 from kivy.uix.spinner import Spinner as kvSpinner
 from kivy.uix.checkbox import CheckBox as kvCheckBox
+from kivy.uix.dropdown import DropDown as kvDropDown
 from kivy.uix.slider import Slider as kvSlider
+from kivy.uix.togglebutton import ToggleButton as kvToggleButton
 from kivy.uix.progressbar import ProgressBar as kvProgressBar
 from kivy.uix.textinput import TextInput as kvTextInput
+from kivy.uix.colorpicker import ColorPicker as kvColorPicker
 from kivy.uix.image import Image as kvImage
 # Animation
 from kivy.uix.screenmanager import ScreenManager as kvScreenManager
@@ -249,7 +252,7 @@ class InputManager(Widget):
             s.append(f'{action:<20} «{k}» {kc.on_press}')
         return '\n'.join(s)
 
-    def __init__(self, defaults=True, **kwargs):
+    def __init__(self, app_control_defaults=False, **kwargs):
         super().__init__(**kwargs)
         self.__all_keys = set()
         self.__actions = defaultdict(lambda: KeyCalls(set(), set()))
@@ -262,8 +265,8 @@ class InputManager(Widget):
         self.__last_key_down_ping = ping() - self.repeat_cooldown
         self.keyboard = kvWindow.request_keyboard(lambda: None, self)
         self.activate()
-        if defaults is True:
-            self.register('Debug input', '^!+ f12', lambda *a: self.record(on_release=self.start_debug_record))
+        self.register('Debug input', '^!+ f12', lambda *a: self.record(on_release=self.start_debug_record))
+        if app_control_defaults is True:
             self.register('Restart', '+ escape', lambda *a: nutil.restart_script())
             self.register('Quit', '^+ escape', lambda *a: self.app.stop())
 
@@ -380,8 +383,36 @@ class CheckBox(kvCheckBox, KexWidget):
     pass
 
 
+class ToggleButton(kvToggleButton, KexWidget):
+    @property
+    def active(self):
+        return self.state == 'down'
+
+    @active.setter
+    def active(self, x):
+        self.state = 'down' if x else 'normal'
+
+
 class Slider(kvSlider, KexWidget):
-    pass
+    def __init__(self, on_value=None, range=(0,1), step=0.01, **kwargs):
+        super().__init__(range=range, step=step, **kwargs)
+        self.__on_value = on_value
+        if callable(on_value):
+            self.__mouse_hold = False
+            self.bind(on_touch_down=self._on_touch_down, on_touch_up=self._on_touch_up)
+
+    def _on_touch_down(self, w, m):
+        if self.__on_value is None:
+            return False
+        if not self.collide_point(*m.pos):
+            return False
+        self.__mouse_hold = True
+
+    def _on_touch_up(self, w, m):
+        if self.__mouse_hold is True:
+            self.__mouse_hold = False
+            return self.__on_value(self.value)
+        return False
 
 
 class ListBox(BoxLayout, KexWidget):
@@ -396,6 +427,55 @@ class ListBox(BoxLayout, KexWidget):
 
     def get_alternating_color(self):
         return self.color1 if len(self.children) % 2 == 0 else self.color2
+
+
+class DropDownSelect(kvButton, KexWidget):
+    def __init__(self, callback, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        assert callable(callback)
+        self.callback = callback
+        self.dropdown = kvDropDown()
+        self.bind(on_release=self.dropdown.open)
+
+    def invoke_option(self, index, label):
+        self.text = label
+        self.callback(index, label)
+        self.dropdown.dismiss()
+
+    def set_options(self, options):
+        for index, label in enumerate(options):
+            btn = Button(text=label)
+            btn.set_size(y=40)
+            btn.bind(on_release=lambda w, i=index, l=label: self.invoke_option(i, l))
+            self.dropdown.add_widget(btn)
+
+
+class ColorSelect(kvLabel, KexWidget):
+    def __init__(self, callback, size=(300, 300), *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        assert callable(callback)
+        self.callback = callback
+        self.dropdown = kvDropDown(auto_width=False)
+        self.bind(on_touch_down=self._on_touch_down)
+        self.picker = ColorPick(callback=self._callback)
+        self.picker.set_size(*size)
+        self.dropdown.add_widget(self.picker)
+        kex.set_size(self.dropdown, *size)
+
+    def _on_touch_down(self, w, m):
+        if m.button != 'left' or not self.collide_point(*m.pos):
+            return False
+        self.dropdown.open(w)
+
+    def _callback(self, color):
+        self.callback(color)
+        self.make_bg(color)
+        self.text = ', '.join(f'{round(_*255)}' for _ in color)
+
+    def set_color(self, color, set_text=True):
+        self.picker.set_color(color)
+        self.make_bg(color)
+        self.text = ', '.join(f'{round(_*255)}' for _ in color)
 
 
 # INPUT WIDGETS
@@ -421,7 +501,7 @@ class Entry(kvTextInput, KexWidget):
             foreground_color=foreground_color,
             multiline=multiline, **kwargs)
         if not multiline:
-            self.set_size(y=kex.LINE_DP_STR)
+            self.set_size(y=35)
         self.text_validate_unfocus = defocus_on_validate
 
     def keyboard_on_key_down(self, win, keycode, text, modifiers):
@@ -607,6 +687,35 @@ class Progress(Widget):
         self._label.size = self.size
         self._label.text_size = self.size
 
+
+class ColorPick(GridLayout):
+    def __init__(self, callback, *args, **kwargs):
+        super().__init__(*args, cols=2, **kwargs)
+        assert callable(callback)
+        self.callback = callback
+        self.add(Label(text='R')).set_size(x=30)
+        self.r = self.add(Slider(on_value=self._on_color))
+        self.add(Label(text='G')).set_size(x=30)
+        self.g = self.add(Slider(on_value=self._on_color))
+        self.add(Label(text='B')).set_size(x=30)
+        self.b = self.add(Slider(on_value=self._on_color))
+        self.add(Label(text='A')).set_size(x=30)
+        self.a = self.add(Slider(on_value=self._on_color))
+        self.__color = 0, 0, 0, 0
+
+    @property
+    def color(self):
+        return self.__color
+
+    def set_color(self, color):
+        self.__color = color
+        self.r.value, self.g.value, self.b.value, self.a.value = color
+        self.make_bg(color)
+
+    def _on_color(self, *a):
+        self.__color = self.r.value, self.g.value, self.b.value, self.a.value
+        self.make_bg(self.__color)
+        self.callback(self.__color)
 
 def text_texture(text, font_size=16):
     label = CoreLabel(text=text, font_size=font_size)

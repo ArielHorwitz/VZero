@@ -35,14 +35,6 @@ BAR_WIDTH = HUD_WIDTH * 2 + MIDDLE_HUD
 TOTAL_HUD_HEIGHT = HUD_PORTRAIT = HUD_HEIGHT + BAR_HEIGHT
 TOTAL_HUD_WIDTH = BAR_WIDTH + HUD_PORTRAIT
 
-RESUME_TEXT = 'Resume'
-RESTART_TEXT = 'Restart'
-RESTART_CONFIRM_TEXT = 'We can do better!'
-LEAVE_TEXT = 'Leave'
-LEAVE_CONFIRM_TEXT = 'Leave to menu?'
-QUIT_TEXT = 'Quit'
-QUIT_CONFIRM_TEXT = 'Quit to desktop?'
-
 
 class LogicLabel(widgets.AnchorLayout, EncounterViewComponent):
     overlay_height = 50
@@ -302,6 +294,12 @@ class ViewFade(widgets.AnchorLayout, EncounterViewComponent):
 
 class Menu(Modal, EncounterViewComponent):
     active_bg = (0,0,0,0.6)
+    RESUME_TEXT = 'Resume'
+    MINIMIZE_TEXT = 'Settings'
+    LEAVE_TEXT = 'Leave'
+    LEAVE_CONFIRM_TEXT = 'Leave the encounter?'
+    QUIT_TEXT = 'Quit'
+    QUIT_CONFIRM_TEXT = 'Quit to desktop?'
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -315,12 +313,13 @@ class Menu(Modal, EncounterViewComponent):
         self.label = self.frame.add(widgets.Label(text='', halign='center', valign='middle', markup=True, line_height=1.2))
         self.label.set_size(y=100)
 
-        self.frame.add(widgets.Button(text=RESUME_TEXT, on_release=lambda *a: self.click_resume()))
-        self.restart_btn = self.frame.add(widgets.Button(on_release=lambda *a: self.click_restart()))
+        self.frame.add(widgets.Button(text=self.RESUME_TEXT, on_release=lambda *a: self.click_resume()))
+        self.frame.add(widgets.Button(text=self.MINIMIZE_TEXT, on_release=lambda *a: self.click_home()))
+        self.leave_text = self.LEAVE_TEXT
+        self.leave_confirm_text = self.LEAVE_CONFIRM_TEXT
         self.leave_btn = self.frame.add(widgets.Button(on_release=lambda *a: self.click_leave()))
         self.quit_btn = self.frame.add(widgets.Button(on_release=lambda *a: self.click_quit()))
 
-        self.confirm_restart = False
         self.confirm_leave = False
         self.confirm_quit = False
         self.unconfirm()
@@ -328,9 +327,23 @@ class Menu(Modal, EncounterViewComponent):
         self.enc.interface.register('menu_show', self.activate)
         self.enc.interface.register('menu_hide', self.deactivate)
         self.enc.interface.register('set_menu_text', self.set_text)
+        self.enc.interface.register('set_menu_home_text', self.set_home_text)
+        self.enc.interface.register('set_menu_leave_text', self.set_leave_text)
+
+    def set_home_text(self, text):
+        self.home_btn.text = text
+
+    def set_leave_text(self, text, confirm_text):
+        self.leave_text, self.leave_confirm_text = text, confirm_text
+        self.leave_btn.text = confirm_text if self.confirm_leave else text
 
     def click_resume(self):
-        self.enc.interface.append(ControlEvent('toggle_menu', 0, f'Menu "{RESUME_TEXT}" pressed'))
+        self.enc.interface.append(ControlEvent('toggle_menu', 0, self.RESUME_TEXT))
+        self.unconfirm()
+
+    def click_home(self):
+        self.app.switch_screen('profile')
+        self.unconfirm()
 
     def activate(self):
         self.unconfirm()
@@ -343,20 +356,10 @@ class Menu(Modal, EncounterViewComponent):
         self.unconfirm()
 
     def unconfirm(self):
-        self.confirm_restart = False
-        self.restart_btn.text = RESTART_TEXT
         self.confirm_leave = False
-        self.leave_btn.text = LEAVE_TEXT
+        self.leave_btn.text = self.leave_text
         self.confirm_quit = False
-        self.quit_btn.text = QUIT_TEXT
-
-    def click_restart(self):
-        if self.confirm_restart:
-            self.app.interface.append(ControlEvent('restart_encounter', 0, self.restart_btn.text))
-        else:
-            self.unconfirm()
-            self.confirm_restart = True
-            self.restart_btn.text = RESTART_CONFIRM_TEXT
+        self.quit_btn.text = self.QUIT_TEXT
 
     def click_leave(self):
         if self.confirm_leave:
@@ -364,7 +367,7 @@ class Menu(Modal, EncounterViewComponent):
         else:
             self.unconfirm()
             self.confirm_leave = True
-            self.leave_btn.text = LEAVE_CONFIRM_TEXT
+            self.leave_btn.text = self.leave_confirm_text
 
     def click_quit(self):
         if self.confirm_quit:
@@ -372,7 +375,7 @@ class Menu(Modal, EncounterViewComponent):
         else:
             self.unconfirm()
             self.confirm_quit = True
-            self.quit_btn.text = QUIT_CONFIRM_TEXT
+            self.quit_btn.text = self.QUIT_CONFIRM_TEXT
 
     def update(self):
         pass

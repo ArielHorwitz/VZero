@@ -55,7 +55,7 @@ STATUS = AutoIntEnum('STATUS', [
     *MECHANICS_NAMES,
 ])
 STATUS_VALUE = AutoIntEnum('STATUS_VALUE', ['DURATION', 'STACKS'])
-ABILITY = AutoIntEnum('ABILITY', [internal_name(_) for _ in RDF(RDF.CONFIG_DIR / 'abilities.rdf').keys()])
+ABILITY = AutoIntEnum('ABILITY', [internal_name(_) for _ in RDF.from_file(RDF.CONFIG_DIR / 'abilities.rdf').keys()])
 FAIL_RESULT = AutoIntEnum('FAIL_RESULT', [
     'CRITICAL_ERROR',
     'INACTIVE',

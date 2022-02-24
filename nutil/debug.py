@@ -3,10 +3,9 @@ import os
 import sys
 import traceback
 import copy
-from nutil import display
 
+from nutil.display import make_title, adis
 
-from nutil.display import sjoin, make_title
 
 def format_exc(e):
     """
@@ -24,13 +23,13 @@ def format_exc(e):
 def fdebug(func):
     @functools.wraps(func)
     def wrapper_debug(*args, **kwargs):
-        print(sjoin([
+        print('\n'.join([
             make_title(f'Calling {func.__name__} ({func})', length=150),
             f'Args: {adis(args)}',
             f'Kwargs: {adis(kwargs)}',
             ]))
         return_value = func(*args, **kwargs)
-        print(sjoin([
+        print('\n'.join([
             make_title(f'{func.__name__} ({func}) returned:', length=150),
             f'{return_value}',
             ]))
@@ -38,14 +37,14 @@ def fdebug(func):
     return wrapper_debug
 
 def vdebug(var, name='Variable', print_=True):
-    r = sjoin([
+    r = '\n'.join([
         make_title(f'{name} Debug'),
         f'ID: {id(var)}',
         f'Type: {type(var)}',
         f'Repr: {repr(var)}',
         f'Str: {str(var)}',
         f'Value: {var}',
-        f'Formatted:\n{display.adis(var)}',
+        f'Formatted:\n{adis(var)}',
         ])
     if print_:
         print(r)
@@ -61,5 +60,5 @@ def clear_console():
         os.system('cls')
 
 def attrs_summary(o):
-    return nutil.sjoin(f'{_:.<20}: {getattr(o, _)}' for _ in filter(
+    return '\n'.join(f'{_:.<20}: {getattr(o, _)}' for _ in filter(
         lambda k: not k.startswith('_'), o.__dict__.keys()))
