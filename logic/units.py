@@ -12,7 +12,7 @@ from nutil.time import ratecounter
 from nutil.random import SEED
 from data.load import RDF
 from data.assets import Assets
-from data.settings import Settings
+from data.settings import PROFILE
 
 from logic.common import *
 from logic.mechanics import Mechanics
@@ -392,7 +392,7 @@ class Unit:
         self.check_win_condition()
 
     def play_death_sfx(self):
-        v = Settings.get_volume('monster_death')
+        v = PROFILE.get_setting('audio.volume_monster_death')
         if v > 0:
             Assets.play_sfx(self.death_sfx, volume=v)
 

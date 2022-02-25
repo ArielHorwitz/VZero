@@ -6,14 +6,15 @@ import math
 import numpy as np
 from collections import defaultdict
 
-from nutil.vars import nsign, nsign_str, modify_color, is_iterable, minmax, NP
-from nutil.random import SEED
+from nutil.vars import nsign, nsign_str, modify_color, is_iterable, minmax, NP, PublishSubscribe
+from nutil.random import SEED, h256
 from nutil.display import njoin, make_title
 from nutil.time import RateCounter, ping, pong, humanize_ms
+from nutil.file import file_load
 
-from data import resource_name, DEV_BUILD
+from data import resource_name, DEV_BUILD, VERSION
 from data.load import RDF
-from data.settings import Settings
+from data.settings import PROFILE
 from data.assets import Assets
 from gui.api import SpriteTitleLabel, ProgressBar, SpriteBox, SpriteLabel
 from gui.api import ControlEvent, InputEvent, CastEvent
@@ -28,13 +29,6 @@ from logic.mapgen import MapGenerator
 from logic.items import ITEM, ITEMS, ITEM_CATEGORIES, Item
 
 
-
-from nutil.file import file_load
-from nutil.random import h256
-from data import VERSION, DEV_BUILD
-from data.settings import Settings
-
-
 metagame_data = str(VERSION) + str(DEV_BUILD) + ''.join(str(RDF.from_file(RDF.CONFIG_DIR / f'{_}.rdf').raw_dict) for _ in (
     'abilities', 'items', 'units',
 ))
@@ -43,9 +37,6 @@ METAGAME_BALANCE_SHORT = METAGAME_BALANCE[:4]
 logger.info(f'Metagame Balance: {METAGAME_BALANCE_SHORT} ({METAGAME_BALANCE})')
 
 
-
-AUTO_LOG = Settings.get_setting('auto_log', 'General')
-LOG_INTERVAL_TICKS = Settings.get_setting('log_interval', 'General')
 
 DIFFICULTY_LEVELS = ['Easy mode', 'Medium challenge', 'Hard difficulty', 'Impossible...']
 DIFFICULTY2STOCKS = {
@@ -68,7 +59,7 @@ FEEDBACK_SFX = {
     FAIL_RESULT.ON_COOLDOWN: 'ui.cooldown',
     FAIL_RESULT.MISSING_COST: 'ui.cost',
 }
-FEEDBACK_SFX_INTERVAL = Settings.get_setting('feedback_sfx_cooldown', 'UI')
+
 
 SELECTION_SPRITE = Assets.get_sprite('ui.crosshair-select')
 QUICKCAST_SPRITE = Assets.get_sprite('ui.crosshair-cast')
@@ -104,7 +95,7 @@ SHOP_MAIN_TEXT = '\n'.join([
     '100% refund on new items (<10 seconds)',
 ])
 SHOP_MAIN_TEXT_NOSHOP = '\n'.join([
-    f'Press {Settings.get_setting("toggle_map", "Hotkeys")} to find a shop',
+    f'Press {PROFILE.get_setting("hotkeys.toggle_map")} to find a shop',
     *(f'{_+1}. {n.name.lower().capitalize()} shop' for _, n in enumerate(ITEM_CATEGORIES)),
 ])
 
@@ -125,6 +116,8 @@ class EncounterAPI:
         self.game = game
         self.encounter_params = encounter_params
         self.difficulty_level = encounter_params.difficulty
+
+        self.settings_notifier = PublishSubscribe(name='ELogic')
         self.engine = EncounterEngine(self)
         self.map = MapGenerator(self, encounter_params)
         self.player = self.units[self.player_uid]
@@ -134,16 +127,29 @@ class EncounterAPI:
         self.always_visible = np.zeros(len(self.engine.units), dtype=np.bool)
         self.always_active = np.zeros(len(self.engine.units), dtype=np.bool)
         self.default_upp = 2
-        self.__last_log_interval = self.engine.tick - (LOG_INTERVAL_TICKS + 1)
+        self.settings_notifier.subscribe('ui.feedback_sfx_cooldown', self.setting_feedback_sfx_interval)
+        self.setting_feedback_sfx_interval()
+        self.settings_notifier.subscribe('misc.log_interval', self.setting_log_interval)
+        self.settings_notifier.subscribe('misc.auto_log', self.setting_log_interval)
+        self.setting_log_interval()
         self.__last_hud_statuses = []
         self.__last_fail_sfx_ping = ping()
         self.map_mode = False
+
+
         self.engine.set_stats(self.player_uid, STAT.STOCKS, DIFFICULTY2STOCKS[self.difficulty_level])
         # Setup units
         for unit in self.engine.units:
             unit.action_phase()
             self.always_visible[unit.uid] = unit.always_visible
             self.always_active[unit.uid] = unit.always_active
+
+    def setting_feedback_sfx_interval(self):
+        self.__feedback_sfx_interval = PROFILE.get_setting('ui.feedback_sfx_cooldown')
+
+    def setting_log_interval(self):
+        self.__log_interval_ticks = PROFILE.get_setting('misc.log_interval')
+        self.__last_log_interval = self.engine.tick - (self.__log_interval_ticks + 1)
 
     def setup(self, interface):
         self.gui = interface
@@ -153,7 +159,7 @@ class EncounterAPI:
         self.set_zoom()
 
     def update(self):
-        self.detailed_info_mode = self.gui.request('get_detailed_info_mode')
+        self.detailed_info_mode = PROFILE.get_setting('ui.detailed_mode')
         self.gui_size = self.gui.request('get_gui_size')
         self.view_size = self.gui_size * self.upp
 
@@ -162,7 +168,7 @@ class EncounterAPI:
             in_action_radius = self.engine.get_distances(self.engine.get_position(0)) < player_action_radius
             active_uids = self.always_active | in_action_radius
             self.engine.update(active_uids)
-            if self.__last_log_interval + LOG_INTERVAL_TICKS < self.engine.tick:
+            if self.__last_log_interval + self.__log_interval_ticks < self.engine.tick:
                 self.log_player_state()
                 self.__last_log_interval = self.engine.tick
 
@@ -293,7 +299,7 @@ class EncounterAPI:
     def play_feedback(self, feedback, uid=0):
         if not uid in self.sfx_feedback_uids:
             return
-        if pong(self.__last_fail_sfx_ping) > FEEDBACK_SFX_INTERVAL:
+        if pong(self.__last_fail_sfx_ping) > self.__feedback_sfx_interval:
             if feedback in FEEDBACK_SFX:
                 Assets.play_sfx(FEEDBACK_SFX[feedback], volume='feedback')
                 self.__last_fail_sfx_ping = ping()
@@ -341,7 +347,7 @@ class EncounterAPI:
             self.default_upp = v
             return
         if d is None:
-            self.default_upp = 1 / (Settings.get_setting('default_zoom')/100)
+            self.default_upp = 1 / (PROFILE.get_setting('ui.default_zoom')/100)
         else:
             self.default_upp *= abs(d)**(-1*nsign(d))
         self.default_upp = minmax(
@@ -467,9 +473,9 @@ class EncounterAPI:
     hud_left_hotkeys = []
     hud_right_hotkeys = []
     for i in range(8):
-        akey = Settings.get_setting(f'ability{i+1}', 'Hotkeys')
+        akey = PROFILE.get_setting(f'hotkeys.ability{i+1}')
         hud_left_hotkeys.append(str(int(akey) if isinstance(akey, float) else akey).upper())
-        ikey = Settings.get_setting(f'item{i+1}', 'Hotkeys')
+        ikey = PROFILE.get_setting(f'hotkeys.item{i+1}')
         hud_right_hotkeys.append(str(int(ikey) if isinstance(ikey, float) else ikey).upper())
 
     def hud_left(self):
@@ -630,7 +636,7 @@ class EncounterAPI:
     ItemCls = Item
 
     def log_player_state(self, force=False):
-        if AUTO_LOG or force:
+        if PROFILE.get_setting('misc.auto_log') or force:
             logger.info('\n'.join([
                 '\n\n\n',
                 f'__ PLAYER STATE __',

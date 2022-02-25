@@ -1,39 +1,24 @@
 
 === general
-auto_log: 0
-default_window: windowed
-
-=== ui
-detailed_mode: 0
-auto_tooltip: 1
-fog_color: 0, 0, 0, 0.7
+fullscreen: 0
+fullscreen_type: borderless
+window_resolution: 1366×768
+window_offset_x: 2100.0
+window_offset_y: 100.0
+borderless_offset_x: 1920.0
+borderless_offset_y: 0.0
 
 === audio
-volume_master: 0.15
+volume_master: 0.25
+volume_sfx: 0.8
+
+=== ui
+decorations: 1.00, 0.00, 1.00, 1.00
 
 === hotkeys
-toggle_map: tab
 toggle_shop: g
 loot: t
-ability1: q
-ability2: w
-ability3: e
-ability4: r
-ability5: a
-ability6: s
-ability7: d
-ability8: f
-item1: 1
-item2: 2
-item3: 3
-item4: 4
-item5: 5
-item6: 6
-item7: 7
-item8: 8
 
-=== loadouts
-dev_stats, dev_stone, dev_blast, dev_snipe, null, null, null, null
-map_editor_eraser, map_editor_toggle, map_editor_pipette, map_editor_droplet, null, dev_stone, null, null
-exocrust, shield, kevlar, vortex, earth_essence, natural_medicine, ether_diffusion, fire_essence
-ominous_bond, mesmerise, bloodlust, bash, water_essence, run, physical_essence, exocrust
+=== misc
+dev_build: 1
+

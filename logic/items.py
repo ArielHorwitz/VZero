@@ -8,7 +8,6 @@ from enum import IntEnum
 from data import DEV_BUILD
 from data.load import RDF
 from data.assets import Assets
-from data.settings import Settings
 from nutil.vars import AutoIntEnum, nsign_str
 from logic.common import *
 from logic.abilities import ABILITIES

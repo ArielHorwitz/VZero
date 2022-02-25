@@ -6,7 +6,6 @@ logger = logging.getLogger(__name__)
 from nutil.kex import widgets
 from data import resource_name, APP_COLOR, BASE_RESOLUTION
 from data.load import RDF
-from data.settings import PROFILE
 from data.assets import Assets
 
 from gui.api import SpriteLabel as APISpriteLabel
@@ -21,13 +20,12 @@ class HelpGUI(widgets.AnchorLayout):
 
         main_frame = self.add(widgets.BoxLayout(orientation='vertical'))
         main_frame.set_size(*BASE_RESOLUTION)
-        main_frame.make_bg((0,0,0,0.5))
+        main_frame.make_bg((0,0,0,0.75))
         self.app_control = main_frame.add(self.app.generate_app_control_buttons())
         self.app_control.title.text = '[b]Help[/b]'
 
         self.buttons = []
         bottom_frame = main_frame.add(widgets.BoxLayout())
-        bottom_frame.make_bg((0,0,0,0.75))
         self.button_stack = bottom_frame.add(Stack(
             wtype=lambda *a, **k: SpriteLabel(*a, **k),
             callback=self.button_stack_click, x=200, y=50))

@@ -9,7 +9,6 @@ from collections import namedtuple, defaultdict
 from data import resource_name
 from data.load import RDF
 from data.tileset import TileMap
-from data.settings import Settings
 
 from logic.common import *
 from logic.units import Unit

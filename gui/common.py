@@ -2,16 +2,19 @@ import logging
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
+import math
 import numpy as np
-from nutil.vars import modify_color
+from nutil.vars import modify_color, PublishSubscribe
 from nutil.kex import widgets
 
 from data import DEV_BUILD, APP_NAME
 from data.assets import Assets
-from data.settings import Settings
+from data.settings import PROFILE
 
 
 TOOLTIP_SIZE = 400, 600
+SETTINGS_NOTIFIER = PublishSubscribe('GUI common')
+PROFILE.register_notifications(SETTINGS_NOTIFIER.push)
 
 
 class CenteredSpriteBox(widgets.AnchorLayout):
@@ -169,7 +172,6 @@ class Stack(widgets.StackLayout):
         self.drag_drop_callback = drag_drop_callback
         self.dragging = None
         self.consider_hover = consider_hover
-        # self.make_bg((0, 0, 0, 1))
         if self.callback or self.drag_drop_callback:
             self.bind(on_touch_down=lambda w, m: self.on_touch_down(m))
         if self.drag_drop_callback:
@@ -244,7 +246,11 @@ class Tooltip(widgets.BoxLayout):
         self.bind(on_touch_down=self._check_click)
         self.__hover_bind = None
         self.__dismiss_origin = np.array([0, 0])
-        self.auto_dismiss = Settings.get_setting('auto_dismiss_tooltip', 'UI')
+        SETTINGS_NOTIFIER.subscribe('ui.auto_dismiss_tooltip', self.setting_auto_dismiss)
+        self.setting_auto_dismiss()
+
+    def setting_auto_dismiss(self):
+        self.auto_dismiss = PROFILE.get_setting('ui.auto_dismiss_tooltip')
 
     def activate(self, pos, stl, bounding_widget=None):
         if self.__frame not in self.children:

@@ -12,7 +12,7 @@ from nutil.file import file_dump
 from data import DEV_BUILD
 from data.load import RDF
 from data.assets import Assets
-from data.settings import Settings
+from data.settings import PROFILE
 from logic.common import *
 from gui.api import SpriteLabel, SpriteTitleLabel, SpriteBox
 from gui.api import ControlEvent
@@ -28,18 +28,19 @@ EncounterParams = namedtuple('EncounterParams', [
 
 
 class GameAPI:
-    def __init__(self, interface):
-        self.seed = Seed('dev')
-        self.generate_world()
-        self.selected_encounter = 0
+    def __init__(self, interface, settings_notifier):
         self.gui = interface
+        self.settings_notifier = settings_notifier
+        self.seed = Seed('dev')
+        self.selected_encounter = 0
         self.encounter_api = None
         self.draftables = []
-        for aid in AID_LIST:
-            if not ABILITIES[aid].draftable and not Settings.get_setting('dev_build', 'General'):
-                continue
-            self.draftables.append(aid)
         self.loadout = [None for _ in range(8)]
+        self.generate_world()
+        self.settings_notifier.subscribe('misc.dev_build', self.setting_dev_build)
+
+    def setting_dev_build(self):
+        self.refresh_world()
 
     def update(self):
         self.gui.request('set_title_text', '[b]Drafting Phase[/b]' if self.encounter_api is None else '[b]Encounter in progress[/b]')
@@ -52,7 +53,7 @@ class GameAPI:
     def setup(self):
         logger.info(f'GLogic found gui interface:\n{self.gui.requests}')
         self.set_widgets()
-        self.load_loadout(1)
+        # self.load_loadout(1)
 
     def generate_world(self):
         self.silver_bank = 1000
@@ -161,35 +162,6 @@ class GameAPI:
                     return
         Assets.play_sfx('ui.target', volume='ui')
 
-    # Loadouts
-    @staticmethod
-    def get_user_loadouts():
-        Settings.reload_settings()
-        if 'loadouts' in Settings.USER_SETTINGS:
-            return Settings.USER_SETTINGS['loadouts'].default.positional
-        file_dump(RDF.CONFIG_DIR / 'settings.rdf', '\n\n\n=== loadouts\n', clear=False)
-        Settings.reload_settings()
-        return []
-
-    def load_loadout(self, loadout_number):
-        if loadout_number == 0:
-            self.loadout = [None for _ in range(8)]
-        elif loadout_number != 0:
-            self.loadout = []
-            all_loadouts = self.get_user_loadouts()
-            loadout_index = loadout_number - 1 if loadout_number > 0 else loadout_number
-            if all_loadouts and len(all_loadouts) > loadout_index:
-                selected_loadout = all_loadouts[loadout_index]
-                for aname in selected_loadout.split(', '):
-                    try:
-                        aid = str2ability(aname)
-                        assert ABILITIES[aid].draftable or DEV_BUILD
-                        self.loadout.append(aid)
-                    except:
-                        self.loadout.append(None)
-            self.loadout.extend([None for _ in range(8-len(self.loadout))])
-        self.refresh_draft_gui()
-
     # GUI
     def set_widgets(self):
         self.refresh_world()
@@ -216,6 +188,7 @@ class GameAPI:
         self.refresh_draft_gui()
 
     def refresh_draft_gui(self):
+        self.refresh_draftables()
         draft_stack = []
         for aid in self.draftables:
             ability = ABILITIES[aid]
@@ -263,6 +236,13 @@ class GameAPI:
             draft_control,
             SpriteLabel(Assets.get_sprite('abilities.vzero'), f'Return to world', None),
         ])
+
+    def refresh_draftables(self):
+        dev = PROFILE.get_setting('misc.dev_build')
+        self.draftables = []
+        for aid in AID_LIST:
+            if ABILITIES[aid].draftable or dev:
+                self.draftables.append(aid)
 
     @property
     def world_label(self):
@@ -344,21 +324,3 @@ class GameAPI:
             List.swap(self.loadout, origin, target)
             Assets.play_sfx('ui.select', volume='ui')
             self.refresh_draft_gui()
-
-    def handle_save_loadout(self, event):
-        loadout_str = ', '.join(['null' if aid is None else aid.name.lower() for aid in self.loadout])
-        all_loadouts = self.get_user_loadouts()
-        logger.info(f'Saving loadout: {loadout_str}, all loadouts:\n{all_loadouts}')
-        if loadout_str not in all_loadouts:
-            Settings.USER_SETTINGS['loadouts'].default.positional.insert(0, loadout_str)
-        else:
-            index = Settings.USER_SETTINGS['loadouts'].default.positional.index(loadout_str)
-            Settings.USER_SETTINGS['loadouts'].default.positional.pop(index)
-            Settings.USER_SETTINGS['loadouts'].default.positional.insert(0, loadout_str)
-
-        Settings.USER_SETTINGS.save(RDF.CONFIG_DIR / 'settings.rdf')
-        Assets.play_sfx('ui.pause', volume='ui')
-
-    def handle_select_preset(self, event):
-        Assets.play_sfx('ui.select', volume='ui')
-        self.load_loadout(event.index)

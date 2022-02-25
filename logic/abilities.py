@@ -11,7 +11,6 @@ from nutil.vars import normalize, is_floatable, nsign_str, modify_color, try_flo
 from nutil.random import SEED
 from data.load import RDF, SubCategory as RDFSubCategory
 from data.assets import Assets
-from data.settings import Settings
 from logic.common import *
 from logic.mechanics import Mechanics, Rect
 
@@ -1275,10 +1274,9 @@ class EffectSFX(Effect):
         self.category = raw_data['category'] if 'category' in raw_data else 'ability'
         self.sfx = raw_data['sfx'] if 'sfx' in raw_data else phase.ability.sfx
         self.volume =  resolve_formula('volume', raw_data, 1)
-        self.__volume = 'sfx'
 
     def apply(self, api, uid, targets):
-        volume = Settings.get_volume(self.__volume) * self.volume.get_value(api, uid)
+        volume = Assets.get_volume('sfx') * self.volume.get_value(api, uid)
         Assets.play_sfx(f'{self.category}.{self.sfx}', volume=volume)
 
 

@@ -14,7 +14,7 @@ from nutil.time import ratecounter, RateCounter, humanize_ms
 
 from data import TITLE
 from data.assets import Assets
-from data.settings import Settings
+from data.settings import PROFILE
 from gui import cc_int, center_position
 from gui.api import MOUSE_EVENTS, ControlEvent, InputEvent
 from gui.common import SpriteLabel, CenteredSpriteBox, SpriteTitleLabel, SpriteBox, Stack, Modal
@@ -24,16 +24,6 @@ from logic.common import *
 
 
 Box = namedtuple('Box', ['box', 'sprite', 'label'])
-
-AUTO_TOOLTIP = Settings.get_setting('auto_tooltip', 'UI')
-HUD_SCALING = Settings.get_setting('hud_scale', 'UI')
-HUD_WIDTH = 300
-MIDDLE_HUD = 230
-HUD_HEIGHT = 120 * HUD_SCALING
-BAR_HEIGHT = 64 * (HUD_SCALING / 2)
-BAR_WIDTH = HUD_WIDTH * 2 + MIDDLE_HUD
-TOTAL_HUD_HEIGHT = HUD_PORTRAIT = HUD_HEIGHT + BAR_HEIGHT
-TOTAL_HUD_WIDTH = BAR_WIDTH + HUD_PORTRAIT
 
 
 class LogicLabel(widgets.AnchorLayout, EncounterViewComponent):
@@ -72,12 +62,20 @@ class LogicLabel(widgets.AnchorLayout, EncounterViewComponent):
 class Decoration(widgets.AnchorLayout, EncounterViewComponent):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.frames = {}
         for side in ('left', 'right'):
             anchor = self.add(widgets.AnchorLayout(anchor_x=side, anchor_y='center'))
             frame = anchor.add(widgets.BoxLayout())
-            frame.make_bg((1,1,1,Settings.get_setting('decorations', 'UI')), source=Assets.get_sprite(f'ui.side-{side}'))
             frame.set_size(x=40)
+            self.frames[side] = frame
         self.bind(pos=self.reposition, size=self.reposition)
+        self.enc.settings_notifier.subscribe('ui.decorations', self.setting_decorations)
+        self.setting_decorations()
+
+    def setting_decorations(self):
+        for side, frame in self.frames.items():
+            color = PROFILE.get_setting('ui.decorations')
+            frame.make_bg(color, source=Assets.get_sprite(f'ui.side-{side}'))
 
     def reposition(self, *a):
         self.pos = self.enc.pos
@@ -85,89 +83,79 @@ class Decoration(widgets.AnchorLayout, EncounterViewComponent):
 
 
 class HUD(widgets.AnchorLayout, EncounterViewComponent):
-    overlay_height = TOTAL_HUD_HEIGHT
     def __init__(self, **kwargs):
         super().__init__(anchor_x='center', anchor_y='bottom', **kwargs)
+
         ct1 = self.add(widgets.ConsumeTouch(consume_keys=False))
         ct2 = self.add(widgets.ConsumeTouch(consume_keys=False))
 
-        self.main_frame = main_frame = self.add(widgets.BoxLayout())
-        main_frame.set_size(x=TOTAL_HUD_WIDTH, y=self.overlay_height)
+        self.main_frame = self.add(widgets.BoxLayout())
 
-        self.portrait_frame = portrait_frame = main_frame.add(widgets.BoxLayout(orientation='vertical'))
-        portrait_frame.set_size(x=HUD_PORTRAIT, y=HUD_PORTRAIT)
-        portrait_frame.make_bg((1,1,1,1), source=Assets.get_sprite('ui.portrait'))
-        portrait_frame.bind(on_touch_down=self.portrait_click)
-        self.name_label = portrait_frame.add(widgets.Label(halign='center', valign='middle'))
-        self.portrait = portrait_frame.add(widgets.Image(allow_stretch=True, keep_ratio=True))
+        self.portrait_frame = self.main_frame.add(widgets.BoxLayout(orientation='vertical'))
+        self.portrait_frame.make_bg((1,1,1,1), source=Assets.get_sprite('ui.portrait'))
+        self.portrait_frame.bind(on_touch_down=self.portrait_click)
+        self.name_label = self.portrait_frame.add(widgets.Label(halign='center', valign='middle'))
+        self.portrait = self.portrait_frame.add(widgets.Image(allow_stretch=True, keep_ratio=True))
         self.name_label.set_size(y=25)
         self.name_label.text_size = self.name_label.size
-        center_frame = main_frame.add(widgets.BoxLayout(orientation='vertical'))
+        self.center_frame = self.main_frame.add(widgets.BoxLayout(orientation='vertical'))
 
         ct1.widget = self.portrait
-        ct2.widget = center_frame
+        ct2.widget = self.center_frame
 
-        a = center_frame.add(widgets.AnchorLayout(anchor_x='left'))
-        a.set_size(y=50)
-        self.status_panel = a.add(Stack(
+        self.status_anchor = self.center_frame.add(widgets.AnchorLayout(anchor_x='left', anchor_y='bottom'))
+        self.status_stack = self.status_anchor.add(Stack(
             wtype=CenteredSpriteBox,
             callback=lambda i, b: self.click('status', i, b),
-            x=50, y=50))
-        self.status_panel.make_bg((0,0,0,0))
+        ))
+        self.status_stack.make_bg((0,0,0,0))
 
-        bars = center_frame.add(widgets.BoxLayout(orientation='vertical'))
-        bars.set_size(x=BAR_WIDTH, y=BAR_HEIGHT)
+        self.bar_frame = self.center_frame.add(widgets.BoxLayout(orientation='vertical'))
         s = Assets.get_sprite('ui.stat-bar')
-        self.bars = [bars.add(widgets.Progress(source=s)) for _ in range(2)]
+        self.bars = [self.bar_frame.add(widgets.Progress(source=s)) for _ in range(2)]
 
-        main_panel = center_frame.add(widgets.BoxLayout())
-        main_panel.set_size(y=HUD_HEIGHT)
+        self.main_panel = self.center_frame.add(widgets.BoxLayout())
 
-        padding = 0.95, 0.95
-        left_panel = main_panel.add(widgets.AnchorLayout())
-        left_panel.set_size(HUD_WIDTH, HUD_HEIGHT).make_bg((1,1,1,1), source=Assets.get_sprite('ui.hud-left'))
-        self.left_hud = left_panel.add(Stack(
+        self.left_panel = self.main_panel.add(widgets.AnchorLayout())
+        self.left_panel.make_bg((1,1,1,1), source=Assets.get_sprite('ui.hud-left'))
+        self.left_hud = self.left_panel.add(Stack(
             wtype=lambda *a, **k: CenteredSpriteBox(*a,
                 bg_sprite=Assets.get_sprite('ui.sprite-box-mask'),
                 fg_sprite=Assets.get_sprite('ui.sprite-box'),
                 **k),
             callback=lambda i, b: self.click('left', i, b),
             drag_drop_callback=lambda *a: self.hud_drag_drop('left', *a),
-            x=HUD_WIDTH*padding[0]/4, y=HUD_HEIGHT*padding[1]/2))
-        self.left_hud.set_size(hx=padding[0], hy=padding[1])
+        ))
 
-        middle_panel = main_panel.add(widgets.BoxLayout(orientation='vertical'))
-        middle_panel.set_size(x=MIDDLE_HUD).make_bg((1,1,1,1), source=Assets.get_sprite('ui.hud-middle'))
-        middle_hud_anchor = middle_panel.add(widgets.AnchorLayout())
-        middle_hud_size = MIDDLE_HUD*padding[0], HUD_HEIGHT*padding[1]*0.75
-        self.middle_hud = middle_hud_anchor.add(Stack(
-            wtype=SpriteLabel, callback=lambda i, b: self.click('middle', i, b),
-            x=middle_hud_size[0]/3, y=middle_hud_size[1]/3))
-        self.middle_hud.set_size(x=middle_hud_size[0], y=middle_hud_size[1])
-        self.middle_label = middle_panel.add(widgets.Label(halign='center', valign='middle'))
+        self.middle_panel = self.main_panel.add(widgets.BoxLayout(orientation='vertical'))
+        self.middle_panel.make_bg((1,1,1,1), source=Assets.get_sprite('ui.hud-middle'))
+        middle_hud_anchor = self.middle_panel.add(widgets.AnchorLayout())
+        self.middle_hud = middle_hud_anchor.add(Stack(wtype=SpriteLabel, callback=lambda i, b: self.click('middle', i, b)))
+        self.middle_label = self.middle_panel.add(widgets.Label(halign='center', valign='middle'))
         self.middle_label.make_bg((0,0,0,0.3), source=Assets.get_sprite('ui.mask-4x1'))
-        self.middle_label.set_size(y=HUD_HEIGHT-middle_hud_size[1])
 
-        right_panel = main_panel.add(widgets.AnchorLayout())
-        right_panel.set_size(HUD_WIDTH, HUD_HEIGHT).make_bg((1,1,1,1), source=Assets.get_sprite('ui.hud-right'))
-        self.right_hud = right_panel.add(Stack(
+        self.right_panel = self.main_panel.add(widgets.AnchorLayout())
+        self.right_panel.make_bg((1,1,1,1), source=Assets.get_sprite('ui.hud-right'))
+        self.right_hud = self.right_panel.add(Stack(
             wtype=lambda *a, **k: CenteredSpriteBox(*a,
                 bg_sprite=Assets.get_sprite('ui.sprite-box-mask'),
                 fg_sprite=Assets.get_sprite('ui.sprite-box'),
                 **k),
             callback=lambda i, b: self.click('right', i, b),
             drag_drop_callback=lambda *a: self.hud_drag_drop('right', *a),
-            x=HUD_WIDTH*padding[0]/4, y=HUD_HEIGHT*padding[1]/2))
-        self.right_hud.set_size(hx=padding[0], hy=padding[1])
+        ))
 
         self.enc.interface.register('set_huds', self.set_huds)
         self.enc.interface.register('set_hud_bars', self.set_hud_bars)
         self.enc.interface.register('set_hud_portrait', self.set_portrait)
         self.enc.interface.register('set_hud_middle_label', self.set_middle_label)
-        self.bind(pos=self.reposition, size=self.reposition)
+
+        self.enc.settings_notifier.subscribe('ui.hud_height', self.setting_hud_scale)
+        self.enc.settings_notifier.subscribe('ui.hud_width', self.setting_hud_scale)
+        self.setting_hud_scale()
 
     def update(self):
-        self.set_auto_hover(self.enc.detailed_info_mode if self.hud_visible else False)
+        self.set_auto_hover(PROFILE.get_setting('ui.detailed_mode') if self.hud_visible else False)
 
     def hud_drag_drop(self, hud, origin, target, button):
         if button == 'middle':
@@ -180,10 +168,6 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
 
     def click(self, hud, index, button):
         self.enc.interface.append((ControlEvent(f'{hud}_hud_{MOUSE_EVENTS[button]}', index, '')))
-
-    def reposition(self, *a):
-        self.anchor_x = 'left' if self.enc.size[0] < TOTAL_HUD_WIDTH else 'center'
-        self.name_label.text_size = self.name_label.size
 
     def show_hud(self):
         if not self.hud_visible:
@@ -199,13 +183,13 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
         return self.main_frame in self.children
 
     def set_auto_hover(self, set_as=None):
-        if not AUTO_TOOLTIP:
+        if not PROFILE.get_setting('ui.auto_tooltip'):
             return
         set_as = self.enc.detailed_info_mode if set_as is None else set_as
         self.middle_hud.consider_hover = set_as
         self.right_hud.consider_hover = set_as
         self.left_hud.consider_hover = set_as
-        self.status_panel.consider_hover = set_as
+        self.status_stack.consider_hover = set_as
 
     def set_hud_bars(self, top, bottom):
         for i, pb in enumerate((top, bottom)):
@@ -221,11 +205,39 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
         self.left_hud.update(left)
         self.middle_hud.update(middle)
         self.right_hud.update(right)
-        self.status_panel.update(statuses)
-        self.status_panel.set_size(x=len(self.status_panel.boxes)*50)
+        self.status_stack.update(statuses)
 
     def set_middle_label(self, text):
         self.middle_label.text = text
+
+    def setting_hud_scale(self):
+        width_scale = PROFILE.get_setting('ui.hud_width') * 2
+        height_scale = PROFILE.get_setting('ui.hud_height') * 2
+
+        status_size = 50 * sum((width_scale, height_scale))/2
+        middle_width = 230 * width_scale
+        side_width = 300 * width_scale
+        side_height = 120 * height_scale
+        bar_height = 64 * (height_scale / 2)
+        bar_width = side_width * 2 + middle_width
+        portrait_size = side_height + bar_height
+        total_width = bar_width + portrait_size
+        self.overlay_height = total_height = portrait_size + status_size
+
+        self.main_frame.set_size(x=total_width, y=total_height)
+        self.center_frame.set_size(x=bar_width, y=total_height)
+        self.status_anchor.set_size(y=status_size)
+        self.status_stack.set_size(x=bar_width, y=status_size)
+        self.status_stack.set_boxsize((status_size, status_size))
+        self.portrait_frame.set_size(x=portrait_size, y=portrait_size)
+        self.bar_frame.set_size(y=bar_height)
+        self.left_panel.set_size(side_width, side_height)
+        self.left_hud.set_boxsize((side_width/4, side_height/2))
+        self.middle_panel.set_size(middle_width, side_height)
+        self.middle_hud.set_boxsize((middle_width/3, side_height/4))
+        self.right_panel.set_size(side_width, side_height)
+        self.right_hud.set_boxsize((side_width/4, side_height/2))
+        self.middle_label.set_size(y=side_height/4)
 
 
 class ModalBrowse(Modal, EncounterViewComponent):
@@ -271,7 +283,7 @@ class ModalBrowse(Modal, EncounterViewComponent):
         if not self.activated:
             self.stack.consider_hover = False
             return
-        self.stack.consider_hover = self.enc.detailed_info_mode if AUTO_TOOLTIP else False
+        self.stack.consider_hover = PROFILE.get_setting('ui.detailed_mode') if PROFILE.get_setting('ui.auto_tooltip') else False
 
     def set_browse_main(self, stl):
         self.main.update(stl)

@@ -23,6 +23,7 @@ from kivy.uix.stacklayout import StackLayout as kvStackLayout
 from kivy.uix.floatlayout import FloatLayout as kvFloatLayout
 from kivy.uix.anchorlayout import AnchorLayout as kvAnchorLayout
 from kivy.uix.relativelayout import RelativeLayout as kvRelativeLayout
+from kivy.uix.scrollview import ScrollView as kvScrollView
 from kivy.uix.label import Label as kvLabel
 from kivy.uix.button import Button as kvButton
 from kivy.uix.spinner import Spinner as kvSpinner
@@ -357,6 +358,11 @@ class RelativeLayout(kvStackLayout, KexWidget):
 
 class ModalView(kvModalView, KexWidget):
     pass
+
+
+class ScrollView(kvScrollView, KexWidget):
+    pass
+
 
 # BASIC WIDGETS
 class Label(kvLabel, KexWidget):
@@ -716,6 +722,7 @@ class ColorPick(GridLayout):
         self.__color = self.r.value, self.g.value, self.b.value, self.a.value
         self.make_bg(self.__color)
         self.callback(self.__color)
+
 
 def text_texture(text, font_size=16):
     label = CoreLabel(text=text, font_size=font_size)

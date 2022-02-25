@@ -10,10 +10,10 @@ from pathlib import Path
 from nutil import restart_script
 from nutil.kex import widgets
 from nutil.time import RateCounter, pingpong
-from nutil.vars import Interface
+from nutil.vars import Interface, PublishSubscribe
 from data import TITLE, FPS, DEV_BUILD, APP_NAME, APP_COLOR
 from data.assets import Assets
-from data.settings import Settings
+from data.settings import PROFILE
 from gui.home import HomeGUI
 from gui.profile import ProfileGUI
 from gui.info import HelpGUI
@@ -25,15 +25,20 @@ class App(widgets.App):
     def __init__(self, **kwargs):
         logger.info(f'Initializing GUI @ {FPS} fps.')
         super().__init__(make_bg=False, make_menu=False, **kwargs)
+        self.icon = str(Path.cwd()/'icon.png')
         self.__quit_flag = 0
+
+        self.settings_notifier = PublishSubscribe(name='App settings notifier')
+        PROFILE.register_notifications(self._notify_settings)
+
         self.interface = Interface(name='GUI Home')
         self.home_hotkeys = widgets.InputManager()
         self.enc_hotkeys = widgets.InputManager()
-        self.enc_hotkeys.block_repeat = not Settings.get_setting('enable_hold_key', 'General')
+        self.settings_notifier.subscribe('general.enable_hold_key', self.setting_enable_hold_key)
+        self.setting_enable_hold_key()
         self.app_hotkeys = widgets.InputManager(app_control_defaults=True)
-        self.icon = str(Path.cwd()/'icon.png')
 
-        self.game = get_api(self.interface)
+        self.game = get_api(self.interface, self.settings_notifier)
 
         self.switch = self.add(widgets.ScreenSwitch())
         self.home = HomeGUI()
@@ -53,19 +58,19 @@ class App(widgets.App):
         self.fps = RateCounter(sample_size=FPS)
         self.hook_mainloop(FPS)
 
-        widgets.kvWindow.size = self.configured_resolution(full=False)
-        default_window_state = Settings.get_setting('default_window', 'General')
-        if default_window_state == 'fullscreen':
-            widgets.kvClock.schedule_once(lambda *a: self.toggle_window_fullscreen(True), 0)
-        elif default_window_state == 'borderless':
-            widgets.kvClock.schedule_once(lambda *a: self.toggle_window_borderless(True), 0)
-        else:
-            widgets.kvClock.schedule_once(lambda *a: self.toggle_window_borderless(False), 0)
+        self.settings_notifier.subscribe('general.fullscreen', self.setting_window_state)
+        self.settings_notifier.subscribe('general.fullscreen_type', self.setting_window_state)
+        self.settings_notifier.subscribe('general.fullscreen_resolution', self.setting_window_state)
+        self.settings_notifier.subscribe('general.window_resolution', self.setting_window_state)
+        self.settings_notifier.subscribe('general.window_offset_x', self.setting_window_state)
+        self.settings_notifier.subscribe('general.window_offset_y', self.setting_window_state)
+        self.settings_notifier.subscribe('general.borderless_offset_x', self.setting_window_state)
+        self.settings_notifier.subscribe('general.borderless_offset_y', self.setting_window_state)
+        self.setting_window_state()
 
         for params in [
-            ('Refresh', Settings.get_setting('refresh', 'Hotkeys'), lambda *a: self.full_refresh()),
-            ('Fullscreen', Settings.get_setting('toggle_fullscreen', 'Hotkeys'), lambda *a: self.toggle_window_fullscreen()),
-            ('Borderless', Settings.get_setting('toggle_borderless', 'Hotkeys'), lambda *a: self.toggle_window_borderless()),
+            ('Refresh', PROFILE.get_setting('hotkeys.refresh'), lambda *a: self.full_refresh()),
+            ('Fullscreen', PROFILE.get_setting('hotkeys.toggle_fullscreen'), lambda *a: PROFILE.toggle_setting('general.fullscreen')),
             ('Tab: Home', '^+ f1', lambda *a: self.switch_screen('home')),
             ('Tab: Encounter', '^+ f2', lambda *a: self.switch_screen('encounter')),
             ('Tab: Settings', '^+ f3', lambda *a: self.switch_screen('profile')),
@@ -76,9 +81,13 @@ class App(widgets.App):
             Assets.play_sfx('ui.welcome', volume='ui')
         self.interface.register('start_encounter', self.start_encounter)
         self.interface.register('end_encounter', self.end_encounter)
-        self.interface.register('full_refresh', self.full_refresh)
         self.interface.register('switch_screen', self.switch_screen)
         self.game.setup()
+
+    def _notify_settings(self, settings):
+        self.settings_notifier.push(settings)
+        if self.encounter is not None:
+            self.encounter.settings_notifier.push(settings)
 
     def generate_app_control_buttons(self):
         return AppControl(buttons=[
@@ -89,8 +98,8 @@ class App(widgets.App):
         ])
 
     def full_refresh(self):
-        Settings.reload_settings()
-        self.switch_screen(self.switch.current_screen.name)
+        self.offset_window()
+        self.settings_notifier.push_all()
 
     def switch_screen(self, sname):
         if sname == 'encounter' and self.encounter is None:
@@ -111,40 +120,51 @@ class App(widgets.App):
             else:
                 hk.deactivate()
 
-    def toggle_window_borderless(self, set_as=None):
-        if widgets.kvWindow.fullscreen:
-            self.toggle_window_fullscreen(set_as=False)
-            return
-        set_as = not widgets.kvWindow.borderless if set_as is None else set_as
-        logger.info(f'Setting borderless: {set_as}')
-        if set_as is True:
-            widgets.kvWindow.borderless = True
-            widgets.kvClock.schedule_once(lambda *a: widgets.kvWindow.maximize(), 0)
+    def setting_window_state(self):
+        fullscreen = PROFILE.get_setting('general.fullscreen')
+        if fullscreen:
+            ftype = PROFILE.get_setting('general.fullscreen_type')
+            if ftype == 'borderless':
+                self.set_borderless()
+            else:
+                self.set_fullscreen()
         else:
-            pos = np.array([widgets.kvWindow.left, widgets.kvWindow.top])
-            center = pos + (np.array(widgets.kvWindow.size) / 2)
-            widgets.kvWindow.borderless = False
-            widgets.kvWindow.restore()
-            widgets.kvWindow.size = self.configured_resolution(full=False)
-            new_pos = center - (np.array(widgets.kvWindow.size) / 2)
-            new_pos[new_pos<50] = 50
-            new_pos[new_pos>600] = 600
-            widgets.kvWindow.left = int(new_pos[0])
-            widgets.kvWindow.top = int(new_pos[1])
+            self.set_windowed()
+        widgets.kvClock.schedule_once(lambda *a: self.offset_window(), 0)
 
-    def toggle_window_fullscreen(self, set_as=None):
-        set_as = not widgets.kvWindow.fullscreen if set_as is None else set_as
-        logger.info(f'Setting fullscreen: {set_as}')
-        if set_as is True:
-            widgets.kvWindow.size = self.configured_resolution(full=True)
-            widgets.kvWindow.fullscreen = True
+    def set_windowed(self, *a):
+        widgets.kvWindow.fullscreen = False
+        widgets.kvWindow.borderless = False
+        widgets.kvClock.schedule_once(lambda *a: self.set_window_resolution(), 0)
+
+    def set_borderless(self, *a):
+        widgets.kvWindow.fullscreen = False
+        widgets.kvWindow.borderless = True
+        widgets.kvClock.schedule_once(lambda *a: self.set_window_resolution(fullscreen=True), 0)
+
+    def set_fullscreen(self, *a):
+        self.set_window_resolution(fullscreen=True)
+        widgets.kvWindow.borderless = False
+        widgets.kvWindow.fullscreen = True
+
+    def set_window_resolution(self, fullscreen=False):
+        res = PROFILE.get_setting(f'general.{"fullscreen" if fullscreen else "window"}_resolution')
+        widgets.kvWindow.size = tuple(int(_) for _ in res)
+
+    def set_window_offset(self, x=None, y=None):
+        PROFILE.set_setting('general.window_offset_x', widgets.kvWindow.left if x is None else x)
+        PROFILE.set_setting('general.window_offset_y', widgets.kvWindow.top if y is None else y)
+
+    def offset_window(self):
+        widgets.kvClock.schedule_once(lambda *a: self._do_offset_window(), 0)
+
+    def _do_offset_window(self):
+        if widgets.kvWindow.borderless == False:
+            widgets.kvWindow.left = PROFILE.get_setting('general.window_offset_x')
+            widgets.kvWindow.top = PROFILE.get_setting('general.window_offset_y')
         else:
-            widgets.kvWindow.fullscreen = False
-            widgets.kvClock.schedule_once(lambda *a: self.toggle_window_borderless(False))
-
-    def configured_resolution(self, full=True):
-        raw_resolution = Settings.get_setting('full_resolution' if full else 'window_resolution', 'General')
-        return tuple(int(_) for _ in raw_resolution)
+            widgets.kvWindow.left = PROFILE.get_setting('general.borderless_offset_x')
+            widgets.kvWindow.top = PROFILE.get_setting('general.borderless_offset_y')
 
     @property
     def fps_color(self):
@@ -170,7 +190,6 @@ class App(widgets.App):
         self.encounter = self.enc_frame.add(Encounter(logic_api))
         self.switch_screen('encounter')
         logger.info(f'GUI opened encounter')
-        self.full_refresh()
 
     def end_encounter(self):
         self.enc_hotkeys.clear_all()
@@ -179,13 +198,15 @@ class App(widgets.App):
         self.encounter = None
         self.switch_screen('home')
         logger.info(f'GUI closed encounter')
-        self.full_refresh()
 
     def do_quit(self):
         self.__quit_flag = 1
 
     def do_restart(self):
         self.__quit_flag = 2
+
+    def setting_enable_hold_key(self):
+        self.enc_hotkeys.block_repeat = not PROFILE.get_setting('general.enable_hold_key')
 
 
 class AppControl(widgets.AnchorLayout):
@@ -204,13 +225,15 @@ class AppControl(widgets.AnchorLayout):
         self.right_frame = self.add(widgets.AnchorLayout(anchor_x='right'))
         app_control_buttons = self.right_frame.add(widgets.BoxLayout())
         sizex = 0
+        fbutton = app_control_buttons.add(widgets.Button(text='Fullscreen', on_release=lambda *a: PROFILE.toggle_setting('general.fullscreen')))
+        fbutton.set_size(x=100)
         if DEV_BUILD:
             rebutton = app_control_buttons.add(widgets.Button(text=f'Restart {APP_NAME}', on_release=lambda *a: self.app.do_restart()))
             rebutton.set_size(x=150)
             sizex += 150
         qbutton = app_control_buttons.add(widgets.Button(text='Quit', on_release=lambda *a: self.app.do_quit()))
         qbutton.set_size(x=100)
-        sizex += 100
+        sizex += 200
         app_control_buttons.set_size(x=sizex, y=30)
 
         # Custom buttons

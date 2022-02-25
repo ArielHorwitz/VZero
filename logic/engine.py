@@ -11,7 +11,6 @@ from nutil.time import ping, pong, RateCounter, pingpong, ratecounter
 from nutil.random import Seed
 from nutil.display import nprint
 
-from data.settings import Settings
 from logic.common import *
 
 

@@ -10,7 +10,6 @@ from nutil.display import make_title
 from nutil.kex import widgets
 from data import TITLE, DEV_BUILD
 from data.assets import Assets
-from data.settings import Settings
 from gui.api import ControlEvent
 from gui.common import SpriteLabel, SpriteTitleLabel, CenteredSpriteBox, Stack, Tooltip
 from logic.common import *

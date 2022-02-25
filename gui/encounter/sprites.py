@@ -10,7 +10,7 @@ from nutil.kex import widgets
 from gui import cc_int, center_position, center_sprite
 from gui.encounter import EncounterViewComponent
 from data.assets import Assets
-from data.settings import Settings
+from data.settings import PROFILE
 from logic.common import *
 
 
@@ -20,8 +20,11 @@ MIN_HITBOX_SCALE = 0.25
 class Sprites(widgets.RelativeLayout, EncounterViewComponent):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.fog_size = Settings.get_setting('fog', 'UI')
-        self.fog_color = Settings.get_setting('fog_color', 'UI')
+        self.fog = None
+        self.enc.settings_notifier.subscribe('ui.fog_size', self.setting_fog_size)
+        self.setting_fog_size()
+        self.enc.settings_notifier.subscribe('ui.fog_color', self.setting_fog_color)
+        self.setting_fog_color()
         self.fog_center = np.array([0, 0])
         self.fog_radius = 500
         self.set_units([], [], [])
@@ -29,6 +32,14 @@ class Sprites(widgets.RelativeLayout, EncounterViewComponent):
         self.enc.interface.register('set_fog_radius', self.set_fog_radius)
         self.enc.interface.register('set_units', self.set_units)
         self.enc.interface.register('update_units', self.update_units)
+
+    def setting_fog_size(self):
+        self.fog_size = PROFILE.get_setting('ui.fog_size')
+
+    def setting_fog_color(self):
+        self.fog_color = PROFILE.get_setting('ui.fog_color')
+        if self.fog is not None:
+            self.fog.color = self.fog_color
 
     def set_fog_center(self, pos):
         self.__fog_center = pos
@@ -39,12 +50,12 @@ class Sprites(widgets.RelativeLayout, EncounterViewComponent):
     def set_units(self, sprites, topbar_colors, botbar_colors):
         self.clear_widgets()
         self.canvas.clear()
-        if self.fog_size:
-            with self.canvas.after:
-                self.fog = widgets.Image(
-                    source=Assets.get_sprite('ui.fog'),
-                    color=self.fog_color,
-                    allow_stretch=True)
+        self.canvas.after.clear()
+        with self.canvas.after:
+            self.fog = widgets.Image(
+                source=Assets.get_sprite('ui.fog'),
+                color=self.fog_color,
+                allow_stretch=True)
 
         assert len(sprites) == len(topbar_colors) == len(botbar_colors)
         unit_count = len(sprites)
@@ -91,11 +102,10 @@ class Sprites(widgets.RelativeLayout, EncounterViewComponent):
 
     def update(self):
         # Fog
-        if self.fog_size:
-            pixel_size = int(self.fog_size * self.__fog_radius / self.enc.upp)
-            self.fog.size = (pixel_size, pixel_size)
-            fog_pos = self.enc.real2pix(self.__fog_center)
-            self.fog.pos = center_sprite(fog_pos, self.fog.size)
+        fog_pixel_size = int(self.fog_size * self.__fog_radius / self.enc.upp)
+        self.fog.size = (fog_pixel_size, fog_pixel_size)
+        fog_pos = self.enc.real2pix(self.__fog_center)
+        self.fog.pos = center_sprite(fog_pos, self.fog.size)
 
         # Sprites
         if self.visible_count == 0:

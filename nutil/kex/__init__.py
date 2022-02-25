@@ -14,6 +14,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+ENABLE_WINDOW_RESIZE = False
+kvConfig.set('graphics', 'resizable', ENABLE_WINDOW_RESIZE)
+
 DEFAULT_BG_COLOR = (Seed().r, 1, 0.25)
 LINE_DP = 35
 LINE_DP_STR = f'{LINE_DP}dp'

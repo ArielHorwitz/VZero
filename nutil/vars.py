@@ -8,6 +8,36 @@ import numpy as np
 import enum
 
 
+class PublishSubscribe(collections.defaultdict):
+    def __init__(self, name=None):
+        super().__init__(lambda: set())
+        self.name = name if name is not None else 'Unnamed'
+
+    def subscribe(self, channel, callback):
+        assert callable(callback)
+        self[channel].add(callback)
+        logger.info(f'{callback} subscribed to {channel} channel on {self}')
+
+    def push(self, channels):
+        logger.debug(f'{self} pushing channels: {channels}')
+        all_callbacks = set()
+        for channel in channels:
+            all_callbacks.update(self[channel])
+        logger.debug(f'{self} collected {len(all_callbacks)} calls: {all_callbacks}')
+        for callback in all_callbacks:
+            callback()
+
+    def push_all(self):
+        self.push(tuple(self.keys()))
+
+    def __repr__(self):
+        return f'<{self.name} PublishSubscribe {len(self)} channels {self.total_callbacks} total callbacks>'
+
+    @property
+    def total_callbacks(self):
+        return sum(len(_) for _ in self.values())
+
+
 class Interface:
     def __init__(self, name=None):
         if name is None:

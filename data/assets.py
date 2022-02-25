@@ -4,7 +4,8 @@ logger = logging.getLogger(__name__)
 
 from pathlib import Path
 from data import ROOT_DIR, resource_name
-from data.settings import Settings
+from data.settings import PROFILE
+from nutil.vars import is_floatable
 from nutil.kex import widgets
 
 ASSETS_DIR = ROOT_DIR / 'assets'
@@ -19,6 +20,17 @@ class Assets:
     BLANK_SPRITE = str(ASSETS_DIR / 'blank.png')
     SPRITE_CACHE = {}
     SFX_CACHE = {}
+    VOLUMES = {v: PROFILE.get_setting(f'audio.volume_{v}') for v in ('master', 'sfx', 'ui', 'feedback')}
+
+
+    @classmethod
+    def get_volume(cls, category=None):
+        v = cls.VOLUMES['master']
+        if category not in {None, 'master'}:
+            if is_floatable(category):
+                return v * category
+            return v * cls.VOLUMES[category]
+        return v
 
     @classmethod
     def get_sfx(cls, sound_name):
@@ -47,11 +59,7 @@ class Assets:
         sfx = cls.get_sfx(sound_name)
         if sfx is None:
             return
-        if volume is None:
-            volume = Settings.get_volume()
-        elif isinstance(volume, str):
-            volume = Settings.get_volume(volume)
-        sfx.play(volume=volume, **kwargs)
+        sfx.play(volume=cls.get_volume(volume), **kwargs)
 
     @classmethod
     def get_sprite(cls, sprite_name):
@@ -73,3 +81,13 @@ class Assets:
             return cls.FALLBACK_SPRITE
         cls.SPRITE_CACHE[sprite_name] = str(sprite_path)
         return str(sprite_path)
+
+    @classmethod
+    def settings_notification(cls, settings):
+        for volume_name in cls.VOLUMES.keys():
+            vkey = f'audio.volume_{volume_name}'
+            if vkey in settings:
+                cls.VOLUMES[volume_name] = PROFILE.get_setting(vkey)
+
+
+PROFILE.register_notifications(Assets.settings_notification)

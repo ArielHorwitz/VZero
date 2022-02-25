@@ -7,7 +7,6 @@ import enum
 from nutil.vars import AutoIntEnum
 from data.load import RDF
 from data.assets import Assets
-from data.settings import Settings
 
 
 def internal_name(name):
@@ -128,6 +127,6 @@ for enumerator in (STAT, VALUE, STATUS, STATUS_VALUE, ABILITY):
     logger.info(__DEBUG)
 
 
-def get_api(interface):
+def get_api(*a, **k):
     from logic.game import GameAPI
-    return GameAPI(interface)
+    return GameAPI(*a, **k)

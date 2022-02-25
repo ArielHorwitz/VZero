@@ -1,50 +1,32 @@
 
 === general
-default_window: fullscreen
-full_resolution: 1920×1080
+fullscreen: 1
+fullscreen_type: fullscreen
+fullscreen_resolution: 1920×1080
 window_resolution: 1024×768
-default_zoom: 40
+window_offset_x: 100
+window_offset_y: 100
+borderless_offset_x: 0
+borderless_offset_y: 0
 enable_hold_mouse: 1
 enable_hold_key: 0
-dev_build: 0
-auto_log: 1
-log_interval: 3000
 
 --- types
-default_window: choice, fullscreen, borderless, windowed
-full_resolution: size, 1920×1080, 1024×768
-window_resolution: size, 1920×1080, 1024×768
-default_zoom: float, 5, 100
+fullscreen: bool
+fullscreen_type: choice, fullscreen, borderless
+fullscreen_resolution: size, 2560×1440, 1920×1080, 1600×900, 1366×768, 1600×1200, 1400×1050, 1280×960, 1152×864, 1024×768
+window_resolution: size, 2560×1440, 1920×1080, 1600×900, 1366×768, 1600×1200, 1400×1050, 1280×960, 1152×864, 1024×768
+window_offset_x: float, -inf, inf
+window_offset_y: float, -inf, inf
+borderless_offset_x: float, -inf, inf
+borderless_offset_y: float, -inf, inf
 enable_hold_mouse: bool
 enable_hold_key: bool
-dev_build: bool
-auto_log: bool
-log_interval: float
-
-=== ui
-detailed_mode: 1
-auto_dismiss_tooltip: 100
-auto_tooltip: 0
-hud_scale: 1
-decorations: 0.75
-feedback_sfx_cooldown: 350
-fog: 45
-fog_color: 0, 0, 0, 0.6
-
---- types
-detailed_mode: bool
-auto_dismiss_tooltip: float
-auto_tooltip: bool
-hud_scale: slider, 0.5, 3
-decorations: slider
-feedback_sfx_cooldown: float
-fog: float
-fog_color: color
 
 
 === audio
 volume_master: 0.15
-volume_sfx: 1
+volume_sfx: 1.0
 volume_ui: 0.5
 volume_feedback: 0.5
 volume_monster_death: 0.4
@@ -57,14 +39,38 @@ volume_feedback: slider
 volume_monster_death: slider
 
 
+=== ui
+default_zoom: 40.0
+detailed_mode: 1
+auto_dismiss_tooltip: 100.0
+auto_tooltip: 0
+hud_height: 0.5
+hud_width: 0.5
+decorations: 1.00, 1.00, 1.00, 0.75
+feedback_sfx_cooldown: 500.0
+fog_size: 45.0
+fog_color: 0.00, 0.00, 0.00, 0.70
+
+--- types
+default_zoom: float, 5, 100
+detailed_mode: bool
+auto_dismiss_tooltip: float
+auto_tooltip: bool
+hud_height: slider
+hud_width: slider
+decorations: color
+feedback_sfx_cooldown: float
+fog_size: float
+fog_color: color
+
+
 === hotkeys
 toggle_fullscreen: f11
-toggle_borderless: ! f11
 toggle_menu: escape
 toggle_play: spacebar
-toggle_shop: f1
 toggle_map: tab
 toggle_detailed: ! alt
+toggle_shop: f1
 
 loot: z
 alt_modifier: +
@@ -101,5 +107,14 @@ dev2: ^+ f10
 dev3: ^+ f11
 dev4: ^+ f12
 
-=== loadouts
+
+=== misc
+dev_build: 0
+auto_log: 1
+log_interval: 3000.0
+
+--- types
+dev_build: bool
+auto_log: bool
+log_interval: float
 

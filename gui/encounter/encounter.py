@@ -11,7 +11,7 @@ from nutil.time import RateCounter, ratecounter
 from nutil.kex import widgets
 
 from data.assets import Assets
-from data.settings import Settings
+from data.settings import PROFILE
 from gui import center_sprite, cc_int, center_position
 from gui.api import MOUSE_EVENTS, ControlEvent, InputEvent, CastEvent
 from gui.common import Tooltip
@@ -32,14 +32,15 @@ class Encounter(widgets.RelativeLayout):
     def __init__(self, api, **kwargs):
         super().__init__(**kwargs)
         self.api = api
+        self.settings_notifier = self.api.settings_notifier
         self.timers = defaultdict(RateCounter)
-        self.detailed_info_mode = Settings.get_setting('detailed_mode', 'UI')
         self.__units_per_pixel = DEFAULT_UPP
         self.__map_size = np.array([100, 100])
         self.__view_center = np.array([0, 0])
         self.__pix_center = np.array([0, 0])
         self.__holding_mouse = False
-        self.__enable_hold_mouse = Settings.get_setting('enable_hold_mouse', 'General') == 1
+        self.settings_notifier.subscribe('general.enable_hold_mouse', self.setting_enable_hold_mouse)
+        self.setting_enable_hold_mouse()
 
         # Interface
         self.interface = Interface('GUI Encounter')
@@ -79,7 +80,6 @@ class Encounter(widgets.RelativeLayout):
         self.interface.register('activate_tooltip', self.activate_tooltip)
         self.interface.register('set_upp', self.set_upp)
         self.interface.register('get_gui_size', self.get_gui_size)
-        self.interface.register('get_detailed_info_mode', self.get_detailed_info_mode)
         self.interface.register('set_view_center', self.set_view_center)
         self.interface.register('set_map_source', self.set_map_source)
         self.interface.register('set_move_crosshair', self.set_move_crosshair)
@@ -90,8 +90,8 @@ class Encounter(widgets.RelativeLayout):
             pos = self.app.mouse_pos
         self.tooltip.activate(pos, stl)
 
-    def toggle_detailed_info_mode(self, *a, **k):
-        self.detailed_info_mode = not self.detailed_info_mode
+    def setting_enable_hold_mouse(self):
+        self.__enable_hold_mouse = PROFILE.get_setting('general.enable_hold_mouse')
 
     def draw(self):
         self.canvas.clear()
@@ -148,7 +148,7 @@ class Encounter(widgets.RelativeLayout):
 
     def make_hotkeys(self):
         hotkeys = [
-            ('toggle_detailed', Settings.get_setting('toggle_detailed', 'Hotkeys'), self.toggle_detailed_info_mode),
+            ('toggle_detailed', PROFILE.get_setting('hotkeys.toggle_detailed'), lambda *a: PROFILE.toggle_setting('ui.detailed_mode')),
         ]
         # Logic API
         api_actions = (
@@ -159,17 +159,17 @@ class Encounter(widgets.RelativeLayout):
         )
         for action_name in api_actions:
             hotkeys.append((
-                action_name, Settings.get_setting(action_name, "Hotkeys"),
+                action_name, PROFILE.get_setting(f'hotkeys.{action_name}'),
                 lambda action_name_: self.interface.append(ControlEvent(action_name_, self.mouse_real_pos, ''))
             ))
         # Abilities
-        alt_mod = Settings.get_setting('alt_modifier', 'Hotkeys')
+        alt_mod = PROFILE.get_setting('hotkeys.alt_modifier')
         hotkeys.append((
-            f'loot', Settings.get_setting('loot', 'Hotkeys'),
+            f'loot', PROFILE.get_setting('hotkeys.loot'),
             lambda *a: self.interface.append(InputEvent('loot', self.mouse_real_pos, ''))))
         for i in range(8):
-            akey = Settings.get_setting(f'ability{i+1}', 'Hotkeys')
-            ikey = Settings.get_setting(f'item{i+1}', 'Hotkeys')
+            akey = PROFILE.get_setting(f'hotkeys.ability{i+1}')
+            ikey = PROFILE.get_setting(f'hotkeys.item{i+1}')
             if akey:
                 if isinstance(akey, float):
                     akey = str(int(akey))
@@ -236,9 +236,6 @@ class Encounter(widgets.RelativeLayout):
         overlay_height = self.overlays['hud'].overlay_height + self.overlays['logic_label'].overlay_height
         usable_view_size = np.array(self.size) - [0, overlay_height]
         return usable_view_size
-
-    def get_detailed_info_mode(self):
-        return self.detailed_info_mode
 
     def set_map_source(self, source=None, size=None):
         if source is not None:
