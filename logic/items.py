@@ -32,7 +32,7 @@ SELL_MULTIPLIER = 0.8
 QUICK_RESELL_WINDOW = 1000
 
 ALL_ITEM_NAMES = list(RDF.from_file(RDF.CONFIG_DIR / 'items.rdf').keys())
-if not DEV_BUILD:
+if not DEV_BUILD:  # DEV ITEMS
     logger.info(f'Skipping dev items')
     ALL_ITEM_NAMES = list(filter(lambda x: not x.lower().startswith('dev '), ALL_ITEM_NAMES))
 ITEM = AutoIntEnum('ITEM', [internal_name(name) for name in ALL_ITEM_NAMES])

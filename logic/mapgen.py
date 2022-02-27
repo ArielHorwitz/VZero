@@ -9,6 +9,7 @@ from collections import namedtuple, defaultdict
 from nutil.file import file_dump
 
 from data import resource_name
+from data.settings import PROFILE
 from data.load import RDF
 from data.tileset import TileMap
 
@@ -51,6 +52,7 @@ class MapGenerator:
     def setup(self, interface):
         self.gui = interface
         self.generate_map_image()
+        self.api.settings_notifier.subscribe('misc.map_editor_mode', self.generate_map_image)
 
     def add_spawn(self, spawn, location, quadrant=False):
         self.spawns.append((spawn, np.array(location) * self.size))
@@ -129,7 +131,7 @@ class MapGenerator:
                 b = nearest_biomes[x, y]
                 tilemap[(y, x)] = self.biomes[b].tile
 
-        if self.api.dev_mode:
+        if PROFILE.get_setting('misc.map_editor_mode'):
             for b in self.biomes:
                 xy = tuple(round(_) for _ in tuple(b.pos / TILE_SIZE))
                 tilemap[xy] = 'black'

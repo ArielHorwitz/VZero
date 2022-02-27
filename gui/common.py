@@ -7,7 +7,7 @@ import numpy as np
 from nutil.vars import modify_color, PublishSubscribe
 from nutil.kex import widgets
 
-from data import DEV_BUILD, APP_NAME
+from data import APP_NAME
 from data.assets import Assets
 from data.settings import PROFILE
 

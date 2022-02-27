@@ -6,12 +6,8 @@ from nutil.kex import widgets
 from nutil.debug import format_exc
 from nutil.vars import modify_color
 from nutil.file import file_dump, file_load
-from data import CorruptedDataError, DEV_BUILD
 from data.load import RDF
 from data.default_settings import DEFAULT_SETTINGS_STR
-
-
-file_dump(RDF.CONFIG_DIR / 'settings-auto-generated-defaults.rdf', DEFAULT_SETTINGS_STR)
 
 
 class Profile:
@@ -164,6 +160,9 @@ class Setting:
         self.args = args
         self.parse_args(args)
         self.__anchor = anchor
+        reconverted = self.to_str(self.from_str(default))
+        if default != reconverted:
+            logger.warning(f'Setting {name} default value to_str and from_str non-commutative {default} != {reconverted}')
         self.__default_str = default
         self.__value = self.from_str(default)
         self.__value_str = self.to_str(self.__value)
@@ -266,8 +265,6 @@ class Setting:
         w = self.widget
         if text is None:
             text = self.widget_label
-        if DEV_BUILD:
-            text = f'{text} [i]default: {self.display_value(self.default)}[/i]'
         if text:
             text = f'\n{text}'
         self.__widget_label.text = f'[b][u]{self.name}[/u][/b]{text}'

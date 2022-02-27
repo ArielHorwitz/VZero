@@ -4,10 +4,10 @@ fullscreen: 1
 fullscreen_type: fullscreen
 fullscreen_resolution: 1920×1080
 window_resolution: 1024×768
-window_offset_x: 100
-window_offset_y: 100
-borderless_offset_x: 0
-borderless_offset_y: 0
+window_offset_x: 100.0
+window_offset_y: 100.0
+borderless_offset_x: 0.0
+borderless_offset_y: 0.0
 enable_hold_mouse: 1
 enable_hold_key: 0
 
@@ -109,13 +109,18 @@ dev4: ^+ f12
 
 
 === misc
-dev_build: 0
+dev_build *: 0
+debug_mode: 0
+map_editor_mode: 0
 auto_log: 1
 log_interval: 3000.0
 
 --- types
-dev_build: bool
+dev_build *: bool
+debug_mode: bool
+map_editor_mode: bool
 auto_log: bool
 log_interval: float
+
 
 """

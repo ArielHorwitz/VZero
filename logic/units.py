@@ -10,6 +10,7 @@ from nutil.vars import normalize, collide_point, is_iterable, List, nsign_str, n
 from nutil.display import make_title
 from nutil.time import ratecounter
 from nutil.random import SEED
+from data import DEV_BUILD
 from data.load import RDF
 from data.assets import Assets
 from data.settings import PROFILE
@@ -274,7 +275,7 @@ class Unit:
         with ratecounter(self.engine.timers['ability_single']):
             if iid not in self.items:
                 logger.warning(f'{self} using item {repr(iid)} not in items: {self.items}')
-            if not self.engine.auto_tick and not self.api.dev_mode:
+            if not self.engine.auto_tick and not self.api.debug_mode:
                 logger.warning(f'{self} tried using item {iid.name} while paused')
                 self.api.play_feedback(FAIL_RESULT.INACTIVE, self.uid)
                 return
@@ -308,7 +309,7 @@ class Unit:
         with ratecounter(self.engine.timers['ability_single']):
             if aid not in self.abilities:
                 logger.warning(f'{self} using ability {repr(aid)} not in abilities: {self.abilities}')
-            if not self.engine.auto_tick and not self.api.dev_mode:
+            if not self.engine.auto_tick and not self.api.debug_mode:
                 logger.warning(f'{self} tried using ability {aid.name} while paused')
                 self.api.play_feedback(FAIL_RESULT.INACTIVE, self.uid)
                 return
@@ -437,6 +438,7 @@ class Unit:
             f'Draft cost: {self.draft_cost}',
             f'Current velocity: {s2ticks(velocity):.2f}/s ({velocity:.2f}/t)',
             f'Action phase: {self.uid % self.api.engine.AGENCY_PHASE_COUNT}',
+            f'Spawn location: {self._respawn_location}',
             f'Agency: {self.api.engine.timers["agency"][self.uid].mean_elapsed_ms:.3f} ms',
             f'Distance to player: {self.api.engine.unit_distance(0, self.uid):.1f}',
         ]
@@ -476,7 +478,7 @@ class Player(Unit):
         self._respawn_timer_scaling = 100
         self.death_sfx = 'ui.death-player'
         self.respawn_sfx = 'ui.respawn-player'
-        if not self.api.dev_build:
+        if not DEV_BUILD:  # PLAYER SETUP RESPAWN SFX
             self.play_respawn_sfx()
 
     def play_death_sfx(self):

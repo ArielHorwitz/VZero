@@ -36,7 +36,7 @@ class App(widgets.App):
         self.enc_hotkeys = widgets.InputManager()
         self.settings_notifier.subscribe('general.enable_hold_key', self.setting_enable_hold_key)
         self.setting_enable_hold_key()
-        self.app_hotkeys = widgets.InputManager(app_control_defaults=True)
+        self.app_hotkeys = widgets.InputManager(app_control_defaults=DEV_BUILD)
 
         self.game = get_api(self.interface, self.settings_notifier)
 
@@ -77,7 +77,7 @@ class App(widgets.App):
             ('Tab: Help', '^+ f4', lambda *a: self.switch_screen('help')),
         ]:
             self.app_hotkeys.register(*params)
-        if not DEV_BUILD:
+        if not DEV_BUILD:  # WELCOME SFX
             Assets.play_sfx('ui.welcome', volume='ui')
         self.interface.register('start_encounter', self.start_encounter)
         self.interface.register('end_encounter', self.end_encounter)
@@ -227,10 +227,10 @@ class AppControl(widgets.AnchorLayout):
         sizex = 0
         fbutton = app_control_buttons.add(widgets.Button(text='Fullscreen', on_release=lambda *a: PROFILE.toggle_setting('general.fullscreen')))
         fbutton.set_size(x=100)
-        if DEV_BUILD:
-            rebutton = app_control_buttons.add(widgets.Button(text=f'Restart {APP_NAME}', on_release=lambda *a: self.app.do_restart()))
-            rebutton.set_size(x=150)
-            sizex += 150
+        if DEV_BUILD:  # RESTART BUTTON
+            rebutton = app_control_buttons.add(widgets.Button(text=f'Restart', on_release=lambda *a: self.app.do_restart()))
+            rebutton.set_size(x=100)
+            sizex += 100
         qbutton = app_control_buttons.add(widgets.Button(text='Quit', on_release=lambda *a: self.app.do_quit()))
         qbutton.set_size(x=100)
         sizex += 200

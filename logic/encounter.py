@@ -12,7 +12,7 @@ from nutil.display import njoin, make_title
 from nutil.time import RateCounter, ping, pong, humanize_ms
 from nutil.file import file_load
 
-from data import resource_name, DEV_BUILD, VERSION
+from data import DEV_BUILD, VERSION
 from data.load import RDF
 from data.settings import PROFILE
 from data.assets import Assets
@@ -25,13 +25,13 @@ from logic import MECHANICS_NAMES
 from logic.abilities import ABILITIES
 from logic.engine import Engine as EncounterEngine
 from logic.mechanics import Mechanics
-from logic.mapgen import MapGenerator
+from logic.mapgen import MapGenerator, MAP_DATA
 from logic.items import ITEM, ITEMS, ITEM_CATEGORIES, Item
 
 
 metagame_data = str(VERSION) + str(DEV_BUILD) + ''.join(str(RDF.from_file(RDF.CONFIG_DIR / f'{_}.rdf').raw_dict) for _ in (
     'abilities', 'items', 'units',
-))
+)) + str(MAP_DATA)
 METAGAME_BALANCE = h256(metagame_data)
 METAGAME_BALANCE_SHORT = METAGAME_BALANCE[:4]
 logger.info(f'Metagame Balance: {METAGAME_BALANCE_SHORT} ({METAGAME_BALANCE})')
@@ -110,35 +110,35 @@ class EncounterAPI:
     view_size = gui_size = np.array([1024, 768])
 
     def __init__(self, game, encounter_params, player_abilities):
-        self.dev_build = DEV_BUILD
-        self.dev_mode = False
-        self.show_debug = False
+        self.debug_mode = False
+        self.settings_notifier = PublishSubscribe(name='ELogic')
+
+        # Logic related properties
         self.game = game
         self.encounter_params = encounter_params
         self.difficulty_level = encounter_params.difficulty
-
-        self.settings_notifier = PublishSubscribe(name='ELogic')
         self.engine = EncounterEngine(self)
         self.map = MapGenerator(self, encounter_params)
         self.player = self.units[self.player_uid]
         self.player.set_abilities(player_abilities)
-
-        # GUI related properties
         self.always_visible = np.zeros(len(self.engine.units), dtype=np.bool)
         self.always_active = np.zeros(len(self.engine.units), dtype=np.bool)
+
+        # GUI related properties
+        self.__last_hud_statuses = []
+        self.__last_fail_sfx_ping = ping()
+        self.map_mode = False
+
+        # Settings
         self.default_upp = 2
         self.settings_notifier.subscribe('ui.feedback_sfx_cooldown', self.setting_feedback_sfx_interval)
         self.setting_feedback_sfx_interval()
         self.settings_notifier.subscribe('misc.log_interval', self.setting_log_interval)
         self.settings_notifier.subscribe('misc.auto_log', self.setting_log_interval)
         self.setting_log_interval()
-        self.__last_hud_statuses = []
-        self.__last_fail_sfx_ping = ping()
-        self.map_mode = False
 
-
-        self.engine.set_stats(self.player_uid, STAT.STOCKS, DIFFICULTY2STOCKS[self.difficulty_level])
         # Setup units
+        self.engine.set_stats(self.player_uid, STAT.STOCKS, DIFFICULTY2STOCKS[self.difficulty_level])
         for unit in self.engine.units:
             unit.action_phase()
             self.always_visible[unit.uid] = unit.always_visible
@@ -157,6 +157,8 @@ class EncounterAPI:
         self.map.setup(self.gui)
         self.set_widgets()
         self.set_zoom()
+        self.settings_notifier.subscribe('misc.debug_mode', self.setting_debug_mode)
+        self.setting_debug_mode()
 
     def update(self):
         self.detailed_info_mode = PROFILE.get_setting('ui.detailed_mode')
@@ -175,10 +177,7 @@ class EncounterAPI:
         self.gui.request('set_view_center', self.view_center)
         self.gui.request('set_move_crosshair', self.engine.get_position(self.player_uid, value_name=VALUE.TARGET))
         self.gui.request('set_vfx', self.engine.get_visual_effects())
-        self.refresh_gui_sprite_layer()
-        self.refresh_hud()
-        self.refresh_shop()
-        self.refresh_debug()
+        self.refresh_all_gui()
 
         # Handle GUI event queue
         for event in self.gui.get_flush_queue():
@@ -195,6 +194,12 @@ class EncounterAPI:
         self.gui.request('set_browse_elements', self.browse_elements())
         self.gui.request('set_menu_text', self.menu_text)
         self.gui.request('set_menu_leave_text', 'Give up', 'Ditch encounter?')
+
+    def refresh_all_gui(self):
+        self.refresh_gui_sprite_layer()
+        self.refresh_hud()
+        self.refresh_shop()
+        self.refresh_debug()
 
     def refresh_gui_sprite_layer(self):
         self.gui.request('set_view_fade', 0 if self.engine.auto_tick else 0.5)
@@ -220,7 +225,7 @@ class EncounterAPI:
         self.gui.request('set_browse_elements', self.browse_elements())
 
     def refresh_debug(self):
-        if self.show_debug:
+        if self.debug_mode:  # Refresh debug panels
             self.gui.request('set_debug_panels', self.debug_panel_labels())
 
     def leave(self):
@@ -338,7 +343,6 @@ class EncounterAPI:
     def toggle_map(self):
         self.map_mode = not self.map_mode
         self.view_offset = None
-        # self.set_zoom()
         self.gui.request('set_view_center', self.view_center)
         self.gui.request('set_upp', self.upp)
 
@@ -378,12 +382,11 @@ class EncounterAPI:
         offset = np.array([a*hoff, a*voff])
         self.view_offset += offset
 
-    def toggle_show_debug(self, set_as=None):
-        if set_as is None:
-            set_as = not self.show_debug
-        self.show_debug = set_as
-        self.gui.request('debug_show' if self.show_debug else 'debug_hide')
-        logger.info(f'Toggle show_debug, now: {self.show_debug}')
+    def setting_debug_mode(self):
+        debug_mode_setting = PROFILE.get_setting('misc.debug_mode')
+        self.debug_mode = debug_mode_setting and DEV_BUILD
+        logger.info(f'Toggle debug_mode, now: {self.debug_mode} (debug:{debug_mode_setting} dev_build:{DEV_BUILD})')
+        self.gui.request('debug_show' if self.debug_mode else 'debug_hide')  # Toggle debug panels
 
     # GUI elements
     @property
@@ -408,8 +411,8 @@ class EncounterAPI:
 
     @property
     def top_panel_labels(self):
-        bstr = f'DEV BUILD' if self.dev_build else f'Balance patch: {METAGAME_BALANCE_SHORT}'
-        if self.dev_mode:
+        bstr = f'DEV BUILD' if DEV_BUILD else f'Balance patch: {METAGAME_BALANCE_SHORT}'
+        if self.debug_mode:  # Top panel label
             dstr = " / ".join(str(round(_, 1)) for _ in self.engine.get_position(0)/100)
         else:
             d = DIFFICULTY_LEVELS[self.difficulty_level].split(' ', 1)[0].lower()
@@ -426,15 +429,16 @@ class EncounterAPI:
 
     @property
     def top_panel_color(self):
-        if self.dev_mode:
-            return 0.5, 0, 1, 1
-        elif self.dev_build:
+        if DEV_BUILD:  # TOP PANEL COLOR
             return 0, 0.5, 1, 1
         return 1, 1, 1, 1
 
     @property
     def sprite_visible_mask(self):
-        max_los = self.player.view_distance if not self.dev_mode else float('inf')
+        if self.debug_mode and self.detailed_info_mode:  # Player view distance
+            max_los = float('inf')
+        else:
+            max_los = self.player.view_distance
         in_los = self.engine.unit_distance(self.player_uid) <= max_los
         is_ally = self.engine.get_stats(slice(None), STAT.ALLEGIANCE) == self.engine.get_stats(self.player_uid, STAT.ALLEGIANCE)
         return in_los | is_ally | self.always_visible
@@ -693,9 +697,8 @@ class EncounterAPI:
                 s.append(f'{name_}: {ticks2s(v):.2f} ({v:.1f})')
         return njoin(s) if len(s) > 0 else f'No cooldowns'
 
-    def debug_panel_labels(self, verbose=None):
-        if verbose is None:
-            verbose = self.dev_mode
+    def debug_panel_labels(self):
+        verbose = True
         bold = {'logic_total', 'logic_stats'}
         timer_strs = []
         for tname, timer in self.engine.timers.items():
@@ -718,6 +721,9 @@ class EncounterAPI:
             make_title(f'Stats Engine Debug', length=30),
             f'{self.engine.stats.debug_str(verbose=verbose)}',
         ])
+
+        if not self.detailed_info_mode:
+            return [logic_performance]
 
         uid = self.selected_unit
         unit = self.engine.units[uid]
@@ -742,11 +748,7 @@ class EncounterAPI:
             f'{self.pretty_cooldowns(uid, verbose=verbose)}',
         ])
 
-
         return logic_performance, logic_overview, text_unit1, text_unit2, text_unit3
-
-    def debug(self, *args, dev_mode=-1, tick=None, **kwargs):
-        logger.info(f'Logic Debug called (extra args: {args} {kwargs})')
 
     def debug_pointer(self, pos, **params):
         self.engine.add_visual_effect(VFX.SPRITE, 50, {
@@ -802,20 +804,17 @@ class EncounterAPI:
         self.pan(d=event.name[4:])
 
     def __handle_dev(self, event):
-        if not self.dev_build:
+        if not DEV_BUILD:  # HANDLE DEV ACTION
             return
         if event.name == 'dev1':
-            self.toggle_show_debug()
+            PROFILE.toggle_setting('misc.map_editor_mode')
         elif event.name == 'dev2':
             self.engine._do_ticks(1)
         elif event.name == 'dev3':
             logger.info(f'Dev doing 3000 ticks...')
             self.engine._do_ticks(3000)
         elif event.name == 'dev4':
-            self.dev_mode = not self.dev_mode
-            logger.info(f'Toggle dev_mode, now: {self.dev_mode}')
-            self.map.refresh()
-            self.gui.request('set_top_panel_color', self.top_panel_color)
+            PROFILE.toggle_setting('misc.debug_mode')
 
     # GUI input event handlers
     def _ihandle_activate(self, event):
@@ -854,7 +853,6 @@ class EncounterAPI:
         self.toggle_play(set_to=showing_menu)
         self.gui.request('menu_hide' if showing_menu else 'menu_show')
         self.gui.request('browse_hide')
-        self.toggle_show_debug(set_as=False)
 
     def _chandle_toggle_map(self, event):
         self.toggle_map()

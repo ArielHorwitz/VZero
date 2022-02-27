@@ -38,9 +38,9 @@ class GameAPI:
         self.draftables = []
         self.loadout = [None for _ in range(8)]
         self.generate_world()
-        self.settings_notifier.subscribe('misc.dev_build', self.setting_dev_build)
+        self.settings_notifier.subscribe('misc.debug_mode', self.setting_debug_mode)
 
-    def setting_dev_build(self):
+    def setting_debug_mode(self):
         self.refresh_world()
 
     def update(self):
@@ -154,7 +154,7 @@ class GameAPI:
             self.refresh_draft_gui()
             return
 
-        if ABILITIES[aid].draftable or DEV_BUILD:
+        if aid in self.draftables:
             for i, loadout_aid in enumerate(self.loadout):
                 if loadout_aid is None:
                     self.loadout[i] = aid
@@ -239,10 +239,10 @@ class GameAPI:
         ])
 
     def refresh_draftables(self):
-        dev = PROFILE.get_setting('misc.dev_build')
+        debug = PROFILE.get_setting('misc.debug_mode') and DEV_BUILD  # Allow draft all
         self.draftables = []
         for aid in AID_LIST:
-            if ABILITIES[aid].draftable or dev:
+            if ABILITIES[aid].draftable or debug:
                 self.draftables.append(aid)
 
     @property

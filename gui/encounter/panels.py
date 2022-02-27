@@ -426,6 +426,8 @@ class DebugPanel(Modal, EncounterViewComponent):
             make_title('GUI Performance', length=30),
             f'FPS: {self.app.fps.rate:.1f} ({self.app.fps.mean_elapsed_ms:.1f} ms)',
             f'View size: {list(round(_) for _ in self.enc.size)}',
+            f'Mouse position: {tuple(int(_) for _ in self.app.mouse_pos)}',
+            f'Mouse real position: {tuple(round(_,2) for _ in self.enc.mouse_real_pos)}',
             f'Map zoom: {self.enc.zoom_str} ({self.enc.upp:.2f} u/p)',
             f'Unit sprites: {len(self.enc.overlays["sprites"].sprites)} (drawing: {self.enc.overlays["sprites"].visible_count})',
             f'VFX count: {self.enc.overlays["vfx"].vfx_count}',
