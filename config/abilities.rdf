@@ -1804,6 +1804,9 @@ info: Erase a biome droplet.
 --- ACTIVE
 --- active.upcast.mapeditor
 remove
+--- ALT
+--- alt.upcast.mapeditor
+export
 === Map Editor Toggle
 hidden
 type: base
@@ -1811,6 +1814,9 @@ info: Toggle a biome droplet.
 --- ACTIVE
 --- active.upcast.mapeditor
 toggle
+--- ALT
+--- alt.upcast.mapeditor
+export
 === Map Editor Pipette
 hidden
 type: base
@@ -1818,6 +1824,9 @@ info: Copy a biome droplet.
 --- ACTIVE
 --- active.upcast.mapeditor
 pipette
+--- ALT
+--- alt.upcast.mapeditor
+export
 === Map Editor Droplet
 hidden
 type: base
@@ -1825,35 +1834,13 @@ info: Paste a biome droplet.
 --- ACTIVE
 --- active.upcast.mapeditor
 add
+--- ALT
+--- alt.upcast.mapeditor
+export
 
 
 
 
-
-=== Dev Stone
-hidden
-type: base
-sfx: blink
--- stats
-hp.delta: 10000
-hp.max: 10000
-mana.delta: 10000
-mana.max: 10000
-shop: 3
--- ACTIVE
-status_block: bounded
--- active.upcast.vfx-line
--- active.upcast.teleport
-
--- ALT
-no_sfx
--- alt.unconditional.stat
-target: self
-stat: gold
-delta: 25000
--- alt.unconditional.sfx
-category: ui
-sfx: loot
 
 
 === Dev Stats
@@ -1895,18 +1882,31 @@ stat: water
 delta: -25
 
 
-=== Dev Snipe
+
+=== Dev Stone
 hidden
 type: base
-sfx: snipe
-sprite: snipe
---- ACTIVE
-target: other
-include_self
---- active.upcast.hit
-damage: 10_000
---- active.upcast.vfx-line
+sfx: blink
+-- stats
+hp.delta: 10000
+hp.max: 10000
+mana.delta: 10000
+mana.max: 10000
+shop: 3
+-- ACTIVE
+status_block: bounded
+-- active.upcast.vfx-line
+-- active.upcast.teleport
 
+-- ALT
+no_sfx
+-- alt.unconditional.stat
+target: self
+stat: gold
+delta: 25000
+-- alt.unconditional.sfx
+category: ui
+sfx: loot
 
 
 === Dev Blast
@@ -1927,6 +1927,21 @@ radius: 500
 color: 1, 0, 0, 0.5
 duration: 1
 fade: 1
+
+
+
+=== Dev Snipe
+hidden
+type: base
+sfx: snipe
+sprite: snipe
+--- ACTIVE
+target: other
+include_self
+--- active.upcast.hit
+damage: 10_000
+--- active.upcast.vfx-line
+
 
 
 === Dev Debuff

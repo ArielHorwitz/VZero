@@ -1267,6 +1267,8 @@ class EffectMapEditor(Effect):
         elif 'toggle' in self.positional:
             tile = api.get_status(uid, STATUS.MAP_EDITOR, STATUS_VALUE.STACKS)
             api.logic.map.toggle_droplet(target_point)
+        elif 'export' in self.positional:
+            api.logic.map.export_biomes()
 
 
 class EffectSFX(Effect):

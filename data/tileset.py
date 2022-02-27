@@ -60,13 +60,12 @@ class __TileMap:
                 tile = im.crop(box)
                 category = next(categories)
                 self.tiles[category].append(tile)
-                # logger.debug(f'Loaded tile: {category} from {(x, y)}')
 
     def draw_map(self, size, default, tilemap):
         s = Seed('dev')
         tiles_x, tiles_y = size
         total_size = np.array(size) * self.tile_size
-        logger.debug(f'Tilemap pixel size: {total_size}')
+        logger.info(f'Tilemap pixel size: {total_size}')
         new_map = Image.new(mode='RGB', size=tuple(total_size))
 
         for x in range(tiles_x):

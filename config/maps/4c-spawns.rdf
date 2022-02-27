@@ -1,0 +1,178 @@
+=== Spawn
+--- units
+fort: 1
+--- loc
+5000, 5000
+=== Shop basic
+--- units
+basic shop: 1
+--- loc
+7000, 5000
+=== Shop herbal
+--- units
+herbal shop: 1
+--- loc
+5000, 9500
+=== Shop ornament
+--- units
+ornament shop: 1
+--- loc
+5000, 500
+=== Lost Treasure
+--- units
+lost treasure: 1
+--- loc
+500, 5000
+=== Hero Treasure
+--- units
+hero treasure: 1
+--- loc
+9500, 5000
+
+
+=== Penguin
+--- units
+penguin: 2
+ratzan: 1
+slank: 1
+--- loc
+4400, 3500
+5600, 3500
+=== Imp
+--- units
+blood imp: 2
+glob: 1
+jackal: 1
+--- loc
+4400, 6500
+5600, 6500
+=== Meef
+--- units
+meef: 3
+slank: 1
+--- loc
+3500, 4400
+3500, 5600
+=== Critter
+--- units
+ratzan: 2
+jackal: 2
+--- loc
+6500, 4400
+6500, 5600
+
+=== Winged Snake
+--- units
+winged snake: 1
+--- loc
+8500, 8500
+=== Winged Snake Guard
+--- units
+fire elemental: 1
+--- loc
+8000, 7250
+7250, 8000
+=== Winged Snake Outskirts
+--- units
+spiker: 1
+boo: 1
+--- loc
+7200, 9300
+9300, 7200
+=== Winged Snake Frontier
+--- units
+gnome: 1
+phaser: 1
+--- loc
+5800, 8200
+5800, 9300
+8200, 5800
+9300, 5800
+
+
+=== Barkshroom
+--- units
+barkshroom: 1
+--- loc
+1500, 1500
+=== Barkshroom Guard
+--- units
+skull: 1
+--- loc
+2000, 2750
+2750, 2000
+=== Barkshroom Outskirts
+--- units
+fire troll: 1
+boo: 1
+--- loc
+2800, 700
+700, 2800
+=== Barkshroom Frontier
+--- units
+crab: 1
+spiker: 1
+--- loc
+4200, 1800
+4200, 700
+700, 4200
+1800, 4200
+
+
+
+=== Robot
+--- units
+robot: 1
+--- loc
+8500, 1500
+=== Robot Guard
+--- units
+golden dragon: 1
+--- loc
+2000, 7250
+2750, 8000
+=== Robot Outskirts
+--- units
+repteye: 1
+zombie: 1
+--- loc
+7200, 700
+9300, 2800
+=== Robot Frontier
+--- units
+folphin: 1
+infester: 1
+--- loc
+5800, 1800
+5800, 700
+8200, 4200
+9300, 4200
+
+
+=== Omegor
+--- units
+omegor: 1
+--- loc
+1500, 8500
+=== Omegor Guard
+--- units
+lich: 1
+--- loc
+7250, 2000
+8000, 2750
+=== Omegor Outskirts
+--- units
+harpy: 1
+boo: 1
+--- loc
+2800, 9300
+700, 7200
+=== Omegor Frontier
+--- units
+crab: 1
+folphin: 1
+--- loc
+4200, 8200
+4200, 9300
+700, 5800
+1800, 5800

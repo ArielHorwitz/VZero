@@ -13,6 +13,7 @@ from data import DEV_BUILD
 from data.load import RDF
 from data.assets import Assets
 from data.settings import PROFILE
+from logic.mapgen import MAP_NAMES
 from logic.common import *
 from gui.api import SpriteLabel, SpriteTitleLabel, SpriteBox
 from gui.api import ControlEvent
@@ -63,7 +64,7 @@ class GameAPI:
         colors = [COLOR.WHITE, COLOR.YELLOW, COLOR.CYAN, COLOR.PURPLE]
         self.world_encounters = []
         self.expired_encounters = set()
-        for map in maps:
+        for map in MAP_NAMES:
             desc = '\n'.join([
                 f'Sandbox: no rewards, replayable.',
                 f'Map: {map}'
@@ -76,7 +77,7 @@ class GameAPI:
         replayable = False
         for difficulty_index, count in ((1, 20), (2, 10), (3, 5)):
             for i in range(count):
-                map = self.seed.choice(maps)
+                map = self.seed.choice(MAP_NAMES)
                 color = modify_color(colors[difficulty_index], v=0.3)
                 sprite = Assets.get_sprite(f'maps.{map}')
                 vp_reward = vp_rewards[difficulty_index]

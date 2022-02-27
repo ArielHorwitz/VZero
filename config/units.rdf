@@ -50,6 +50,43 @@ physical: 60
 movespeed: 20
 
 
+=== Mini creep
+type: creep
+abilities: shoot
+wave: 60
+wave_offset: 1
+scaling: 1.15
+always_active
+always_visible
+respawn_sfx: respawn-wave
+sprite: small-creep
+--- stats
+movespeed: 20
+hitbox: 75
+gold: 50
+hp.max: 100
+physical: 20
+movespeed: 20
+
+=== Large creep
+type: creep
+abilities: attack
+wave: 60
+wave_offset: 1
+scaling: 1.15
+always_active
+always_visible
+respawn_sfx: respawn-wave2
+sprite: huge-creep
+--- stats
+movespeed: 20
+hitbox: 150
+gold: 150
+hp.max: 300
+physical: 60
+movespeed: 20
+
+
 
 
 ------------------------------------- Tier 1

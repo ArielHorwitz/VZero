@@ -1,0 +1,251 @@
+=== Spawn
+--- units
+fort: 1
+--- loc
+1000, 1000
+
+
+=== DPS
+--- units
+dps_meter: 1
+--- loc
+350, 350
+
+
+
+=== Lighthouse
+--- units
+lighthouse: 1
+--- loc
+3700, 5100
+
+
+
+
+=== Shop basic
+--- units
+basic shop: 1
+--- loc
+1500, 300
+=== Shop herbal
+--- units
+herbal shop: 1
+--- loc
+5000, 9000
+=== Shop ornament
+--- units
+ornament shop: 1
+--- loc
+9000, 5000
+
+
+
+=== Hero Treasure
+--- units
+hero treasure: 1
+--- loc
+9800, 3000
+
+=== Lost Treasure
+--- units
+lost treasure: 1
+--- loc
+3000, 9800
+
+
+
+
+=== Creep 1
+--- units
+small creep: 3
+--- loc
+100, 9800
+=== Creep 2
+--- units
+huge creep: 1
+--- loc
+9800, 100
+
+
+
+
+
+
+=== Meef pair
+--- units
+meef: 2
+--- loc
+4850, 4250
+3710, 1260
+
+=== Imp pack
+--- units
+blood imp: 2
+--- loc
+4150, 3740
+2150, 3230
+
+=== Ratzan hive
+--- units
+ratzan: 2
+slank: 1
+--- loc
+3090, 3890
+2620, 2490
+
+=== Glob hole
+--- units
+glob: 1
+ratzan: 1
+--- loc
+3370, 3030
+2660, 1640
+
+=== Penguin cell
+--- units
+penguin: 2
+--- loc
+4140, 2840
+1830, 2530
+
+=== Jackal pack
+--- units
+jackal: 3
+--- loc
+3490, 2090
+2030, 2040
+
+
+
+
+=== Infestation
+--- units
+infester: 2
+--- loc
+2340, 4870
+2380, 6040
+2380, 8520
+
+=== Crab patch
+--- units
+crab: 2
+slank: 1
+--- loc
+1490, 4070
+3230, 6780
+2130, 6820
+
+=== Shako
+--- units
+shako: 1
+glob: 1
+--- loc
+1310, 8760
+3180, 8930
+2140, 7510
+
+=== Folphin
+--- units
+folphin: 1
+blood imp: 1
+--- loc
+1370, 5520
+4130, 6690
+
+=== Gnome
+--- units
+gnome: 1
+--- loc
+1110, 6630
+3840, 7670
+
+=== Phaser
+--- units
+phaser: 1
+--- loc
+1140, 7660
+4410, 8460
+
+
+
+
+=== Fire troll
+--- units
+fire troll: 1
+folphin: 1
+blood imp: 1
+--- loc
+5330, 1510
+8750, 3040
+
+=== Reptilian nest
+--- units
+repteye: 1
+--- loc
+5440, 2820
+8380, 1970
+7450, 2180
+
+=== Harpy nest
+--- units
+harpy: 2
+--- loc
+6320, 3780
+8890, 1010
+6820, 2670
+
+=== Spike pit
+--- units
+spiker: 1
+glob: 1
+--- loc
+7520, 3910
+7380, 970
+
+=== Zombies
+--- units
+zombie: 2
+boo: 1
+--- loc
+8840, 4070
+6540, 1430
+
+
+
+
+=== Lich
+--- units
+lich: 1
+--- loc
+7110, 8550
+8270, 7940
+
+=== Fire hole
+--- units
+fire elemental: 2
+--- loc
+5370, 5850
+8120, 9120
+8410, 5780
+
+=== Skull nest
+--- units
+skull: 2
+--- loc
+7060, 5350
+6120, 8110
+
+=== Dragon Pit
+--- units
+golden dragon: 2
+--- loc
+5110, 7190
+6000, 9010
+9170, 7220
+
+
+=== Boss
+--- units
+barkshroom: 1
+--- loc
+7000, 7000

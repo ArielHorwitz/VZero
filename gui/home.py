@@ -78,7 +78,7 @@ class World(widgets.BoxLayout):
         details_frame.set_size(x=DETAILS_WIDTH)
         # controls
         self.control_buttons = details_frame.add(Stack(wtype=SpriteLabel, callback=self.control_click))
-        self.control_buttons.set_size(y=200).make_bg((1,0.5,0.5,1))
+        self.control_buttons.set_size(y=80).make_bg((0.1,0.25,0.1,1))
         self.app.interface.register('set_world_control_buttons', self.control_buttons.update)
         self.bind(size=self.resize)
         # details
@@ -153,7 +153,7 @@ class DraftDetails(widgets.BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(orientation='vertical', **kwargs)
         self.control_buttons = self.add(Stack(wtype=SpriteLabel, callback=self.control_click))
-        self.control_buttons.set_size(y=200).make_bg((0.25,0.5,0.25,1))
+        self.control_buttons.set_size(y=80).make_bg((0.1,0.25,0.1,1))
         self.app.interface.register('set_draft_control_buttons', self.control_buttons.update)
 
         self.details = self.add(SpriteTitleLabel())

@@ -1,0 +1,28 @@
+=== Spawn
+--- units
+fort: 1
+--- loc
+300, 1500
+=== Shop
+--- units
+basic shop: 1
+--- loc
+200, 1500
+
+
+=== Creep wave
+--- units
+mini creep: 3
+large creep: 1
+--- loc
+9500, 2750
+8000, 1500
+9500, 250
+
+
+
+=== Boss
+--- units
+winged snake: 1
+--- loc
+9500, 1500
