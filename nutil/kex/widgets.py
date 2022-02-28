@@ -207,9 +207,11 @@ class InputManager(Widget):
             del self.__actions[action]
             self._refresh_all_keys()
 
-    def clear_all(self):
+    def clear_all(self, app_control_defaults=False):
         self.__actions = defaultdict(lambda: KeyCalls(set(), set()))
         self._refresh_all_keys()
+        if app_control_defaults:
+            self.register_app_control_defaults()
 
     def record(self, on_release=None, on_press=None):
         self.__recording_release = on_release
@@ -253,10 +255,13 @@ class InputManager(Widget):
         self.__last_key_down_ping = ping() - self.repeat_cooldown
         self.keyboard = kvWindow.request_keyboard(lambda: None, self)
         self.activate()
-        self.register('Debug input', '^!+ f12', lambda *a: self.record(on_release=self.start_debug_record))
         if app_control_defaults is True:
-            self.register('Restart', '+ escape', lambda *a: nutil.restart_script())
-            self.register('Quit', '^+ escape', lambda *a: self.app.stop())
+            self.register_app_control_defaults()
+
+    def register_app_control_defaults(self):
+        self.register('Debug input', '^!+ f12', lambda *a: self.record(on_release=self.start_debug_record))
+        self.register('Restart', '+ escape', lambda *a: nutil.restart_script())
+        self.register('Quit', '^+ escape', lambda *a: self.app.stop())
 
     def _refresh_all_keys(self):
         self.__all_keys = set()

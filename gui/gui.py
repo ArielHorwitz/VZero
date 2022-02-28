@@ -74,22 +74,33 @@ class App(widgets.App):
         self.settings_notifier.subscribe('general.borderless_offset_y', self.setting_window_state)
         self.settings_notifier.subscribe('ui.fullscreen_grab_mouse', self.setting_fullscreen_grab_mouse)
         self.setting_window_state()
+        self.settings_notifier.subscribe('ui.fullscreen_grab_mouse', self.setting_fullscreen_grab_mouse)
 
-        for params in [
-            ('Refresh', PROFILE.get_setting('hotkeys.refresh'), lambda *a: self.full_refresh()),
-            ('Fullscreen', PROFILE.get_setting('hotkeys.toggle_fullscreen'), lambda *a: PROFILE.toggle_setting('general.fullscreen')),
-            ('Tab: Home', '^+ f1', lambda *a: self.switch_screen('home')),
-            ('Tab: Encounter', '^+ f2', lambda *a: self.switch_screen('encounter')),
-            ('Tab: Settings', '^+ f3', lambda *a: self.switch_screen('profile')),
-            ('Tab: Help', '^+ f4', lambda *a: self.switch_screen('help')),
-        ]:
-            self.app_hotkeys.register(*params)
+        hotkeys = self.make_hotkeys()
+        for action, k, c in hotkeys:
+            self.settings_notifier.subscribe(f'hotkeys.{action}', self.make_hotkeys)
+
         if not DEV_BUILD:  # WELCOME SFX
             Assets.play_sfx('ui.welcome', volume='ui')
         self.interface.register('start_encounter', self.start_encounter)
         self.interface.register('end_encounter', self.end_encounter)
         self.interface.register('switch_screen', self.switch_screen)
         self.game.setup()
+
+    def make_hotkeys(self):
+        logger.info(f'App making hotkeys...')
+        self.app_hotkeys.clear_all(app_control_defaults=DEV_BUILD)
+        hotkeys = [
+            ('refresh', PROFILE.get_setting('hotkeys.refresh'), lambda *a: self.full_refresh()),
+            ('toggle_fullscreen', PROFILE.get_setting('hotkeys.toggle_fullscreen'), lambda *a: PROFILE.toggle_setting('general.fullscreen')),
+            ('tab1', PROFILE.get_setting('hotkeys.tab1'), lambda *a: self.switch_screen('home')),
+            ('tab2', PROFILE.get_setting('hotkeys.tab2'), lambda *a: self.switch_screen('encounter')),
+            ('tab3', PROFILE.get_setting('hotkeys.tab3'), lambda *a: self.switch_screen('profile')),
+            ('tab4', PROFILE.get_setting('hotkeys.tab4'), lambda *a: self.switch_screen('help')),
+        ]
+        for params in hotkeys:
+            self.app_hotkeys.register(*params)
+        return hotkeys
 
     def _notify_settings(self, settings):
         self.settings_notifier.push(settings)

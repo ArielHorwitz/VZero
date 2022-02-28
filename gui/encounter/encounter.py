@@ -74,7 +74,10 @@ class Encounter(widgets.RelativeLayout):
         self.canvas_mouse_input_top = self.add(widgets.Widget())
         self.canvas_mouse_input_top.bind(on_touch_up=self.canvas_release)
 
-        self.make_hotkeys()
+        hotkeys = self.make_hotkeys()
+        for action, k, c in hotkeys:
+            logger.info(f'EGUI subscribing to setting: {action}')
+            self.settings_notifier.subscribe(f'hotkeys.{action}', self.make_hotkeys)
 
         self.interface.register('activate_tooltip', self.activate_tooltip)
         self.interface.register('deactivate_tooltip', self.tooltip.deactivate)
@@ -151,6 +154,8 @@ class Encounter(widgets.RelativeLayout):
             self.__holding_mouse = False
 
     def make_hotkeys(self):
+        logger.info(f'EGUI making hotkeys...')
+        self.app.enc_hotkeys.clear_all()
         hotkeys = [
             ('toggle_detailed', PROFILE.get_setting('hotkeys.toggle_detailed'), lambda *a: PROFILE.toggle_setting('ui.detailed_mode')),
         ]
@@ -199,6 +204,7 @@ class Encounter(widgets.RelativeLayout):
         # Register
         for params in hotkeys:
             self.app.enc_hotkeys.register(*params)
+        return hotkeys
 
     # Utility
     def real2pix(self, pos):

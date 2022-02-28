@@ -41,10 +41,10 @@ volume_monster_death: slider
 
 === ui
 default_zoom: 40.0
-detailed_mode: 1
+detailed_mode: 0
 fullscreen_grab_mouse: 1
 auto_dismiss_tooltip: 100.0
-auto_tooltip: 0
+auto_tooltip: 1
 hud_height: 0.5
 hud_width: 0.5
 decorations: 1.00, 1.00, 1.00, 0.75
@@ -103,6 +103,11 @@ pan_left: left
 pan_right: right
 
 refresh: f5
+
+tab1: ^+ f5
+tab2: ^+ f6
+tab3: ^+ f7
+tab4: ^+ f8
 
 dev1: ^+ f9
 dev2: ^+ f10

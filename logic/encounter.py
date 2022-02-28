@@ -131,13 +131,14 @@ class EncounterAPI:
         self.default_upp = 2
 
         # Settings
-        self.settings_notifier.subscribe('ui.detailed_mode', self.setting_detailed_mode)
-        self.setting_detailed_mode()
         self.settings_notifier.subscribe('ui.feedback_sfx_cooldown', self.setting_feedback_sfx_interval)
         self.setting_feedback_sfx_interval()
         self.settings_notifier.subscribe('misc.log_interval', self.setting_log_interval)
         self.settings_notifier.subscribe('misc.auto_log', self.setting_log_interval)
         self.setting_log_interval()
+        hotkeys = self.setting_hotkeys()
+        for hk in hotkeys:
+            self.settings_notifier.subscribe(hk, self.setting_hotkeys)
 
         # Setup units
         self.engine.set_stats(self.player_uid, STAT.STOCKS, DIFFICULTY2STOCKS[self.difficulty_level])
@@ -155,12 +156,26 @@ class EncounterAPI:
 
     def setup(self, interface):
         self.gui = interface
+        self.settings_notifier.subscribe('ui.detailed_mode', self.setting_detailed_mode)
+        self.setting_detailed_mode()
         logger.info(f'Encounter setup received interface: {interface}')
         self.map.setup(self.gui)
         self.set_widgets()
         self.set_zoom()
         self.settings_notifier.subscribe('misc.debug_mode', self.setting_debug_mode)
         self.setting_debug_mode()
+
+    def setting_hotkeys(self):
+        self.hud_left_hotkeys = []
+        self.hud_right_hotkeys = []
+        hotkeys = set()
+        for i in range(8):
+            for ktype, l in (('ability', self.hud_left_hotkeys), ('item', self.hud_right_hotkeys)):
+                key_name = f'hotkeys.{ktype}{i+1}'
+                key = PROFILE.get_setting(key_name)
+                hotkeys.add(key_name)
+                l.append(str(key).upper())
+        return hotkeys
 
     def update(self):
         with self.engine.total_timers['logic_total'].time_block:
@@ -491,14 +506,6 @@ class EncounterAPI:
                 icons.append(Assets.get_sprite(f'mechanics.{name}'))
 
         return icons
-
-    hud_left_hotkeys = []
-    hud_right_hotkeys = []
-    for i in range(8):
-        akey = PROFILE.get_setting(f'hotkeys.ability{i+1}')
-        hud_left_hotkeys.append(str(int(akey) if isinstance(akey, float) else akey).upper())
-        ikey = PROFILE.get_setting(f'hotkeys.item{i+1}')
-        hud_right_hotkeys.append(str(int(ikey) if isinstance(ikey, float) else ikey).upper())
 
     def hud_left(self):
         uid = self.selected_unit
