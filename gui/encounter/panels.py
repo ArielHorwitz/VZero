@@ -12,7 +12,7 @@ from nutil.vars import minmax, modify_color
 from nutil.display import make_title
 from nutil.time import ratecounter, RateCounter, humanize_ms
 
-from data import TITLE
+from data import TITLE, DEV_BUILD
 from data.assets import Assets
 from data.settings import PROFILE
 from gui import cc_int, center_position
@@ -38,14 +38,15 @@ class LogicLabel(widgets.AnchorLayout, EncounterViewComponent):
 
         a = main_frame.add(widgets.AnchorLayout(anchor_y='top'))
         self.debug_label = a.add(widgets.Label(halign='center', valign='top', outline_width=2))
-        self.debug_label.set_size(x=160, y=25)
+        self.debug_label.set_size(x=250 if DEV_BUILD else 160, y=25)
         self.debug_label.make_bg((0,0,0,0), source=Assets.get_sprite('ui.mask-4x1'))
 
         self.enc.interface.register('set_top_panel_labels', self.set_labels)
         self.enc.interface.register('set_top_panel_color', self.set_color)
 
     def update(self):
-        self.debug_label.text = f'{TITLE} | {round(self.app.fps.rate)} FPS'
+        frame_str = f' ({self.enc.total_timers["frame_total"].mean_elapsed_ms:.2f} ms)' if DEV_BUILD else ''
+        self.debug_label.text = f'{TITLE} | {round(self.app.fps.rate)} FPS{frame_str}'
         self.debug_label.make_bg(self.app.fps_color)
 
     def set_color(self, color):
@@ -431,20 +432,26 @@ class DebugPanel(Modal, EncounterViewComponent):
             f'Map zoom: {self.enc.zoom_str} ({self.enc.upp:.2f} u/p)',
             f'Unit sprites: {len(self.enc.overlays["sprites"].sprites)} (drawing: {self.enc.overlays["sprites"].visible_count})',
             f'VFX count: {self.enc.overlays["vfx"].vfx_count}',
+            make_title('Totals', length=30),
+            self.display_timer_collection(self.enc.total_timers),
+            make_title('Singles', length=30),
+            self.display_timer_collection(self.enc.single_timers),
         ]
-        for tname, timer in self.enc.timers.items():
-            if isinstance(timer, RateCounter):
-                if tname in self.bold:
-                    perf_strs.append(f'[b]{tname}: {timer.mean_elapsed_ms:.3f} ms[/b]')
-                else:
-                    perf_strs.append(f'{tname}: {timer.mean_elapsed_ms:.3f} ms')
+
         perf_text = '\n'.join(perf_strs)
         texts[0] = '\n'.join((perf_text, texts[0]))
 
+        w = int(self.main_panel.size[0]/len(texts))
         for i, text in enumerate(texts):
             panel = self.panels[i]
             panel.text = text
-            w = int(self.main_panel.size[0]/len(texts))
             panel.text_size = w, self.main_panel.size[1]
             panel.size_hint = 1, 1
             panel.set_size(x=w)
+
+    def display_timer_collection(self, collection):
+        strs = []
+        for tname, timer in collection.items():
+            if isinstance(timer, RateCounter):
+                strs.append(f'{tname}: {timer.mean_elapsed_ms:.3f} ms')
+        return '\n'.join(strs)

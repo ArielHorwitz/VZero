@@ -118,7 +118,7 @@ class Sprites(widgets.RelativeLayout, EncounterViewComponent):
         subset_hb = self.unit_hitbox_radii[self.visible_mask] * 2 / min(self.enc.upp, (1/MIN_HITBOX_SCALE))
 
         for i, uid in enumerate(np.flatnonzero(self.visible_mask)):
-            with ratecounter(self.enc.timers['sprite_single']):
+            with self.enc.single_timers['sprite'].time_block:
                 s = self.sprites[uid]
                 s.size = subset_hb[i], subset_hb[i]
                 s.pos = subset_pos[i]

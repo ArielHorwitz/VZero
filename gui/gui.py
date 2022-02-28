@@ -227,10 +227,9 @@ class AppControl(widgets.AnchorLayout):
         sizex = 0
         fbutton = app_control_buttons.add(widgets.Button(text='Fullscreen', on_release=lambda *a: PROFILE.toggle_setting('general.fullscreen')))
         fbutton.set_size(x=100)
-        if DEV_BUILD:  # RESTART BUTTON
-            rebutton = app_control_buttons.add(widgets.Button(text=f'Restart', on_release=lambda *a: self.app.do_restart()))
-            rebutton.set_size(x=100)
-            sizex += 100
+        rebutton = app_control_buttons.add(widgets.Button(text=f'Restart', on_release=lambda *a: self.app.do_restart()))
+        rebutton.set_size(x=100)
+        sizex += 100
         qbutton = app_control_buttons.add(widgets.Button(text='Quit', on_release=lambda *a: self.app.do_quit()))
         qbutton.set_size(x=100)
         sizex += 200

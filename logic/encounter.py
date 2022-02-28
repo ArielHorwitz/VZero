@@ -161,27 +161,27 @@ class EncounterAPI:
         self.setting_debug_mode()
 
     def update(self):
-        self.detailed_info_mode = PROFILE.get_setting('ui.detailed_mode')
-        self.gui_size = self.gui.request('get_gui_size')
-        self.view_size = self.gui_size * self.upp
+        with self.engine.total_timers['logic_total'].time_block:
+            self.detailed_info_mode = PROFILE.get_setting('ui.detailed_mode')
+            self.gui_size = self.gui.request('get_gui_size')
+            self.view_size = self.gui_size * self.upp
 
-        if not self.enc_over:
-            player_action_radius = min(self.units[0].view_distance+1000, 3000)
-            in_action_radius = self.engine.get_distances(self.engine.get_position(0)) < player_action_radius
-            active_uids = self.always_active | in_action_radius
-            self.engine.update(active_uids)
-            if self.__last_log_interval + self.__log_interval_ticks < self.engine.tick:
-                self.log_player_state()
-                self.__last_log_interval = self.engine.tick
+            if not self.enc_over:
+                player_action_radius = min(self.units[0].view_distance+1000, 3000)
+                in_action_radius = self.engine.get_distances(self.engine.get_position(0)) < player_action_radius
+                active_uids = self.always_active | in_action_radius
+                self.engine.update(active_uids)
+                if self.__last_log_interval + self.__log_interval_ticks < self.engine.tick:
+                    self.log_player_state()
+                    self.__last_log_interval = self.engine.tick
+                self.refresh_play_gui()
 
-        self.gui.request('set_view_center', self.view_center)
-        self.gui.request('set_move_crosshair', self.engine.get_position(self.player_uid, value_name=VALUE.TARGET))
-        self.gui.request('set_vfx', self.engine.get_visual_effects())
-        self.refresh_all_gui()
+            self.refresh_nonplay_gui()
 
-        # Handle GUI event queue
-        for event in self.gui.get_flush_queue():
-            self._handle_event(event)
+            # Handle GUI event queue
+            with self.engine.total_timers['event_handles'].time_block:
+                for event in self.gui.get_flush_queue():
+                    self._handle_event(event)
 
     def set_widgets(self):
         sprites = [unit.sprite for unit in self.units]
@@ -195,38 +195,51 @@ class EncounterAPI:
         self.gui.request('set_menu_text', self.menu_text)
         self.gui.request('set_menu_leave_text', 'Give up', 'Ditch encounter?')
 
-    def refresh_all_gui(self):
+    def refresh_nonplay_gui(self):
+        self.gui.request('set_view_center', self.view_center)
+        self.gui.request('set_move_crosshair', self.engine.get_position(self.player_uid, value_name=VALUE.TARGET))
+        with self.engine.total_timers['gui_vfx'].time_block:
+            self.gui.request('set_vfx', self.engine.get_visual_effects())
+        self.refresh_debug()
+
+    def refresh_play_gui(self):
         self.refresh_gui_sprite_layer()
         self.refresh_hud()
         self.refresh_shop()
-        self.refresh_debug()
 
     def refresh_gui_sprite_layer(self):
-        self.gui.request('set_view_fade', 0 if self.engine.auto_tick else 0.5)
-        self.gui.request('set_top_panel_labels', *self.top_panel_labels)
-        self.gui.request('set_fog_center', self.player.position)
-        self.gui.request('set_fog_radius', self.player.view_distance + Mechanics.get_stats(self.engine, self.player_uid, STAT.HITBOX))
-        visible_mask = self.sprite_visible_mask
-        radii = Mechanics.get_stats(self.engine, visible_mask, STAT.HITBOX)
-        positions = self.engine.get_positions(visible_mask)
-        top_bars, bot_bars = self.sprite_bars(visible_mask)
-        statuses = [self.sprite_statuses(uid) for uid in np.flatnonzero(visible_mask)]
-        self.gui.request('update_units', visible_mask, radii, positions, top_bars, bot_bars, statuses)
+        with self.engine.total_timers['gui_sprite_layer'].time_block:
+            self.gui.request('set_view_fade', 0 if self.engine.auto_tick else 0.5)
+            self.gui.request('set_top_panel_labels', *self.top_panel_labels)
+            self.gui.request('set_fog_center', self.player.position)
+            self.gui.request('set_fog_radius', self.player.view_distance + Mechanics.get_stats(self.engine, self.player_uid, STAT.HITBOX))
+            visible_mask = self.sprite_visible_mask
+            radii = Mechanics.get_stats(self.engine, visible_mask, STAT.HITBOX)
+            positions = self.engine.get_positions(visible_mask)
+            top_bars, bot_bars = self.sprite_bars(visible_mask)
+            with self.engine.total_timers['gui_sprite_layer_statuses'].time_block:
+                statuses = [self.sprite_statuses(uid) for uid in np.flatnonzero(visible_mask)]
+            self.gui.request('update_units', visible_mask, radii, positions, top_bars, bot_bars, statuses)
 
     def refresh_hud(self):
-        unit = self.units[self.selected_unit]
-        self.gui.request('set_huds', self.hud_left(), self.hud_middle(), self.hud_right(), self.hud_statuses())
-        self.gui.request('set_hud_bars', *self.hud_bars())
-        self.gui.request('set_hud_portrait', unit.sprite, unit.name)
-        self.gui.request('set_hud_middle_label', unit.say)
+        with self.engine.total_timers['gui_hud'].time_block:
+            unit = self.units[self.selected_unit]
+            self.gui.request('set_huds', self.hud_left(), self.hud_middle(), self.hud_right(), self.hud_statuses())
+            self.gui.request('set_hud_bars', *self.hud_bars())
+            self.gui.request('set_hud_portrait', unit.sprite, unit.name)
+            self.gui.request('set_hud_middle_label', unit.say)
 
     def refresh_shop(self):
-        self.gui.request('set_browse_main', self.browse_main())
-        self.gui.request('set_browse_elements', self.browse_elements())
+        with self.engine.total_timers['gui_shop'].time_block:
+            if not self.gui.request('browse_showing'):
+                return
+            self.gui.request('set_browse_main', self.browse_main())
+            self.gui.request('set_browse_elements', self.browse_elements())
 
     def refresh_debug(self):
         if self.debug_mode:  # Refresh debug panels
-            self.gui.request('set_debug_panels', self.debug_panel_labels())
+            with self.engine.total_timers['gui_debug_panels'].time_block:
+                self.gui.request('set_debug_panels', self.debug_panel_labels())
 
     def leave(self):
         self.enc_over = True
@@ -698,19 +711,25 @@ class EncounterAPI:
         return njoin(s) if len(s) > 0 else f'No cooldowns'
 
     def debug_panel_labels(self):
+        def display_timer_collection(collection):
+            strs = []
+            for tname, timer in collection.items():
+                if isinstance(timer, RateCounter):
+                    strs.append(f'{tname}: {timer.mean_elapsed_ms:.3f} ms')
+            return '\n'.join(strs)
+
         verbose = True
-        bold = {'logic_total', 'logic_stats'}
-        timer_strs = []
-        for tname, timer in self.engine.timers.items():
-            if isinstance(timer, RateCounter):
-                if tname in bold:
-                    timer_strs.append(f'[b]{tname}: {timer.mean_elapsed_ms:.3f} ms[/b]')
-                else:
-                    timer_strs.append(f'{tname}: {timer.mean_elapsed_ms:.3f} ms')
         logic_performance = '\n'.join([
             make_title('Logic Performance', length=30),
-            *timer_strs,
+            f'browse: {self.gui.request("browse_showing")}',
+            make_title('Totals', length=30),
+            display_timer_collection(self.engine.total_timers),
+            make_title('Single', length=30),
+            display_timer_collection(self.engine.single_timers),
         ])
+
+        if not self.detailed_info_mode:
+            return [logic_performance]
 
         logic_overview = njoin([
             make_title(f'Logic Overview', length=30),
@@ -721,9 +740,6 @@ class EncounterAPI:
             make_title(f'Stats Engine Debug', length=30),
             f'{self.engine.stats.debug_str(verbose=verbose)}',
         ])
-
-        if not self.detailed_info_mode:
-            return [logic_performance]
 
         uid = self.selected_unit
         unit = self.engine.units[uid]

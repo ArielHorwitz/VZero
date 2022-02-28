@@ -94,20 +94,21 @@ class BaseAbility:
     def balance_stats(self, api, uid):
         if not self.stats:
             return
-        unit = api.units[uid]
-        for i, balance_entry in enumerate(unit.cache[f'{self}-stats']):
-            stat, value, formula, pre_bonus = balance_entry
-            target_value = formula.get_value(api, uid)
-            if value is VALUE.DELTA:
-                target_value = ticks2s(target_value)
-            delta = target_value - pre_bonus
-            if delta == 0:
-                continue
-            pre_stat = api.get_stats(uid, stat, value)
-            api.set_stats(uid, stat, delta, value, additive=True)
-            post_stat = api.get_stats(uid, stat, value)
-            actual_delta = post_stat - pre_stat
-            unit.cache[f'{self}-stats'][i][3] += actual_delta
+        with api.single_timers[f'passive-stat-balance'].time_block:
+            unit = api.units[uid]
+            for i, balance_entry in enumerate(unit.cache[f'{self}-stats']):
+                stat, value, formula, pre_bonus = balance_entry
+                target_value = formula.get_value(api, uid)
+                if value is VALUE.DELTA:
+                    target_value = ticks2s(target_value)
+                delta = target_value - pre_bonus
+                if delta == 0:
+                    continue
+                pre_stat = api.get_stats(uid, stat, value)
+                api.set_stats(uid, stat, delta, value, additive=True)
+                post_stat = api.get_stats(uid, stat, value)
+                actual_delta = post_stat - pre_stat
+                unit.cache[f'{self}-stats'][i][3] += actual_delta
 
     def remove_stats(self, api, uid):
         if not self.stats:
@@ -144,14 +145,16 @@ class BaseAbility:
 
     # PHASES
     def passive(self, api, uid, dt):
-        self.balance_stats(api, uid)
-        phase = self.phases[PHASE.PASSIVE]
-        phase.apply_effects(api, uid, dt)
+        with api.ability_timers[f'{self.aid}-passive'].time_block:
+            self.balance_stats(api, uid)
+            phase = self.phases[PHASE.PASSIVE]
+            phase.apply_effects(api, uid, dt)
         return self.aid
 
     def active(self, api, uid, target_point, alt=0):
-        phase = self.phases[PHASE.ACTIVE if alt == 0 else PHASE.ALT]
-        phase.apply_effects(api, uid, dt=0, target_point=target_point)
+        with api.ability_timers[f'{self.aid}-active'].time_block:
+            phase = self.phases[PHASE.ACTIVE if alt == 0 else PHASE.ALT]
+            phase.apply_effects(api, uid, dt=0, target_point=target_point)
         return self.aid
 
     def off_cooldown(self, api, uid):
@@ -317,38 +320,39 @@ class Phase:
     def apply_effects(self, api, uid, dt, target_point=None):
         if not self.has_effect:
             return
-        if target_point is None:
-            target_point = api.get_position(uid)
-        target_point = Mechanics.bound_to_map(api.logic, target_point)
-        # Collect targets
-        targets = self.get_targets(api, uid, target_point, dt)
-        if self.debug:
-            d = ' '.join(str(_) for _ in [
-                'fails:', targets.fails,
-                'dt:', targets.dt,
-                'source:', targets.source,
-                'point:', targets.point,
-                'single:', np.flatnonzero(targets.single),
-                'area:', np.flatnonzero(targets.area),
-                'selected:', np.flatnonzero(targets.selected),
-            ])
-            target_str = f'{"*" if self.targeting_point else ""}point: {self.point} {"" if self.targeting_point else "*"}target: {self.target} '
-            logger.info(f'Tick: {api.tick} UID: {uid}, {self} found: {target_str} {d}')
-        # Unconditional effects
-        for effect in self.effects[CONDITION.UNCONDITIONAL]:
-            effect.apply(api, uid, targets)
-        # Conditional (upcast/downcast) effects
-        condition = CONDITION.DOWNCAST if targets.fails else CONDITION.UPCAST
-        for effect in self.effects[condition]:
-            effect.apply(api, uid, targets)
-        # Auto SFX
-        if targets.fails:
-            if self.auto_fail_sfx:
-                fail_sfx = sorted(targets.fails, key=self.sort_fails_key)[0]
-                api.logic.play_feedback(fail_sfx, uid)
-        else:
-            if self.auto_sfx:
-                self.ability.play_sfx()
+        with api.single_timers[self.phase_name].time_block:
+            if target_point is None:
+                target_point = api.get_position(uid)
+            target_point = Mechanics.bound_to_map(api.logic, target_point)
+            # Collect targets
+            targets = self.get_targets(api, uid, target_point, dt)
+            if self.debug:
+                d = ' '.join(str(_) for _ in [
+                    'fails:', targets.fails,
+                    'dt:', targets.dt,
+                    'source:', targets.source,
+                    'point:', targets.point,
+                    'single:', np.flatnonzero(targets.single),
+                    'area:', np.flatnonzero(targets.area),
+                    'selected:', np.flatnonzero(targets.selected),
+                ])
+                target_str = f'{"*" if self.targeting_point else ""}point: {self.point} {"" if self.targeting_point else "*"}target: {self.target} '
+                logger.info(f'Tick: {api.tick} UID: {uid}, {self} found: {target_str} {d}')
+            # Unconditional effects
+            for effect in self.effects[CONDITION.UNCONDITIONAL]:
+                effect.apply(api, uid, targets)
+            # Conditional (upcast/downcast) effects
+            condition = CONDITION.DOWNCAST if targets.fails else CONDITION.UPCAST
+            for effect in self.effects[condition]:
+                effect.apply(api, uid, targets)
+            # Auto SFX
+            if targets.fails:
+                if self.auto_fail_sfx:
+                    fail_sfx = sorted(targets.fails, key=self.sort_fails_key)[0]
+                    api.logic.play_feedback(fail_sfx, uid)
+            else:
+                if self.auto_sfx:
+                    self.ability.play_sfx()
 
     def add_effect(self, condition, effect):
         self.effects[condition].append(effect)

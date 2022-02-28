@@ -272,20 +272,19 @@ class Unit:
             self.use_item(iid, target, alt)
 
     def use_item(self, iid, target, alt=0):
-        with ratecounter(self.engine.timers['ability_single']):
-            if iid not in self.items:
-                logger.warning(f'{self} using item {repr(iid)} not in items: {self.items}')
-            if not self.engine.auto_tick and not self.api.debug_mode:
-                logger.warning(f'{self} tried using item {iid.name} while paused')
-                self.api.play_feedback(FAIL_RESULT.INACTIVE, self.uid)
-                return
-            if not self.is_alive:
-                logger.warning(f'{self} is dead and requested item {iid.name}')
-                self.api.play_feedback(FAIL_RESULT.INACTIVE, self.uid)
-                return
+        if iid not in self.items:
+            logger.warning(f'{self} using item {repr(iid)} not in items: {self.items}')
+        if not self.engine.auto_tick and not self.api.debug_mode:
+            logger.warning(f'{self} tried using item {iid.name} while paused')
+            self.api.play_feedback(FAIL_RESULT.INACTIVE, self.uid)
+            return
+        if not self.is_alive:
+            logger.warning(f'{self} is dead and requested item {iid.name}')
+            self.api.play_feedback(FAIL_RESULT.INACTIVE, self.uid)
+            return
 
-            item = ITEMS[iid]
-            item.active(self.api, self.uid, target, alt)
+        item = ITEMS[iid]
+        item.active(self.api, self.uid, target, alt)
 
     def buy_item(self, iid):
         r = ITEMS[iid].buy_item(self.engine, self.uid)
@@ -306,20 +305,19 @@ class Unit:
             self.use_ability(aid, target, alt)
 
     def use_ability(self, aid, target, alt=0):
-        with ratecounter(self.engine.timers['ability_single']):
-            if aid not in self.abilities:
-                logger.warning(f'{self} using ability {repr(aid)} not in abilities: {self.abilities}')
-            if not self.engine.auto_tick and not self.api.debug_mode:
-                logger.warning(f'{self} tried using ability {aid.name} while paused')
-                self.api.play_feedback(FAIL_RESULT.INACTIVE, self.uid)
-                return
-            if not self.is_alive:
-                logger.warning(f'{self} is dead and requested ability {aid.name}')
-                self.api.play_feedback(FAIL_RESULT.INACTIVE, self.uid)
-                return
+        if aid not in self.abilities:
+            logger.warning(f'{self} using ability {repr(aid)} not in abilities: {self.abilities}')
+        if not self.engine.auto_tick and not self.api.debug_mode:
+            logger.warning(f'{self} tried using ability {aid.name} while paused')
+            self.api.play_feedback(FAIL_RESULT.INACTIVE, self.uid)
+            return
+        if not self.is_alive:
+            logger.warning(f'{self} is dead and requested ability {aid.name}')
+            self.api.play_feedback(FAIL_RESULT.INACTIVE, self.uid)
+            return
 
-            ability = self.api.abilities[aid]
-            ability.active(self.engine, self.uid, target, alt)
+        ability = self.api.abilities[aid]
+        ability.active(self.engine, self.uid, target, alt)
 
     def use_walk(self, target):
         self.use_ability(self.builtin_walk, target)
@@ -439,7 +437,7 @@ class Unit:
             f'Current velocity: {s2ticks(velocity):.2f}/s ({velocity:.2f}/t)',
             f'Action phase: {self.uid % self.api.engine.AGENCY_PHASE_COUNT}',
             f'Spawn location: {self._respawn_location}',
-            f'Agency: {self.api.engine.timers["agency"][self.uid].mean_elapsed_ms:.3f} ms',
+            f'Agency: {self.api.engine.agency_timers[self.uid].mean_elapsed_ms:.3f} ms',
             f'Distance to player: {self.api.engine.unit_distance(0, self.uid):.1f}',
         ]
         if verbose:

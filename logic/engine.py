@@ -29,8 +29,10 @@ class Engine:
         self.logic = logic
         self.__seed = Seed()
         self.eid = self.__seed.r
-        self.timers = defaultdict(RateCounter)
-        self.timers['agency'] = defaultdict(lambda: RateCounter(sample_size=10))
+        self.total_timers = defaultdict(RateCounter)
+        self.single_timers = defaultdict(RateCounter)
+        self.agency_timers = defaultdict(lambda: RateCounter(sample_size=10))
+        self.ability_timers = defaultdict(lambda: RateCounter(sample_size=10))
         self.auto_tick = True
         self.ticktime = 1000 / TPS
         self.__t0 = self.__last_tick = ping()
@@ -49,15 +51,15 @@ class Engine:
         assert isinstance(active_uids, np.ndarray)
         assert len(active_uids) == self.unit_count
         self.__active_uids = active_uids
-        with ratecounter(self.timers['logic_total']):
-            if self.tick == 0:
-                logger.info(f'Encounter {self.eid} started.')
-                ticks = 1
-            ticks = self._check_ticks()
-            if ticks > self.AGENCY_PHASE_COUNT:
-                logger.info(f'Requested {ticks} ticks on a single frame, throttled to {self.AGENCY_PHASE_COUNT}.')
-                ticks = self.AGENCY_PHASE_COUNT
-            if ticks > 0:
+        if self.tick == 0:
+            logger.info(f'Encounter {self.eid} started.')
+            ticks = 1
+        ticks = self._check_ticks()
+        if ticks > self.AGENCY_PHASE_COUNT:
+            logger.info(f'Requested {ticks} ticks on a single frame, throttled to {self.AGENCY_PHASE_COUNT}.')
+            ticks = self.AGENCY_PHASE_COUNT
+        if ticks > 0:
+            with self.total_timers['engine'].time_block:
                 self._do_ticks(ticks)
 
     def _check_ticks(self):
@@ -71,11 +73,11 @@ class Engine:
         return ticks
 
     def _do_ticks(self, ticks):
-        with ratecounter(self.timers['logic_stats']):
+        with self.total_timers['stats'].time_block:
             hp_zero, status_zero, cooldown_zero = self.stats.do_tick(ticks)
-        with ratecounter(self.timers['logic_vfx']):
+        with self.total_timers['vfx'].time_block:
             self._iterate_visual_effects(ticks)
-        with ratecounter(self.timers['logic_agency']):
+        with self.total_timers['agency'].time_block:
             self._do_agency(ticks)
             if len(hp_zero) > 0:
                 for uid in hp_zero:
@@ -86,7 +88,7 @@ class Engine:
             if len(cooldown_zero) > 0:
                 for uid, aid in cooldown_zero:
                     self.units[uid].off_cooldown(aid)
-        with ratecounter(self.timers['logic_valuecap']):
+        with self.total_timers['valuecap'].time_block:
             self.stats._cap_minmax_values()
 
     def _iterate_visual_effects(self, ticks):
@@ -108,8 +110,9 @@ class Engine:
         in_action_uids = np.flatnonzero(in_phase & self.__active_uids)
         if len(in_action_uids) == 0: return
         for uid in in_action_uids:
-            with ratecounter(self.timers['agency'][uid]):
-                self._do_agent_action_phase(uid)
+            with self.single_timers['agency'].time_block:
+                with self.agency_timers[uid].time_block:
+                    self._do_agent_action_phase(uid)
 
     def _do_agent_action_phase(self, uid):
         self.units[uid].passive_phase()

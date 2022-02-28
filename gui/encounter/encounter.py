@@ -33,7 +33,8 @@ class Encounter(widgets.RelativeLayout):
         super().__init__(**kwargs)
         self.api = api
         self.settings_notifier = self.api.settings_notifier
-        self.timers = defaultdict(RateCounter)
+        self.total_timers = defaultdict(RateCounter)
+        self.single_timers = defaultdict(RateCounter)
         self.__units_per_pixel = DEFAULT_UPP
         self.__map_size = np.array([100, 100])
         self.__view_center = np.array([0, 0])
@@ -44,10 +45,6 @@ class Encounter(widgets.RelativeLayout):
 
         # Interface
         self.interface = Interface('GUI Encounter')
-
-        # Setting the order of timers
-        for timer in ('draw/idle', 'frame_total', 'graphics_total'):
-            self.timers[timer]
 
         # DRAW
         self.draw()
@@ -109,16 +106,16 @@ class Encounter(widgets.RelativeLayout):
             widgets.kvColor(1, 1, 1)
 
     def update(self):
-        self.timers['draw/idle'].pong()
-        with ratecounter(self.timers['frame_total']):
+        self.total_timers['draw/idle'].pong()
+        with self.total_timers['frame_total'].time_block:
             self.api.update()
-            with ratecounter(self.timers['graphics_total']):
+            with self.total_timers['graphics_total'].time_block:
                 self._update()
                 for timer, frame in self.overlays.items():
-                    with ratecounter(self.timers[f'graph_{timer}']):
+                    with self.total_timers[f'{timer}'].time_block:
                         frame.pos = 0, 0
                         frame.update()
-        self.timers['draw/idle'].ping()
+        self.total_timers['draw/idle'].ping()
 
     def _update(self):
         if self.__holding_mouse:
@@ -135,8 +132,12 @@ class Encounter(widgets.RelativeLayout):
             return False
         if not isinstance(m.button, str):
             m = f'canvas_click m.button not a str: {m.button} mouse ctx: {m}'
-            logger.critical(m)
-            raise RuntimeError(m)
+            logger.warning(m)
+            # Used to raise an exception for this but kivy has sent MouseMotionEvents
+            # here even though we are bound to `on_mouse_down`...
+            # It seems that somehow pressing/holding alt while pressing/holding left mouse will reproduce this error
+            # Or possibly disabling `detailed_mode` while holding left mouse will reproduce this error
+            return
         event_name = MOUSE_EVENTS[m.button] if m.button in MOUSE_EVENTS else m.button
         self.interface.append(InputEvent(event_name, self.mouse_real_pos, ''))
         if m.button == 'right' and self.__enable_hold_mouse:

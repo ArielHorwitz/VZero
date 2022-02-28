@@ -3,6 +3,7 @@ import time
 import contextlib
 import copy
 import numpy as np
+from collections import defaultdict
 
 
 def humanize_ms(t, show_ms=False, show_hours=True):

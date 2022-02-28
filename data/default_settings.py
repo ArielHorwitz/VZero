@@ -108,6 +108,9 @@ dev3: ^+ f11
 dev4: ^+ f12
 
 
+--- display
+alt_modifier: [i]for alternative[/i] casting
+
 === misc
 dev_build *: 0
 debug_mode: 0
@@ -122,5 +125,9 @@ map_editor_mode: bool
 auto_log: bool
 log_interval: float
 
+
+--- display
+dev_build *: [i]requires restart[/i]
+debug_mode: [i]only works in dev build[/i]
 
 """

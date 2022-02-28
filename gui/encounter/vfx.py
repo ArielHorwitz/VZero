@@ -37,7 +37,7 @@ class VFX(widgets.RelativeLayout, EncounterViewComponent):
     def update(self):
         self.canvas.clear()
         for effect in self.__cached_vfx:
-            with ratecounter(self.enc.timers['vfx_single']):
+            with self.enc.single_timers['vfx'].time_block:
                 draw_call = self.__draw_types[effect.eid]
                 draw_call(effect)
                 with self.canvas:
@@ -108,7 +108,7 @@ class VFX(widgets.RelativeLayout, EncounterViewComponent):
             widgets.kvQuad(points=points)
 
     def draw_sprite(self, effect):
-        with ratecounter(self.enc.timers['vfx_sprite_single']):
+        with self.enc.single_timers['vfx_sprite'].time_block:
             size = np.array([100, 100]) / self.enc.upp
             color = (1, 1, 1)
             sprite_source = effect.params['source']
