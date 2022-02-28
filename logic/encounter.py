@@ -33,17 +33,18 @@ metagame_data = str(VERSION) + str(DEV_BUILD) + ''.join(str(RDF.from_file(RDF.CO
     'abilities', 'items', 'units',
 )) + str(MAP_DATA)
 METAGAME_BALANCE = h256(metagame_data)
-METAGAME_BALANCE_SHORT = METAGAME_BALANCE[:4]
+METAGAME_BALANCE_SHORT = METAGAME_BALANCE[:4].upper()
 logger.info(f'Metagame Balance: {METAGAME_BALANCE_SHORT} ({METAGAME_BALANCE})')
 
 
 
-DIFFICULTY_LEVELS = ['Easy mode', 'Medium challenge', 'Hard difficulty', 'Impossible...']
+DIFFICULTY_LEVELS = ['Sandbox', 'Easy mode', 'Medium challenge', 'Hard difficulty', 'Impossible...']
 DIFFICULTY2STOCKS = {
     0: 100,
     1: 10,
-    2: 3,
-    3: 1,
+    2: 5,
+    3: 3,
+    4: 1,
 }
 
 FEEDBACK_SFX = {
@@ -444,7 +445,8 @@ class EncounterAPI:
 
     @property
     def top_panel_labels(self):
-        bstr = f'DEV BUILD' if DEV_BUILD else f'Balance patch: {METAGAME_BALANCE_SHORT}'
+        mouse_pos = tuple(round(_) for _ in self.gui.request("get_mouse_pos"))
+        bstr = f'DEV BUILD {mouse_pos}' if DEV_BUILD else f'Balance patch: {METAGAME_BALANCE_SHORT}'
         if self.debug_mode:  # Top panel label
             dstr = " / ".join(str(round(_, 1)) for _ in self.engine.get_position(0)/100)
         else:

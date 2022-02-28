@@ -665,6 +665,29 @@ hitbox: 50
 gold: 10000
 
 
+====== Punching bag
+type: dps_meter
+--- stats
+hitbox: 50
+allegiance: 0
+
+
+
+=== Ability tester
+abilities: bash
+type: creep
+aggro_range: 450
+deaggro_range: 600
+reaggro_range: 400
+camp_spread: 200
+wave: 300
+wave_offset: 1
+scaling: 1.15
+-- stats
+hitbox: 75
+hp.max: 1_000_000
+bounded: 1
+
 
 ---------------------------- -
 

@@ -165,7 +165,7 @@ class Setting:
         self.args = args
         self.parse_args(args)
         self.__anchor = anchor
-        self.__display = '' if display is None else display
+        self.__display = '' if display is None else f'[i]{display}[/i]'
         reconverted = self.to_str(self.from_str(default))
         if default != reconverted:
             logger.warning(f'Setting {name} default value to_str and from_str non-commutative {default} != {reconverted}')

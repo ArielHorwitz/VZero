@@ -83,6 +83,7 @@ class Encounter(widgets.RelativeLayout):
         self.interface.register('deactivate_tooltip', self.tooltip.deactivate)
         self.interface.register('set_upp', self.set_upp)
         self.interface.register('get_gui_size', self.get_gui_size)
+        self.interface.register('get_mouse_pos', lambda: self.mouse_real_pos)
         self.interface.register('set_view_center', self.set_view_center)
         self.interface.register('set_map_source', self.set_map_source)
         self.interface.register('set_move_crosshair', self.set_move_crosshair)

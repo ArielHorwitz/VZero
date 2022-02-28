@@ -19,7 +19,7 @@ from gui.api import SpriteLabel, SpriteTitleLabel, SpriteBox
 from gui.api import ControlEvent
 
 from logic.abilities import ABILITIES
-from logic.encounter import EncounterAPI, DIFFICULTY_LEVELS
+from logic.encounter import EncounterAPI, DIFFICULTY_LEVELS, METAGAME_BALANCE_SHORT
 
 
 EncounterParams = namedtuple('EncounterParams', [
@@ -59,39 +59,30 @@ class GameAPI:
     def generate_world(self):
         self.silver_bank = 1000
         self.victory_points = 0
-        maps = ['default', '4c']
-        vp_rewards = [0, 5, 20, 50]
-        colors = [COLOR.WHITE, COLOR.YELLOW, COLOR.CYAN, COLOR.PURPLE]
+        replayable = [True, False, False, False, False]
+        silver_cost = [False, True, True, True, True]
+        vp_rewards = [0, 5, 10, 20, 50]
+        colors = [COLOR.WHITE, COLOR.YELLOW, COLOR.CYAN, COLOR.PURPLE, COLOR.RED]
         self.world_encounters = []
         self.expired_encounters = set()
-        for map in MAP_NAMES:
-            desc = '\n'.join([
-                f'Sandbox: no draft costs, no rewards, replayable.',
-                f'Map: {map}'
-            ])
-            self.world_encounters.append(EncounterParams(
-                replayable=True, silver_cost=False, map=map, difficulty=0, vp_reward=0,
-                color=modify_color(colors[0], v=0.3), sprite=Assets.get_sprite(f'maps.{map}'),
-                description=desc,
-            ))
-        replayable = False
-        silver_cost = True
-        for difficulty_index, count in ((1, 20), (2, 10), (3, 5)):
-            for i in range(count):
-                map = self.seed.choice(MAP_NAMES)
-                color = modify_color(colors[difficulty_index], v=0.3)
+        for i in range(5):
+            for map in MAP_NAMES:
+                color = modify_color(colors[i], v=0.3)
                 sprite = Assets.get_sprite(f'maps.{map}')
-                vp_reward = vp_rewards[difficulty_index]
+                vp_reward = vp_rewards[i]
                 desc = '\n'.join([
-                    f'{DIFFICULTY_LEVELS[difficulty_index]}',
-                    f'Draft costs silver',
-                    'Replayable' if replayable else 'Non-replayable',
+                    f'Difficulty: {DIFFICULTY_LEVELS[i]}',
+                    'Draft costs silver' if silver_cost[i] else 'Free play',
+                    'Replayable' if replayable[i] else 'Non-replayable',
                     f'Map: {map.capitalize()}',
                     f'Reward: {vp_reward} Victory Points',
                 ])
                 self.world_encounters.append(EncounterParams(
-                    replayable, silver_cost, map, difficulty_index, vp_reward,
-                    color, sprite, desc,
+                    replayable=replayable[i], silver_cost=silver_cost[i],
+                    map=map, difficulty=i, vp_reward=vp_rewards[i],
+                    color=modify_color(colors[i], v=0.3),
+                    sprite=Assets.get_sprite(f'maps.{map}'),
+                    description=desc,
                 ))
         assert len(self.world_encounters) > 0
 
@@ -254,6 +245,8 @@ class GameAPI:
         return '\n'.join([
             f'Victory Points: {self.victory_points}',
             f'Silver bank: {self.silver_bank}',
+            '',
+            f'Metagame Balance: {METAGAME_BALANCE_SHORT}',
         ])
 
     # GUI event handlers

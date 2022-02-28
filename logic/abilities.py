@@ -285,8 +285,6 @@ class Phase:
         self.area_shape = raw_data['area'] if 'area' in raw_data else 'none'
         assert self.area_shape in {'none', 'circle', 'rect'}
         self.area = self.area_shape != 'none'
-        self.area_origin = raw_data['area_origin'] if 'area_origin' in raw_data else 'point'
-        assert self.area_origin in {'point', 'target'}
         self.area_radius = resolve_formula('radius', raw_data, sentinel=100)
         self.area_width = resolve_formula('width', raw_data, sentinel=300)
         self.area_length = resolve_formula('length', raw_data, sentinel=200)
@@ -485,28 +483,29 @@ class Phase:
                     fails.add(FAIL_RESULT.OUT_OF_RANGE)
 
             if self.area:
-                # Find origin
-                if self.area_origin == 'target' and single_target_uid:
-                    origin = api.get_position(single_target_uid)
-                else:
-                    origin = target_point
+                # Find origin / direction
+                area_direction = target_point
+                if single_target_uid is not None and not self.targeting_point:
+                    area_direction = api.get_position(single_target_uid)
                 # Find circle
                 if self.area_shape == 'circle':
                     radius = self.area_radius.get_value(api, uid)
                     if self.include_hitbox:
                         radius += Mechanics.get_stats(api, uid, STAT.HITBOX)
-                    subset_in_radius = api.get_distances(origin, subset_uids) < radius
+                    subset_in_radius = api.get_distances(area_direction, subset_uids) < radius
                     area_uids = subset_uids[np.flatnonzero(subset_in_radius)]
                 # Find rectangle
                 elif self.area_shape == 'rect':
+                    offset = Mechanics.get_stats(api, uid, STAT.HITBOX) if self.include_hitbox else 0
                     width = self.area_width.get_value(api, uid)
                     length = self.area_length.get_value(api, uid)
                     hb_radius = Mechanics.get_stats(api, subset_uids, STAT.HITBOX)
-                    offset = Mechanics.get_stats(api, uid, STAT.HITBOX) if self.include_hitbox else 0
-                    rect = Rect.from_point(source_point, target_point, width, length, offset)
+                    rect = Rect.from_point(source_point, area_direction, width, length, offset)
                     subset_pos = api.get_position(np.vstack(subset_uids))
                     subset_in_rect = rect.check_colliding_circles(subset_pos, hb_radius)
                     area_uids = subset_uids[subset_in_rect]
+                    if self.debug:
+                        EffectVFXRect.draw_rect(api, rect, 10)
 
         single_target_mask = empty_mask if single_target_uid is None else Mechanics.mask(api, single_target_uid)
         area_mask = Mechanics.mask(api, area_uids)
@@ -911,8 +910,6 @@ class EffectLoot(Effect):
             })
 
 
-
-
 class EffectTeleport(Effect):
     def __init__(self, phase, raw_data):
         self.target = raw_data['target'] if 'target' in raw_data else 'point'
@@ -1277,7 +1274,7 @@ class EffectMapEditor(Effect):
 
 class EffectSFX(Effect):
     def __init__(self, phase, raw_data):
-        self.category = raw_data['category'] if 'category' in raw_data else 'ability'
+        self.category = raw_data['category'] if 'category' in raw_data else 'abilities'
         self.sfx = raw_data['sfx'] if 'sfx' in raw_data else phase.ability.sfx
         self.volume =  resolve_formula('volume', raw_data, 1)
 
@@ -1390,13 +1387,20 @@ class EffectVFXRect(Effect):
             **fade,
         })
 
+    @staticmethod
+    def draw_rect(api, rect, duration):
+        api.add_visual_effect(VFX.QUAD, duration, {
+            'points': rect.points,
+            'color': modify_color(COLOR.WHITE, v=0.5),
+        })
+
 
 class EffectVFXSprite(Effect):
     def __init__(self, phase, raw_data):
         self.phase = phase
         self.duration = resolve_formula('duration', raw_data, 0.1)
         self.fade = resolve_formula('fade', raw_data, -1)
-        self.category = raw_data['category'] if 'category' in raw_data else 'ability'
+        self.category = raw_data['category'] if 'category' in raw_data else 'abilities'
         self.sprite = raw_data['sprite'] if 'sprite' in raw_data else None
         self.fade = resolve_formula('fade', raw_data, -1)
         self.sizex = resolve_formula('size', raw_data)
@@ -1421,7 +1425,7 @@ class EffectVFXSprite(Effect):
         elif self.sprite == '*me':
             source = api.units[uid].sprite
         else:
-            source = Assets.get_sprite(self.category, self.sprite)
+            source = Assets.get_sprite(f'{self.category}.{self.sprite}')
         sizex = self.sizex.get_value(api, uid)
         sizey = self.sizey.get_value(api, uid)
         if sizey is None:

@@ -24,6 +24,10 @@ enable_hold_mouse: bool
 enable_hold_key: bool
 
 
+--- display
+enable_hold_mouse: hold to keep clicking
+enable_hold_key: hold to keep pressing
+
 === audio
 volume_master: 0.15
 volume_sfx: 1.0
@@ -43,27 +47,35 @@ volume_monster_death: slider
 default_zoom: 40.0
 detailed_mode: 0
 fullscreen_grab_mouse: 1
-auto_dismiss_tooltip: 100.0
 auto_tooltip: 1
+auto_dismiss_tooltip: 100.0
 hud_height: 0.5
 hud_width: 0.5
-decorations: 1.00, 1.00, 1.00, 0.75
-feedback_sfx_cooldown: 500.0
-fog_size: 45.0
 fog_color: 0.00, 0.00, 0.00, 0.70
+fog_size: 45.0
+decoration_color: 1.00, 1.00, 1.00, 0.75
+feedback_sfx_cooldown: 500.0
 
 --- types
 default_zoom: float, 5, 100
 detailed_mode: bool
 fullscreen_grab_mouse: bool
-auto_dismiss_tooltip: float
 auto_tooltip: bool
+auto_dismiss_tooltip: float
 hud_height: slider
 hud_width: slider
-decorations: color
-feedback_sfx_cooldown: float
-fog_size: float
 fog_color: color
+fog_size: float
+decoration_color: color
+feedback_sfx_cooldown: float
+
+
+--- display
+auto_tooltip: show tooltip on hover
+auto_dismiss_tooltip: in pixels
+fog_size: calibration for custom fog
+decoration_color: color of screen decoration
+feedback_sfx_cooldown: minimum ms between sounds
 
 
 === hotkeys
@@ -116,7 +128,7 @@ dev4: ^+ f12
 
 
 --- display
-alt_modifier: [i]for alternative[/i] casting
+alt_modifier: [i]for alternative casting[/i]
 
 === misc
 dev_build *: 0
@@ -134,7 +146,10 @@ log_interval: float
 
 
 --- display
-dev_build *: [i]requires restart[/i]
-debug_mode: [i]only works in dev build[/i]
+dev_build *: requires restart
+debug_mode: only works in dev build
+map_editor_mode: show map biome cores
+auto_log: for extra debugging
+log_interval: in ticks
 
 """

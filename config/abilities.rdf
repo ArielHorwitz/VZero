@@ -143,7 +143,6 @@ cooldown: 2
 selection_distance: 200
 target: enemy
 area: rect
-area_origin: target
 width: 400
 length: 600
 include_hitbox

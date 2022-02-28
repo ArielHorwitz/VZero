@@ -95,12 +95,12 @@ class Decoration(widgets.AnchorLayout, EncounterViewComponent):
             frame.set_size(x=40)
             self.frames[side] = frame
         self.bind(pos=self.reposition, size=self.reposition)
-        self.enc.settings_notifier.subscribe('ui.decorations', self.setting_decorations)
+        self.enc.settings_notifier.subscribe('ui.decoration_color', self.setting_decorations)
         self.setting_decorations()
 
     def setting_decorations(self):
         for side, frame in self.frames.items():
-            color = PROFILE.get_setting('ui.decorations')
+            color = PROFILE.get_setting('ui.decoration_color')
             frame.make_bg(color, source=Assets.get_sprite(f'ui.side-{side}'))
 
     def reposition(self, *a):
