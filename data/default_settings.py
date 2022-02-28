@@ -42,6 +42,7 @@ volume_monster_death: slider
 === ui
 default_zoom: 40.0
 detailed_mode: 1
+fullscreen_grab_mouse: 1
 auto_dismiss_tooltip: 100.0
 auto_tooltip: 0
 hud_height: 0.5
@@ -54,6 +55,7 @@ fog_color: 0.00, 0.00, 0.00, 0.70
 --- types
 default_zoom: float, 5, 100
 detailed_mode: bool
+fullscreen_grab_mouse: bool
 auto_dismiss_tooltip: float
 auto_tooltip: bool
 hud_height: slider

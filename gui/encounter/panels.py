@@ -26,6 +26,27 @@ from logic.common import *
 Box = namedtuple('Box', ['box', 'sprite', 'label'])
 
 
+class ControlButton(widgets.AnchorLayout, EncounterViewComponent):
+    def __init__(self, **kwargs):
+        super().__init__(anchor_x='left', anchor_y='top', **kwargs)
+        self.button = self.add(widgets.Image(
+            source=Assets.get_sprite('ui.menu'),
+            allow_stretch=True))
+        self.button.set_size(x=25, y=25)
+        self.button.bind(on_touch_down=self.on_touch_down)
+
+    def update(self):
+        pass
+
+    def on_touch_down(self, m):
+        if not m.button == 'left':
+            return False
+        if self.button.collide_point(*m.pos):
+            self.enc.interface.append(ControlEvent('toggle_menu', 0, ''))
+            return True
+        return False
+
+
 class LogicLabel(widgets.AnchorLayout, EncounterViewComponent):
     overlay_height = 50
     def __init__(self, **kwargs):
@@ -34,7 +55,11 @@ class LogicLabel(widgets.AnchorLayout, EncounterViewComponent):
         main_frame.make_bg((1,1,1,1), source=Assets.get_sprite('ui.panel-top'))
         main_frame.set_size(y=self.overlay_height)
 
-        self.labels = [main_frame.add(widgets.Label(halign='center', valign='top', outline_width=2)) for i in range(4)]
+        self.labels = []
+        for i in range(4):
+            l = widgets.Label(halign='center', valign='top', outline_width=2)
+            main_frame.add(l)
+            self.labels.append(l)
 
         a = main_frame.add(widgets.AnchorLayout(anchor_y='top'))
         self.debug_label = a.add(widgets.Label(halign='center', valign='top', outline_width=2))
@@ -295,7 +320,7 @@ class ModalBrowse(Modal, EncounterViewComponent):
 
 class ViewFade(widgets.AnchorLayout, EncounterViewComponent):
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(anchor_x='left', anchor_y='top', **kwargs)
         self.enc.interface.register('set_view_fade', self.set_view_fade)
 
     def update(self):
@@ -313,6 +338,7 @@ class Menu(Modal, EncounterViewComponent):
     LEAVE_CONFIRM_TEXT = 'Leave the encounter?'
     QUIT_TEXT = 'Quit'
     QUIT_CONFIRM_TEXT = 'Quit to desktop?'
+    BUTTON_HEIGHT = 35
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -323,15 +349,22 @@ class Menu(Modal, EncounterViewComponent):
         self.frame.set_size(x=200, y=250)
         self.frame.make_bg((0, 0, 0, 1), source=Assets.get_sprite('ui.mask-1x2'))
 
-        self.label = self.frame.add(widgets.Label(text='', halign='center', valign='middle', markup=True, line_height=1.2))
-        self.label.set_size(y=100)
+        self.label = self.frame.add(widgets.Label(
+            halign='center', valign='middle',
+            markup=True, line_height=1.2))
 
-        self.frame.add(widgets.Button(text=self.RESUME_TEXT, on_release=lambda *a: self.click_resume()))
-        self.frame.add(widgets.Button(text=self.MINIMIZE_TEXT, on_release=lambda *a: self.click_home()))
+        b = widgets.Button(text=self.RESUME_TEXT, on_release=lambda *a: self.click_resume())
+        b.set_size(y=self.BUTTON_HEIGHT)
+        self.frame.add(b)
+        b = widgets.Button(text=self.MINIMIZE_TEXT, on_release=lambda *a: self.click_home())
+        self.frame.add(b)
+        b.set_size(y=self.BUTTON_HEIGHT)
         self.leave_text = self.LEAVE_TEXT
         self.leave_confirm_text = self.LEAVE_CONFIRM_TEXT
         self.leave_btn = self.frame.add(widgets.Button(on_release=lambda *a: self.click_leave()))
+        self.leave_btn.set_size(y=self.BUTTON_HEIGHT)
         self.quit_btn = self.frame.add(widgets.Button(on_release=lambda *a: self.click_quit()))
+        self.quit_btn.set_size(y=self.BUTTON_HEIGHT)
 
         self.confirm_leave = False
         self.confirm_quit = False

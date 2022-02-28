@@ -128,9 +128,11 @@ class EncounterAPI:
         self.__last_hud_statuses = []
         self.__last_fail_sfx_ping = ping()
         self.map_mode = False
+        self.default_upp = 2
 
         # Settings
-        self.default_upp = 2
+        self.settings_notifier.subscribe('ui.detailed_mode', self.setting_detailed_mode)
+        self.setting_detailed_mode()
         self.settings_notifier.subscribe('ui.feedback_sfx_cooldown', self.setting_feedback_sfx_interval)
         self.setting_feedback_sfx_interval()
         self.settings_notifier.subscribe('misc.log_interval', self.setting_log_interval)
@@ -162,7 +164,6 @@ class EncounterAPI:
 
     def update(self):
         with self.engine.total_timers['logic_total'].time_block:
-            self.detailed_info_mode = PROFILE.get_setting('ui.detailed_mode')
             self.gui_size = self.gui.request('get_gui_size')
             self.view_size = self.gui_size * self.upp
 
@@ -401,6 +402,10 @@ class EncounterAPI:
         logger.info(f'Toggle debug_mode, now: {self.debug_mode} (debug:{debug_mode_setting} dev_build:{DEV_BUILD})')
         self.gui.request('debug_show' if self.debug_mode else 'debug_hide')  # Toggle debug panels
 
+    def setting_detailed_mode(self):
+        self.detailed_info_mode = PROFILE.get_setting('ui.detailed_mode')
+        if not self.detailed_info_mode:
+            self.gui.request('deactivate_tooltip')
     # GUI elements
     @property
     def time_str(self):

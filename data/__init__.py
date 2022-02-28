@@ -3,15 +3,14 @@ logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
 
-from pathlib import Path
-
-ROOT_DIR = Path.cwd()
-
 VERSION = 0.016
-
 APP_NAME = 'VZero'
 TITLE = f'{APP_NAME} v{VERSION:.3f}'
 
+
+from pathlib import Path
+
+ROOT_DIR = Path.cwd()
 FPS = 60
 TPS = 100
 BASE_RESOLUTION = 1024, 768

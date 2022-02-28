@@ -24,12 +24,12 @@ class Assets:
 
 
     @classmethod
-    def get_volume(cls, category=None):
+    def get_volume(cls, volume=None):
         v = cls.VOLUMES['master']
-        if category not in {None, 'master'}:
-            if is_floatable(category):
-                return v * category
-            return v * cls.VOLUMES[category]
+        if is_floatable(volume):
+            return v * volume
+        if volume in cls.VOLUMES and volume is not None:
+            return v * cls.VOLUMES[volume]
         return v
 
     @classmethod

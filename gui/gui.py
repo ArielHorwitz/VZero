@@ -6,12 +6,11 @@ logger = logging.getLogger(__name__)
 import contextlib
 import numpy as np
 from functools import partial
-from pathlib import Path
 from nutil import restart_script
 from nutil.kex import widgets
 from nutil.time import RateCounter, pingpong
 from nutil.vars import Interface, PublishSubscribe
-from data import TITLE, FPS, DEV_BUILD, APP_NAME, APP_COLOR
+from data import TITLE, FPS, DEV_BUILD, APP_NAME, APP_COLOR, ROOT_DIR, BASE_RESOLUTION
 from data.assets import Assets
 from data.settings import PROFILE
 from gui.home import HomeGUI
@@ -20,12 +19,20 @@ from gui.info import HelpGUI
 from gui.encounter.encounter import Encounter
 from logic import get_api
 
+# Kivy why you warn me for this... BASE_RESOLUTION is not zero and setting window size before mininum doesn't help
+widgets.kvWindow.minimum_width, widgets.kvWindow.minimum_height = BASE_RESOLUTION
+# "WARNING:kivy:Both Window.minimum_width and Window.minimum_height must be bigger than 0 for the size restriction to take effect."
+
 
 class App(widgets.App):
     def __init__(self, **kwargs):
         logger.info(f'Initializing GUI @ {FPS} fps.')
-        super().__init__(make_bg=False, make_menu=False, **kwargs)
-        self.icon = str(Path.cwd()/'icon.png')
+        super().__init__(**kwargs)
+        self.title = TITLE
+        self.icon = str(ROOT_DIR/'icon.png')
+        widgets.kvClock.schedule_once(lambda *a: self.__do_startup(), 0)
+
+    def __do_startup(self):
         self.__quit_flag = 0
 
         self.settings_notifier = PublishSubscribe(name='App settings notifier')
@@ -43,7 +50,6 @@ class App(widgets.App):
         self.switch = self.add(widgets.ScreenSwitch())
         self.home = HomeGUI()
         self.encounter = None
-        self.enc_frame = widgets.BoxLayout()
         self.enc_frame = widgets.BoxLayout()
         self.enc_placeholder = widgets.Button(text='No encounter in progress.', on_release=lambda *a: self.switch_screen('home'))
         self.enc_frame.add(self.enc_placeholder)
@@ -66,6 +72,7 @@ class App(widgets.App):
         self.settings_notifier.subscribe('general.window_offset_y', self.setting_window_state)
         self.settings_notifier.subscribe('general.borderless_offset_x', self.setting_window_state)
         self.settings_notifier.subscribe('general.borderless_offset_y', self.setting_window_state)
+        self.settings_notifier.subscribe('ui.fullscreen_grab_mouse', self.setting_fullscreen_grab_mouse)
         self.setting_window_state()
 
         for params in [
@@ -88,6 +95,12 @@ class App(widgets.App):
         self.settings_notifier.push(settings)
         if self.encounter is not None:
             self.encounter.settings_notifier.push(settings)
+
+    def setting_fullscreen_grab_mouse(self):
+        if PROFILE.get_setting('ui.fullscreen_grab_mouse') and PROFILE.get_setting('general.fullscreen'):
+            widgets.kvWindow.grab_mouse()
+        else:
+            widgets.kvWindow.ungrab_mouse()
 
     def generate_app_control_buttons(self):
         return AppControl(buttons=[
@@ -136,16 +149,21 @@ class App(widgets.App):
         widgets.kvWindow.fullscreen = False
         widgets.kvWindow.borderless = False
         widgets.kvClock.schedule_once(lambda *a: self.set_window_resolution(), 0)
+        widgets.kvWindow.ungrab_mouse()
 
     def set_borderless(self, *a):
         widgets.kvWindow.fullscreen = False
         widgets.kvWindow.borderless = True
         widgets.kvClock.schedule_once(lambda *a: self.set_window_resolution(fullscreen=True), 0)
+        if PROFILE.get_setting('ui.fullscreen_grab_mouse'):
+            widgets.kvWindow.grab_mouse()
 
     def set_fullscreen(self, *a):
         self.set_window_resolution(fullscreen=True)
         widgets.kvWindow.borderless = False
         widgets.kvWindow.fullscreen = True
+        if PROFILE.get_setting('ui.fullscreen_grab_mouse'):
+            widgets.kvWindow.grab_mouse()
 
     def set_window_resolution(self, fullscreen=False):
         res = PROFILE.get_setting(f'general.{"fullscreen" if fullscreen else "window"}_resolution')

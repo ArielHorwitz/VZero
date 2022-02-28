@@ -68,25 +68,15 @@ from nutil.kex import KexWidget
 
 # ABSTRACTIONS
 class App(kvApp):
-    def __init__(self, make_menu=True, make_bg=True,
-                 escape_exits=False, enable_multitouch=False,
-                 **kwargs):
+    def __init__(self, escape_exits=False, enable_multitouch=False, **kwargs):
         super().__init__(**kwargs)
-        # Mouse binding
-        self.__mouse_pos = (0, 0)
-        kvWindow.bind(mouse_pos=self._on_mouse_pos)
-        # Configurations
         if escape_exits:
             kex.Config.enable_escape_exit()
         else:
             kex.Config.disable_escape_exit()
         if not enable_multitouch:
             kex.Config.disable_multitouch()
-        # Widgets
         self.root = BoxLayout()
-        if make_bg:
-            self.root.make_bg((*kex.random_color()[:3], 0.2))
-        # self.hotkeys = Hotkeys(self.root)
 
     def run(self, **kwargs):
         super().run(**kwargs)
@@ -106,16 +96,13 @@ class App(kvApp):
     def toggle_fullscreen(self, *a):
         kvWindow.fullscreen = not kvWindow.fullscreen
 
-    def _on_mouse_pos(self, w, p):
-        self.__mouse_pos = p
-
     @property
     def add(self):
         return self.root.add
 
     @property
     def mouse_pos(self):
-        return self.__mouse_pos
+        return kvWindow.mouse_pos
 
 
 class Widget(kvWidget, KexWidget):
@@ -605,20 +592,25 @@ class ScreenSwitch(kvScreenManager, KexWidget):
     def __init__(self, screens=None, transition=None, **kwargs):
         transition = kvFadeTransition(duration=0) if transition is None else transition
         super().__init__(transition=transition, **kwargs)
-        self._screens = []
-        if screens is not None:
-            for screen_name in screens:
-                self.add_screen(screen_name)
+        self.bind(pos=self.reposition, size=self.reposition)
 
-    def add_screen(self, sname, view=None):
+    def add_screen(self, sname, view):
         new_screen = self.add(Screen(name=sname))
-        if view is not None:
-            view = new_screen.add(view)
-        self._screens.append(new_screen)
+        new_screen.view = view
+        new_screen.add(view)
         return new_screen
 
-    def switch_screen(self, sname, *args, **kwargs):
-        self.switch_to(self.get_screen(sname), *args, **kwargs)
+    def switch_screen(self, sname):
+        self.current = sname
+
+    def reposition(self, *a):
+        # Uh... Kivy?
+        # If the manager isn't showing (e.g. when part of a non-showing screen
+        # in another screen manager), and then it shows, it will trigger on_pos
+        # for itself but not for it's current screen? Only when the screen
+        # is switched to will kivy reposition.
+        self.current_screen.pos = self.pos
+        self.current_screen.size = self.size  # Haven't tested if required, but adding for good measure
 
 
 class Screen(kvScreen, KexWidget):

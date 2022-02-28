@@ -23,7 +23,7 @@ from logic.encounter import EncounterAPI, DIFFICULTY_LEVELS
 
 
 EncounterParams = namedtuple('EncounterParams', [
-    'replayable', 'map', 'difficulty', 'vp_reward',
+    'replayable', 'silver_cost', 'map', 'difficulty', 'vp_reward',
     'color', 'sprite', 'description',
 ])
 
@@ -66,15 +66,16 @@ class GameAPI:
         self.expired_encounters = set()
         for map in MAP_NAMES:
             desc = '\n'.join([
-                f'Sandbox: no rewards, replayable.',
+                f'Sandbox: no draft costs, no rewards, replayable.',
                 f'Map: {map}'
             ])
             self.world_encounters.append(EncounterParams(
-                replayable=True, map=map, difficulty=0, vp_reward=0,
+                replayable=True, silver_cost=False, map=map, difficulty=0, vp_reward=0,
                 color=modify_color(colors[0], v=0.3), sprite=Assets.get_sprite(f'maps.{map}'),
                 description=desc,
             ))
         replayable = False
+        silver_cost = True
         for difficulty_index, count in ((1, 20), (2, 10), (3, 5)):
             for i in range(count):
                 map = self.seed.choice(MAP_NAMES)
@@ -83,11 +84,13 @@ class GameAPI:
                 vp_reward = vp_rewards[difficulty_index]
                 desc = '\n'.join([
                     f'{DIFFICULTY_LEVELS[difficulty_index]}',
+                    f'Draft costs silver',
+                    'Replayable' if replayable else 'Non-replayable',
                     f'Map: {map.capitalize()}',
                     f'Reward: {vp_reward} Victory Points',
                 ])
                 self.world_encounters.append(EncounterParams(
-                    replayable, map, difficulty_index, vp_reward,
+                    replayable, silver_cost, map, difficulty_index, vp_reward,
                     color, sprite, desc,
                 ))
         assert len(self.world_encounters) > 0
@@ -107,7 +110,8 @@ class GameAPI:
             logger.info(f'GLogic creating encounter with params: {ep} and loadout: {self.loadout}')
             if not ep.replayable:
                 self.expired_encounters.add(self.selected_encounter)
-            self.silver_bank -= self.average_draft_cost()
+            if ep.silver_cost:
+                self.silver_bank -= self.average_draft_cost()
             self.encounter_api = EncounterAPI(self, ep, self.loadout)
             self.gui.request('start_encounter', self.encounter_api)
             self.refresh_world()
@@ -267,11 +271,14 @@ class GameAPI:
 
     def handle_world_control_button(self, event):
         if event.index == 0:
+            Assets.play_sfx('ui.select', volume='ui')
             self.gui.request('switch_screen', 'encounter')
         else:
+            Assets.play_sfx('ui.target', volume='ui')
             logger.warning(f'Unknown world control index: {event}')
 
     def handle_world_stack_activate(self, event):
+        Assets.play_sfx('ui.select', volume='ui')
         self.selected_encounter = event.index
         self.refresh_draft_gui()
         self.gui.request('set_view', 'draft')
@@ -294,6 +301,7 @@ class GameAPI:
             (0,0,0,0)))
 
     def handle_draft_control_button(self, event):
+        Assets.play_sfx('ui.select', volume='ui')
         if event.index == 0:
             if self.encounter_api is not None:
                 self.gui.request('switch_screen', 'encounter')

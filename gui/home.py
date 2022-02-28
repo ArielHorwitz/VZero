@@ -8,13 +8,13 @@ import nutil
 from nutil import kex
 from nutil.display import make_title
 from nutil.kex import widgets
+from data import BASE_RESOLUTION
 from data.assets import Assets
 from gui.api import ControlEvent
 from gui.common import SpriteLabel, SpriteTitleLabel, CenteredSpriteBox, Stack, Tooltip
 from logic.common import *
 
 
-HOME_SIZE = 1024, 768
 DETAILS_WIDTH = 300
 CONTROL_BUTTON_WORLD = 'Select Encounter'
 CONTROL_BUTTON_ENCOUNTER = 'Return to World'
@@ -27,7 +27,7 @@ class HomeGUI(widgets.AnchorLayout):
         self._bg.source = Assets.get_sprite('ui.home')
 
         main_frame = self.add(widgets.BoxLayout(orientation='vertical'))
-        main_frame.set_size(*HOME_SIZE)
+        main_frame.set_size(*BASE_RESOLUTION)
         main_frame.make_bg((0,0,0,0.5))
         self.app_control = main_frame.add(self.app.generate_app_control_buttons())
         self.app.interface.register('set_title_text', self.set_title_text)
@@ -40,17 +40,6 @@ class HomeGUI(widgets.AnchorLayout):
         self.app.interface.register('set_view', self.switch_screen)
         self.tooltip = self.add(Tooltip(bounding_widget=self))
         self.app.interface.register('activate_tooltip', lambda x: self.tooltip.activate(self.app.mouse_pos, x))
-
-        self.make_hotkeys()
-
-    def make_hotkeys(self):
-        self.app.home_hotkeys.register('Home enter', 'enter', self.save_loadout)
-        self.app.home_hotkeys.register_keys('Home enter', ['numpadenter'])
-        for i in range(10):
-            self.app.home_hotkeys.register(
-                f'Home select preset {i}', str(i),
-                lambda _, x=i: self.select_preset(x)
-            )
 
     def update(self):
         self.app.game.update()

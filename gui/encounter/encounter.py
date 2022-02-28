@@ -17,7 +17,8 @@ from gui.api import MOUSE_EVENTS, ControlEvent, InputEvent, CastEvent
 from gui.common import Tooltip
 from gui.encounter.sprites import Sprites
 from gui.encounter.vfx import VFX as VFXLayer
-from gui.encounter.panels import Decoration, Menu, LogicLabel, HUD, ModalBrowse, ViewFade, DebugPanel
+from gui.encounter.panels import ControlButton, Menu, LogicLabel, ViewFade, Decoration
+from gui.encounter.panels import HUD, ModalBrowse, DebugPanel
 
 from logic.common import *
 
@@ -67,6 +68,7 @@ class Encounter(widgets.RelativeLayout):
         self.tooltip = self.add(Tooltip(bounding_widget=self))
         self.overlays |= {
             'menu': self.add(Menu(enc=self)),
+            'menu_button': self.add(ControlButton(enc=self)),
             'debug': self.add(DebugPanel(enc=self)),
         }
         self.canvas_mouse_input_top = self.add(widgets.Widget())
@@ -75,6 +77,7 @@ class Encounter(widgets.RelativeLayout):
         self.make_hotkeys()
 
         self.interface.register('activate_tooltip', self.activate_tooltip)
+        self.interface.register('deactivate_tooltip', self.tooltip.deactivate)
         self.interface.register('set_upp', self.set_upp)
         self.interface.register('get_gui_size', self.get_gui_size)
         self.interface.register('set_view_center', self.set_view_center)

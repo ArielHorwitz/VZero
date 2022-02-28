@@ -255,20 +255,20 @@ class Tooltip(widgets.BoxLayout):
     def activate(self, pos, stl, bounding_widget=None):
         if self.__frame not in self.children:
             self.add(self.__frame)
+        if bounding_widget is None:
+            bounding_widget = self.bounding_widget
+        if pos != self.pos:
             pos = np.array(pos) - self.__frame.size
-            if bounding_widget is None:
-                bounding_widget = self.bounding_widget
-            if bounding_widget is not None:
-                fix = np.zeros(2)
-                if not bounding_widget.collide_point(*pos):
-                    blfix = np.array(bounding_widget.pos) - pos
-                    blfix[blfix<0] = 0
-                    fix += blfix
-                if not bounding_widget.collide_point(*(np.array(pos)+self.__frame.size)):
-                    trfix = (np.array(bounding_widget.pos) + bounding_widget.size) - (np.array(pos) + self.__frame.size)
-                    trfix[trfix>0] = 0
-                    fix += trfix
-                pos = tuple(float(_) for _ in (fix + pos))
+            fix = np.zeros(2)
+            if not bounding_widget.collide_point(*pos):
+                blfix = np.array(bounding_widget.pos) - pos
+                blfix[blfix<0] = 0
+                fix += blfix
+            if not bounding_widget.collide_point(*(np.array(pos)+self.__frame.size)):
+                trfix = (np.array(bounding_widget.pos) + bounding_widget.size) - (np.array(pos) + self.__frame.size)
+                trfix[trfix>0] = 0
+                fix += trfix
+            pos = tuple(float(_) for _ in (fix + pos))
             self.pos = pos
         self.stl.update(stl)
         if self.__hover_bind is not None:
