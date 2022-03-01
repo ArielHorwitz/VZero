@@ -1,155 +1,287 @@
 DEFAULT_SETTINGS_STR = """
 === general
-fullscreen: 1
-fullscreen_type: fullscreen
-fullscreen_resolution: 1920×1080
-window_resolution: 1024×768
-window_offset_x: 100.0
-window_offset_y: 100.0
-borderless_offset_x: 0.0
-borderless_offset_y: 0.0
-enable_hold_mouse: 1
-enable_hold_key: 0
+name: General
 
---- types
-fullscreen: bool
-fullscreen_type: choice, fullscreen, borderless
-fullscreen_resolution: size, 2560×1440, 1920×1080, 1600×900, 1366×768, 1600×1200, 1400×1050, 1280×960, 1152×864, 1024×768
-window_resolution: size, 2560×1440, 1920×1080, 1600×900, 1366×768, 1600×1200, 1400×1050, 1280×960, 1152×864, 1024×768
-window_offset_x: float, -inf, inf
-window_offset_y: float, -inf, inf
-borderless_offset_x: float, -inf, inf
-borderless_offset_y: float, -inf, inf
-enable_hold_mouse: bool
-enable_hold_key: bool
+--- fullscreen
+default: 1
+type: bool
+
+--- fullscreen_resolution
+default: 1920×1080
+type: size
+options: 2560×1440, 1920×1080, 1600×900, 1366×768, 1600×1200, 1400×1050, 1280×960, 1152×864, 1024×768
+
+--- fullscreen_type
+default: fullscreen
+type: choice
+options: fullscreen, borderless
+
+--- window_resolution
+default: 1024×768
+type: size
+options: 2560×1440, 1920×1080, 1600×900, 1366×768, 1600×1200, 1400×1050, 1280×960, 1152×864, 1024×768
+
+--- enable_window_offset
+default: 1
+type: bool
+caption: automatically position the window at the offset
+
+--- window_offset_x
+default: 100.0
+type: float
+min: -inf
+
+--- window_offset_y
+default: 100.0
+type: float
+min: -inf
+
+--- borderless_offset_x
+default: 0.0
+type: float
+min: -inf
+
+--- borderless_offset_y
+default: 0.0
+type: float
+min: -inf
+
+--- enable_hold_mouse
+default: 1
+type: bool
+caption: holding mouse auto clicks
+
+--- enable_hold_key
+default: 0
+type: bool
+caption: holding keyboard auto presses
 
 
---- display
-enable_hold_mouse: hold to keep clicking
-enable_hold_key: hold to keep pressing
 
 === audio
-volume_master: 0.15
-volume_sfx: 1.0
-volume_ui: 0.5
-volume_feedback: 0.5
-volume_monster_death: 0.4
+name: Audio
 
---- types
-volume_master: slider
-volume_sfx: slider
-volume_ui: slider
-volume_feedback: slider
-volume_monster_death: slider
+--- volume_master
+default: 0.15
+type: slider
+display_name: Master volume
+
+--- volume_sfx
+default: 1.0
+type: slider
+display_name: Sound effects volume
+
+--- volume_ui
+default: 0.5
+type: slider
+display_name: UI volume
+
+--- volume_feedback
+default: 0.5
+type: slider
+display_name: Feedback volume
+
+--- volume_monster_death
+default: 0.4
+type: slider
+display_name: Monster death volume
+
+--- feedback_sfx_cooldown
+default: 500.0
+type: float
+display_name: Feedback interval
+caption: minimum ms between sounds
+
 
 
 === ui
-default_zoom: 40.0
-detailed_mode: 0
-fullscreen_grab_mouse: 1
-auto_tooltip: 1
-auto_dismiss_tooltip: 100.0
-hud_height: 0.5
-hud_width: 0.5
-fog_color: 0.00, 0.00, 0.00, 0.70
-fog_size: 45.0
-decoration_color: 1.00, 1.00, 1.00, 0.75
-feedback_sfx_cooldown: 500.0
+name: UI
 
---- types
-default_zoom: float, 5, 100
-detailed_mode: bool
-fullscreen_grab_mouse: bool
-auto_tooltip: bool
-auto_dismiss_tooltip: float
-hud_height: slider
-hud_width: slider
-fog_color: color
-fog_size: float
-decoration_color: color
-feedback_sfx_cooldown: float
+--- default_zoom
+default: 40.0
+type: float
+min: 5
+max: 100
 
+--- detailed_mode
+default: 0
+type: bool
+caption: ui shows more info
 
---- display
-auto_tooltip: show tooltip on hover
-auto_dismiss_tooltip: in pixels
-fog_size: calibration for custom fog
-decoration_color: color of screen decoration
-feedback_sfx_cooldown: minimum ms between sounds
+--- fullscreen_grab_mouse
+default: 1
+type: bool
+caption: prevent mouse from escaping the window
+
+--- auto_tooltip
+default: 1
+type: bool
+display_name: Tooltip on hover
+caption: in detailed mode
+
+--- auto_dismiss_tooltip
+default: 100.0
+type: float
+caption: in pixels
+
+--- hud_height
+default: 0.5
+type: slider
+
+--- hud_width
+default: 0.5
+type: slider
+
+--- fog_color
+default: 0.00, 0.00, 0.00, 0.70
+type: color
+
+--- fog_size
+default: 45.0
+type: float
+caption: calibration for custom fog
+
+--- decoration_color
+default: 1.00, 1.00, 1.00, 0.75
+type: color
+decoration_color
+caption: color of screen decoration
+
 
 
 === hotkeys
-toggle_fullscreen: f11
-toggle_menu: escape
-toggle_play: spacebar
-toggle_map: tab
-toggle_detailed: ! alt
-toggle_shop: f1
+name: Hotkeys
 
-loot: z
-alt_modifier: +
-ability1: q
-ability2: w
-ability3: e
-ability4: r
-ability5: a
-ability6: s
-ability7: d
-ability8: f
-item1: 1
-item2: 2
-item3: 3
-item4: 4
-item5: 5
-item6: 6
-item7: 7
-item8: 8
+--- toggle_fullscreen
+default: f11
 
-reset_view: home
-unpan: end
-zoom_in: =
-zoom_out: -
-pan_up: up
-pan_down: down
-pan_left: left
-pan_right: right
+--- toggle_play
+default: spacebar
 
-refresh: f5
+--- toggle_map
+default: tab
 
-tab1: ^+ f5
-tab2: ^+ f6
-tab3: ^+ f7
-tab4: ^+ f8
+--- toggle_detailed
+default: ! alt
 
-dev1: ^+ f9
-dev2: ^+ f10
-dev3: ^+ f11
-dev4: ^+ f12
+--- toggle_shop
+default: f1
 
+--- loot
+default: z
 
---- display
-alt_modifier: [i]for alternative casting[/i]
+--- alt_modifier
+default: Shift
+type: choice
+options: Shift, Alt, Control, Super
+caption: for alternative casting
+
+--- ability_1
+default: q
+--- ability_2
+default: w
+--- ability_3
+default: e
+--- ability_4
+default: r
+--- ability_5
+default: a
+--- ability_6
+default: s
+--- ability_7
+default: d
+--- ability_8
+default: f
+--- item_1
+default: 1
+--- item_2
+default: 2
+--- item_3
+default: 3
+--- item_4
+default: 4
+--- item_5
+default: 5
+--- item_6
+default: 6
+--- item_7
+default: 7
+--- item_8
+default: 8
+
+--- reset_view
+default: home
+
+--- unpan
+default: end
+
+--- zoom_in
+default: =
+
+--- zoom_out
+default: -
+
+--- pan_up
+default: up
+--- pan_down
+default: down
+--- pan_left
+default: left
+--- pan_right
+default: right
+
+--- refresh
+default: f5
+
+--- tab1
+default: ^+ f5
+
+--- tab2
+default: ^+ f6
+--- tab3
+default: ^+ f7
+--- tab4
+default: ^+ f8
+
+--- dev1
+default: ^+ f9
+--- dev2
+default: ^+ f10
+--- dev3
+default: ^+ f11
+--- toggle_debug
+default: ^+ f12
+
 
 === misc
-dev_build *: 0
-debug_mode: 0
-map_editor_mode: 0
-auto_log: 1
-log_interval: 3000.0
+name: Misc
 
---- types
-dev_build *: bool
-debug_mode: bool
-map_editor_mode: bool
-auto_log: bool
-log_interval: float
+--- dev_build*
+default: 0
+type: bool
+display_name: Dev build
+caption: for development use, requires restart
+
+--- debug_mode
+default: 0
+type: bool
+caption: only works in dev build
+
+--- map_editor_mode
+default: 0
+type: bool
+caption: show map biome cores
+
+--- auto_log
+default: 1
+type: bool
+caption: for extra debugging
+
+--- log_interval
+default: 3000.0
+type: float
+caption: in ticks
 
 
---- display
-dev_build *: requires restart
-debug_mode: only works in dev build
-map_editor_mode: show map biome cores
-auto_log: for extra debugging
-log_interval: in ticks
 
 """

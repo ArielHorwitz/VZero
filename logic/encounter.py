@@ -132,7 +132,7 @@ class EncounterAPI:
         self.default_upp = 2
 
         # Settings
-        self.settings_notifier.subscribe('ui.feedback_sfx_cooldown', self.setting_feedback_sfx_interval)
+        self.settings_notifier.subscribe('audio.feedback_sfx_cooldown', self.setting_feedback_sfx_interval)
         self.setting_feedback_sfx_interval()
         self.settings_notifier.subscribe('misc.log_interval', self.setting_log_interval)
         self.settings_notifier.subscribe('misc.auto_log', self.setting_log_interval)
@@ -149,7 +149,7 @@ class EncounterAPI:
             self.always_active[unit.uid] = unit.always_active
 
     def setting_feedback_sfx_interval(self):
-        self.__feedback_sfx_interval = PROFILE.get_setting('ui.feedback_sfx_cooldown')
+        self.__feedback_sfx_interval = PROFILE.get_setting('audio.feedback_sfx_cooldown')
 
     def setting_log_interval(self):
         self.__log_interval_ticks = PROFILE.get_setting('misc.log_interval')
@@ -843,8 +843,6 @@ class EncounterAPI:
         elif event.name == 'dev3':
             logger.info(f'Dev doing 3000 ticks...')
             self.engine._do_ticks(3000)
-        elif event.name == 'dev4':
-            PROFILE.toggle_setting('misc.debug_mode')
 
     # GUI input event handlers
     def _ihandle_activate(self, event):

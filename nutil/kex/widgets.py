@@ -217,8 +217,12 @@ class InputManager(Widget):
         self.__recording_release = on_release
         self.__recording_press = on_press
 
+    def stop_record(self):
+        self.record()
+
     MODIFIERS = {
         'ctrl': '^',
+        'alt-gr': '!',
         'alt': '!',
         'shift': '+',
         'super': '#',
@@ -232,6 +236,12 @@ class InputManager(Widget):
         'rshift': '+',
         'numlock': '',
         'capslock': '',
+    }
+    KEY2MODIFIER = {
+        '^': 'Control',
+        '!': 'Alt',
+        '+': 'Shift',
+        '#': 'Super',
     }
 
     @property
@@ -321,8 +331,21 @@ class InputManager(Widget):
         kvClock.schedule_once(lambda *a: self.record(on_release=self.debug_record), 1)
 
     def debug_record(self, keys):
-        logger.info(f'InputManager recorded input: <{keys}>')
+        logger.info(f'InputManager recorded input: <{keys}> ({self.humanize_keys(keys)})')
 
+    @classmethod
+    def humanize_keys(cls, keys):
+        if ' ' not in keys:
+            return keys.capitalize()
+        mods, key = keys.split(' ')
+        if key in cls.MODIFIERS:
+            return key.capitalize()
+        dstr = []
+        for mod in mods:
+            dstr.append(cls.KEY2MODIFIER[mod])
+        if key != '' and mods:
+            dstr.append(key.capitalize())
+        return ' + '.join(dstr)
 
 # LAYOUTS
 class BoxLayout(kvBoxLayout, KexWidget):
@@ -367,6 +390,10 @@ class Label(kvLabel, KexWidget):
 
 
 class Button(kvButton, KexWidget):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.background_color = 0.6, 0.6, 0.6, 1
+
     def on_touch_down(self, m):
         if m.button != 'left':
             return
@@ -427,12 +454,17 @@ class ListBox(BoxLayout, KexWidget):
         return self.color1 if len(self.children) % 2 == 0 else self.color2
 
 
-class DropDownSelect(kvButton, KexWidget):
+class DropDownFrame(kvDropDown, KexWidget):
+    pass
+
+
+class DropDownSelect(Button):
     def __init__(self, callback, *args, **kwargs):
         super().__init__(*args, **kwargs)
         assert callable(callback)
         self.callback = callback
-        self.dropdown = kvDropDown()
+        self.dropdown = DropDownFrame()
+        self.dropdown.make_bg((0,0,0,0.75))
         self.bind(on_release=self.dropdown.open)
 
     def invoke_option(self, index, label):

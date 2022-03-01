@@ -11,7 +11,7 @@ from nutil.time import RateCounter, ratecounter
 from nutil.kex import widgets
 
 from data.assets import Assets
-from data.settings import PROFILE
+from data.settings import PROFILE, GLOBAL_CANCEL_KEY
 from gui import center_sprite, cc_int, center_position
 from gui.api import MOUSE_EVENTS, ControlEvent, InputEvent, CastEvent
 from gui.common import Tooltip
@@ -78,6 +78,7 @@ class Encounter(widgets.RelativeLayout):
         for action, k, c in hotkeys:
             logger.info(f'EGUI subscribing to setting: {action}')
             self.settings_notifier.subscribe(f'hotkeys.{action}', self.make_hotkeys)
+        self.settings_notifier.subscribe(f'hotkeys.alt_modifier', self.make_hotkeys)
 
         self.interface.register('activate_tooltip', self.activate_tooltip)
         self.interface.register('deactivate_tooltip', self.tooltip.deactivate)
@@ -158,14 +159,14 @@ class Encounter(widgets.RelativeLayout):
         logger.info(f'EGUI making hotkeys...')
         self.app.enc_hotkeys.clear_all()
         hotkeys = [
-            ('toggle_detailed', PROFILE.get_setting('hotkeys.toggle_detailed'), lambda *a: PROFILE.toggle_setting('ui.detailed_mode')),
+            ('toggle_menu', GLOBAL_CANCEL_KEY, lambda *a: self.interface.append(ControlEvent('toggle_menu', self.mouse_real_pos, ''))),
         ]
         # Logic API
         api_actions = (
-            'toggle_menu', 'toggle_play', 'toggle_shop', 'toggle_map',
+            'toggle_play', 'toggle_shop', 'toggle_map',
             'zoom_in', 'zoom_out', 'reset_view', 'unpan',
             'pan_up', 'pan_down', 'pan_left', 'pan_right',
-            'dev1', 'dev2', 'dev3', 'dev4',
+            'dev1', 'dev2', 'dev3',
         )
         for action_name in api_actions:
             hotkeys.append((
@@ -173,33 +174,34 @@ class Encounter(widgets.RelativeLayout):
                 lambda action_name_: self.interface.append(ControlEvent(action_name_, self.mouse_real_pos, ''))
             ))
         # Abilities
-        alt_mod = PROFILE.get_setting('hotkeys.alt_modifier')
+        alt_mod_name = PROFILE.get_setting('hotkeys.alt_modifier').lower()
+        alt_mod = widgets.InputManager.MODIFIERS[alt_mod_name.lower()]
         hotkeys.append((
             f'loot', PROFILE.get_setting('hotkeys.loot'),
             lambda *a: self.interface.append(InputEvent('loot', self.mouse_real_pos, ''))))
         for i in range(8):
-            akey = PROFILE.get_setting(f'hotkeys.ability{i+1}')
-            ikey = PROFILE.get_setting(f'hotkeys.item{i+1}')
+            akey = PROFILE.get_setting(f'hotkeys.ability_{i+1}')
+            ikey = PROFILE.get_setting(f'hotkeys.item_{i+1}')
             if akey:
                 if isinstance(akey, float):
                     akey = str(int(akey))
                 hotkeys.append((
-                    f'ability{i+1}', str(akey),
+                    f'ability_{i+1}', str(akey),
                     lambda *a, x=i: self.interface.append(CastEvent('ability', x, self.mouse_real_pos, 0, ''))
                 ))
                 hotkeys.append((
-                    f'altability{i+1}', f'{alt_mod} {akey}',
+                    f'altability_{i+1}', f'{alt_mod} {akey}',
                     lambda *a, x=i: self.interface.append(CastEvent('ability', x, self.mouse_real_pos, 1, ''))
                 ))
             if ikey:
                 if isinstance(ikey, float):
                     ikey = str(int(ikey))
                 hotkeys.append((
-                    f'item{i+1}', str(ikey),
+                    f'item_{i+1}', str(ikey),
                     lambda *a, x=i: self.interface.append(CastEvent('item', x, self.mouse_real_pos, 0, ''))
                 ))
                 hotkeys.append((
-                    f'altitem{i+1}', f'{alt_mod} {ikey}',
+                    f'altitem_{i+1}', f'{alt_mod} {ikey}',
                     lambda *a, x=i: self.interface.append(CastEvent('item', x, self.mouse_real_pos, 1, ''))
                 ))
         # Register

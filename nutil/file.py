@@ -1,6 +1,8 @@
 
 import pathlib
 import os
+import platform
+import subprocess
 import datetime
 
 
@@ -86,3 +88,11 @@ def log_timestamp():
     :return:    Formatted timestamp
     """
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
+def open_file_explorer(path):
+    if platform.system() == 'Windows':
+        os.startfile(path)
+    elif platform.system() == 'Darwin':
+        subprocess.Popen(['open', path])
+    else:
+        subprocess.Popen(['xdg-open', path])

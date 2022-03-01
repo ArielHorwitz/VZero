@@ -2,6 +2,7 @@ import logging
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
+from data import CorruptedDataError
 from nutil.kex import widgets
 from nutil.debug import format_exc
 from nutil.vars import modify_color
@@ -28,23 +29,22 @@ class Profile:
         for category, cdata in self.__default_settings.items():
             self.settings_proper[category] = {}
             self.settings_modified[category] = {}
-            stypes = cdata['types'] if 'types' in cdata else {}
-            display_stuff = cdata['display'] if 'display' in cdata else {}
-            for setting_name, default in cdata.default.items():
-                display = display_stuff[setting_name] if setting_name in display_stuff else None
-                args = []
-                if setting_name in stypes:
-                    if ', ' in stypes[setting_name]:
-                        stype, *args = stypes[setting_name].split(', ')
-                    else:
-                        stype = stypes[setting_name]
-                    setting_cls = _SETTING_TYPES[stype]
+            for setting_name, sdata in cdata.items():
+                if 'type' in sdata:
+                    stype = sdata['type']
                 else:
-                    setting_cls = HotkeySetting if 'hotkey' in category.lower() else StringSetting
-                logger.debug(f'Loading setting: {setting_name} from category {category} with default: {default}, resolved as {setting_cls.stype}')
-                setting = setting_cls(setting_name, default, args, display=display)
+                    if 'hotkey' in category.lower():
+                        stype = 'hotkey'
+                    else:
+                        logger.warning(f'Setting {setting_name} has no specified type. Using raw string.')
+                        stype = 'string'
+                if stype not in _SETTING_TYPES:
+                    raise CorruptedDataError(f'No such setting type "{stype}" in {stypes}')
+                setting_cls = _SETTING_TYPES[stype]
+                logger.debug(f'Loading setting: {setting_name} from category {category}, resolved as {setting_cls.stype} with raw_data: {sdata}')
+                setting = setting_cls(setting_name, sdata)
                 self.settings_proper[category][setting_name] = setting
-                setting_modified = setting_cls(setting_name, default, args, anchor=setting, display=display)
+                setting_modified = setting_cls(setting_name, sdata, anchor=setting)
                 self.settings_modified[category][setting_name] = setting_modified
                 logger.info(f'Loaded: {setting}')
         # Load user settings from file
@@ -64,7 +64,7 @@ class Profile:
 
     @property
     def gui_settings(self):
-        return self.settings_modified
+        return {self.__default_settings[k].default['name']: v for k, v in self.settings_modified.items()}
 
     def cancel_changes(self):
         logger.info(f'Canceling settings modifications...')
@@ -151,21 +151,23 @@ class Profile:
         self.set_setting(full_setting_name, v)
 
 
+GLOBAL_CANCEL_KEY = 'escape'
 _SETTINGS_IM = widgets.InputManager()
 _SETTINGS_IM.deactivate()
 
+WIDGET_SIZE = 400, 60
 MODIFIED_COLOR = 0.5, 0.3, 0, 0.5
 SAVED_COLOR = 0, 0.5, 0, 0.25
 DEFAULT_COLOR = 0, 0, 0, 0
 
 
 class Setting:
-    def __init__(self, name, default, args, anchor=None, display=None):
+    def __init__(self, name, raw_data, anchor=None):
         self.name = name.capitalize().replace('_', ' ')
-        self.args = args
-        self.parse_args(args)
+        self._raw_data = raw_data
+        self.parse_raw_data(raw_data)
         self.__anchor = anchor
-        self.__display = '' if display is None else f'[i]{display}[/i]'
+        default = raw_data['default']
         reconverted = self.to_str(self.from_str(default))
         if default != reconverted:
             logger.warning(f'Setting {name} default value to_str and from_str non-commutative {default} != {reconverted}')
@@ -175,9 +177,12 @@ class Setting:
         self.__cls_widget = None
         self.__widget = None
         self._widget_label = None
+        display_name = f'[b]{raw_data["display_name"] if "display_name" in raw_data else self.name}[/b]'
+        caption = f'[i]{raw_data["caption"]}[/i]' if 'caption' in raw_data else None
+        self.__widget_label_text = '\n'.join((display_name, caption)) if caption else display_name
         self.set_value(self.__value)
 
-    def parse_args(self, args):
+    def parse_raw_data(self, raw_data):
         pass
 
     @property
@@ -251,9 +256,9 @@ class Setting:
 
     def __make_widget(self):
         widget = widgets.BoxLayout()
-        widget.set_size(x=400, y=50)
+        widget.set_size(*WIDGET_SIZE)
         widget.bind(on_touch_down=self.on_touch_down)
-        label_text = f'[b][u]{self.name}[/u][/b]'
+        label_text = self.__widget_label_text
         label = widgets.Label(text=label_text, markup=True)
         widget.add(label)
         anchor = widget.add(widgets.AnchorLayout(padding=(5, 5)))
@@ -269,21 +274,12 @@ class Setting:
 
     def set_widget_label(self):
         w = self.widget
-        if self.__display is not None:
-            text = self.__display
-        if text:
-            text = f'\n{text}'
-        self._widget_label.text = f'[b]{self.name}[/b]{text}'
         if self.__anchor is not None and self.diff(self.__anchor):
             self._widget_label.make_bg(MODIFIED_COLOR)
         elif self.not_default:
             self._widget_label.make_bg(SAVED_COLOR)
         else:
             self._widget_label.make_bg(DEFAULT_COLOR)
-
-    @property
-    def widget_label(self):
-        return f'{self.display_value(self.value)}'
 
 
 class StringSetting(Setting):
@@ -316,9 +312,9 @@ class StringSetting(Setting):
 
 class FloatSetting(StringSetting):
     stype = 'float'
-    def parse_args(self, args):
-        self.min = float(args[0]) if len(args) > 0 else 0
-        self.max = float(args[1]) if len(args) > 1 else float('inf')
+    def parse_raw_data(self, raw_data):
+        self.min = float(raw_data['min']) if 'min' in raw_data else 0
+        self.max = float(raw_data['max']) if 'max' in raw_data else float('inf')
 
     def to_str(self, value):
         value = round(float(value),3)
@@ -343,6 +339,7 @@ class ColorSetting(Setting):
     def make_cls_widget(self):
         w = widgets.ColorSelect(callback=self._on_color)
         w.set_color(self.value)
+        w.set_size(y=50)
         return w
 
     def _on_color(self, color):
@@ -358,7 +355,7 @@ class ColorSetting(Setting):
 
 class SliderSetting(Setting):
     stype = 'slider'
-    def parse_args(self, args):
+    def parse_raw_data(self, raw_data):
         self._slider = widgets.Slider(on_value=self._on_value)
         self._label = widgets.Label()
         self._label.set_size(x=35)
@@ -393,13 +390,15 @@ class SliderSetting(Setting):
 
 class ChoiceSetting(Setting):
     stype = 'choice'
+    def parse_raw_data(self, raw_data):
+        self.options = raw_data['options'].split(', ')
 
     def from_str(self, value):
         return str(value)
 
     def to_str(self, value):
         v = str(value)
-        assert v in self.args
+        assert v in self.options
         return v
 
     def _click_choice(self, index, label):
@@ -407,7 +406,9 @@ class ChoiceSetting(Setting):
 
     def make_cls_widget(self):
         w = widgets.DropDownSelect(callback=self._click_choice)
-        w.set_options(self.args)
+        w.set_options(self.options)
+        w.set_size(y=45)
+        w.background_color = 0.4, 0.4, 0.6, 1
         return w
 
     def on_set(self):
@@ -424,17 +425,11 @@ class SizeSetting(ChoiceSetting):
 
     def to_str(self, value):
         v = '×'.join(str(round(_)) for _ in value)
-        assert v in self.args
+        assert v in self.options
         return v
 
     def _click_choice(self, index, label):
         self.widget_set_value(self.from_str(label))
-
-
-    def make_cls_widget(self):
-        w = widgets.DropDownSelect(callback=self._click_choice)
-        w.set_options(self.args)
-        return w
 
     def on_set(self):
         self.cls_widget.text = self.display_value(self.value)
@@ -460,7 +455,7 @@ class BooleanSetting(Setting):
         return w
 
     def _on_touch_down(self, w, m):
-        if not m.button == 'left' or not self.cls_widget.collide_point(*m.pos):
+        if not self.cls_widget.collide_point(*m.pos):
             return False
         self.set_value(not self.cls_widget.active)
         return True
@@ -483,24 +478,32 @@ class HotkeySetting(Setting):
     def make_cls_widget(self):
         w = widgets.ToggleButton()
         w.bind(state=self._on_state)
+        w.background_color = 0.5, 0.4, 0.6, 1
+        w.set_size(y=35)
         return w
 
     def _on_state(self, *a):
         if self.cls_widget.active:
             _SETTINGS_IM.activate()
             _SETTINGS_IM.record(on_release=self._end_record, on_press=self._new_record)
+        else:
+            _SETTINGS_IM.stop_record()
+            self.on_set()
 
     def _new_record(self, keys):
-        if keys == 'delete':
+        if keys == GLOBAL_CANCEL_KEY:
             keys = ''
         self.cls_widget.text = self.display_value(keys)
 
     def _end_record(self, keys):
         self.cls_widget.active = False
         _SETTINGS_IM.deactivate()
-        if keys == 'delete':
+        if keys == GLOBAL_CANCEL_KEY:
             keys = ''
         self.widget_set_value(keys)
+
+    def display_value(self, keys):
+        return widgets.InputManager.humanize_keys(keys)
 
 
 _SETTING_TYPES_LIST = (

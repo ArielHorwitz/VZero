@@ -93,6 +93,8 @@ class App(widgets.App):
         hotkeys = [
             ('refresh', PROFILE.get_setting('hotkeys.refresh'), lambda *a: self.full_refresh()),
             ('toggle_fullscreen', PROFILE.get_setting('hotkeys.toggle_fullscreen'), lambda *a: PROFILE.toggle_setting('general.fullscreen')),
+            ('toggle_detailed', PROFILE.get_setting('hotkeys.toggle_detailed'), lambda *a: PROFILE.toggle_setting('ui.detailed_mode')),
+            ('toggle_debug', PROFILE.get_setting('hotkeys.toggle_debug'), lambda *a: PROFILE.toggle_setting('misc.debug_mode')),
             ('tab1', PROFILE.get_setting('hotkeys.tab1'), lambda *a: self.switch_screen('home')),
             ('tab2', PROFILE.get_setting('hotkeys.tab2'), lambda *a: self.switch_screen('encounter')),
             ('tab3', PROFILE.get_setting('hotkeys.tab3'), lambda *a: self.switch_screen('profile')),
@@ -154,7 +156,8 @@ class App(widgets.App):
                 self.set_fullscreen()
         else:
             self.set_windowed()
-        widgets.kvClock.schedule_once(lambda *a: self.offset_window(), 0)
+        if PROFILE.get_setting('general.enable_window_offset'):
+            widgets.kvClock.schedule_once(lambda *a: self.offset_window(), 0)
 
     def set_windowed(self, *a):
         widgets.kvWindow.fullscreen = False
@@ -179,10 +182,6 @@ class App(widgets.App):
     def set_window_resolution(self, fullscreen=False):
         res = PROFILE.get_setting(f'general.{"fullscreen" if fullscreen else "window"}_resolution')
         widgets.kvWindow.size = tuple(int(_) for _ in res)
-
-    def set_window_offset(self, x=None, y=None):
-        PROFILE.set_setting('general.window_offset_x', widgets.kvWindow.left if x is None else x)
-        PROFILE.set_setting('general.window_offset_y', widgets.kvWindow.top if y is None else y)
 
     def offset_window(self):
         widgets.kvClock.schedule_once(lambda *a: self._do_offset_window(), 0)

@@ -30,5 +30,5 @@ def resource_name(name):
 
 
 from data.settings import PROFILE
-DEV_BUILD = PROFILE.get_setting('misc.dev_build *')
+DEV_BUILD = PROFILE.get_setting('misc.dev_build*')
 logger.info(f'DEV_BUILD: {"enabled" if DEV_BUILD else "disabled"}')
