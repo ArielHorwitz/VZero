@@ -283,7 +283,7 @@ class EncounterAPI:
     def units(self):
         return self.engine.units
 
-    def map_inspect(self, target):
+    def map_select(self, target):
         play_sfx = False
         distances = self.engine.get_distances(target)
         uid = NP.argmin(distances, self.sprite_visible_mask)
@@ -375,6 +375,13 @@ class EncounterAPI:
         self.view_offset = None
         self.gui.request('set_view_center', self.view_center)
         self.gui.request('set_upp', self.upp)
+
+    def toggle_shop(self):
+        self.selected_unit = 0
+        showing = self.gui.request('browse_showing')
+        if PROFILE.get_setting('ui.auto_pause_shop'):
+            self.toggle_play(set_to=showing)
+        self.gui.request('browse_hide' if showing else 'browse_show')
 
     def set_zoom(self, d=None, v=None):
         if v is not None:
@@ -734,9 +741,7 @@ class EncounterAPI:
 
         verbose = True
         logic_performance = '\n'.join([
-            make_title('Logic Performance', length=30),
-            f'browse: {self.gui.request("browse_showing")}',
-            make_title('Totals', length=30),
+            make_title('Logic Performance Totals', length=30),
             display_timer_collection(self.engine.total_timers),
             make_title('Single', length=30),
             display_timer_collection(self.engine.single_timers),
@@ -852,8 +857,8 @@ class EncounterAPI:
     def _ihandle_activate(self, event):
         self.player.use_walk(event.pos)
 
-    def _ihandle_inspect(self, event):
-        self.map_inspect(event.pos)
+    def _ihandle_select(self, event):
+        self.map_select(event.pos)
 
     def _ihandle_loot(self, event):
         self.player.use_loot(event.pos)
@@ -864,7 +869,7 @@ class EncounterAPI:
     def _ihandle_zoomout(self, event):
         self.zoom_out()
 
-    def _ihandle_focus(self, event):
+    def _ihandle_inspect(self, event):
         self.view_offset = event.pos
 
     def _ihandle_back(self, event):
@@ -890,9 +895,7 @@ class EncounterAPI:
         self.toggle_map()
 
     def _chandle_toggle_shop(self, event):
-        self.selected_unit = 0
-        showing = self.gui.request('browse_showing')
-        self.gui.request('browse_hide' if showing else 'browse_show')
+        self.toggle_shop()
 
     def _chandle_reset_view(self, event):
         self.map_mode = False
@@ -922,6 +925,13 @@ class EncounterAPI:
         if self.selected_unit == self.player_uid and origin != target:
             self.player.swap_item_slots(origin, target)
             Assets.play_sfx('ui.select', volume='ui')
+
+    def _chandle_hud_portrait_select(self, event):
+        unit = self.units[self.selected_unit]
+        if 'shop' in unit.name.lower() and not self.gui.request('browse_showing'):
+            self.toggle_shop()
+        else:
+            self._chandle_hud_portrait_inspect(event)
 
     def _chandle_hud_portrait_inspect(self, event):
         unit = self.units[self.selected_unit]
@@ -981,9 +991,6 @@ class EncounterAPI:
 
     def _chandle_status_hud_inspect(self, event):
         status = self.__last_hud_statuses[event.index]
-        if status is STATUS.SHOP:
-            self.gui.request('browse_show')
-            return
         sprite = Assets.FALLBACK_SPRITE
         title = 'Unknown status'
         label = 'Missing tooltip'

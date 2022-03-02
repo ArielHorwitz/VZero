@@ -111,9 +111,7 @@ class Decoration(widgets.AnchorLayout, EncounterViewComponent):
 class HUD(widgets.AnchorLayout, EncounterViewComponent):
     def __init__(self, **kwargs):
         super().__init__(anchor_x='center', anchor_y='bottom', **kwargs)
-
-        ct1 = self.add(widgets.ConsumeTouch(consume_keys=False))
-        ct2 = self.add(widgets.ConsumeTouch(consume_keys=False))
+        touch_consumer = self.add(widgets.ConsumeTouch(consume_keys=False))
 
         self.main_frame = self.add(widgets.BoxLayout())
 
@@ -126,25 +124,26 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
         self.name_label.text_size = self.name_label.size
         self.center_frame = self.main_frame.add(widgets.BoxLayout(orientation='vertical'))
 
-        ct1.widget = self.portrait
-        ct2.widget = self.center_frame
-
         self.status_anchor = self.center_frame.add(widgets.AnchorLayout(anchor_x='left', anchor_y='bottom'))
         self.status_stack = self.status_anchor.add(Stack(
-            wtype=CenteredSpriteBox,
+            name='HUD Status', wtype=CenteredSpriteBox,
             callback=lambda i, b: self.click('status', i, b),
+            consume_box_touch=False,
         ))
         self.status_stack.make_bg((0,0,0,0))
 
-        self.bar_frame = self.center_frame.add(widgets.BoxLayout(orientation='vertical'))
+        center_frame_no_status = self.center_frame.add(widgets.BoxLayout(orientation='vertical'))
+        touch_consumer.widget = center_frame_no_status
+        self.bar_frame = center_frame_no_status.add(widgets.BoxLayout(orientation='vertical'))
         s = Assets.get_sprite('ui.stat-bar')
         self.bars = [self.bar_frame.add(widgets.Progress(source=s)) for _ in range(2)]
 
-        self.main_panel = self.center_frame.add(widgets.BoxLayout())
+        self.main_panel = center_frame_no_status.add(widgets.BoxLayout())
 
         self.left_panel = self.main_panel.add(widgets.AnchorLayout())
         self.left_panel.make_bg((1,1,1,1), source=Assets.get_sprite('ui.hud-left'))
         self.left_hud = self.left_panel.add(Stack(
+            name='HUD left',
             wtype=lambda *a, **k: CenteredSpriteBox(*a,
                 bg_sprite=Assets.get_sprite('ui.sprite-box-mask'),
                 fg_sprite=Assets.get_sprite('ui.sprite-box'),
@@ -156,13 +155,16 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
         self.middle_panel = self.main_panel.add(widgets.BoxLayout(orientation='vertical'))
         self.middle_panel.make_bg((1,1,1,1), source=Assets.get_sprite('ui.hud-middle'))
         middle_hud_anchor = self.middle_panel.add(widgets.AnchorLayout())
-        self.middle_hud = middle_hud_anchor.add(Stack(wtype=SpriteLabel, callback=lambda i, b: self.click('middle', i, b)))
+        self.middle_hud = middle_hud_anchor.add(Stack(
+            name='HUD middle', wtype=SpriteLabel,
+            callback=lambda i, b: self.click('middle', i, b)))
         self.middle_label = self.middle_panel.add(widgets.Label(halign='center', valign='middle'))
         self.middle_label.make_bg((0,0,0,0.3), source=Assets.get_sprite('ui.mask-4x1'))
 
         self.right_panel = self.main_panel.add(widgets.AnchorLayout())
         self.right_panel.make_bg((1,1,1,1), source=Assets.get_sprite('ui.hud-right'))
         self.right_hud = self.right_panel.add(Stack(
+            name='HUD right',
             wtype=lambda *a, **k: CenteredSpriteBox(*a,
                 bg_sprite=Assets.get_sprite('ui.sprite-box-mask'),
                 fg_sprite=Assets.get_sprite('ui.sprite-box'),
@@ -179,43 +181,39 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
         self.enc.settings_notifier.subscribe('ui.hud_height', self.setting_hud_scale)
         self.enc.settings_notifier.subscribe('ui.hud_width', self.setting_hud_scale)
         self.setting_hud_scale()
+        self.enc.settings_notifier.subscribe('ui.detailed_mode', self.set_auto_hover)
+        self.enc.settings_notifier.subscribe('ui.auto_tooltip', self.set_auto_hover)
+        self.set_auto_hover()
 
     def update(self):
-        self.set_auto_hover(PROFILE.get_setting('ui.detailed_mode') if self.hud_visible else False)
+        pass
 
     def hud_drag_drop(self, hud, origin, target, button):
-        if button == 'middle':
+        mouse_event = MOUSE_EVENTS[button]
+        if mouse_event == 'select':
             self.enc.interface.append(ControlEvent(f'{hud}_hud_drag_drop', (origin, target), 'Index is tuple of (origin_index, target_index)'))
 
     def portrait_click(self, w, m):
         if not self.portrait_frame.collide_point(*m.pos):
             return
         self.enc.interface.append(ControlEvent(f'hud_portrait_{MOUSE_EVENTS[m.button]}', 0, ''))
+        return True
 
     def click(self, hud, index, button):
         self.enc.interface.append((ControlEvent(f'{hud}_hud_{MOUSE_EVENTS[button]}', index, '')))
-
-    def show_hud(self):
-        if not self.hud_visible:
-            self.add(self.main_frame)
-
-    def hide_hud(self):
-        self.set_auto_hover(False)
-        if self.hud_visible:
-            self.remove_widget(self.main_frame)
 
     @property
     def hud_visible(self):
         return self.main_frame in self.children
 
-    def set_auto_hover(self, set_as=None):
-        if not PROFILE.get_setting('ui.auto_tooltip'):
-            return
-        set_as = self.enc.detailed_info_mode if set_as is None else set_as
-        self.middle_hud.consider_hover = set_as
-        self.right_hud.consider_hover = set_as
-        self.left_hud.consider_hover = set_as
-        self.status_stack.consider_hover = set_as
+    def set_auto_hover(self):
+        set_as = None
+        if PROFILE.get_setting('ui.detailed_mode') and PROFILE.get_setting('ui.auto_tooltip'):
+            set_as = 'middle'
+        self.middle_hud.hover_invokes = set_as
+        self.right_hud.hover_invokes = set_as
+        self.left_hud.hover_invokes = set_as
+        self.status_stack.hover_invokes = set_as
 
     def set_hud_bars(self, top, bottom):
         for i, pb in enumerate((top, bottom)):
@@ -277,6 +275,7 @@ class ModalBrowse(Modal, EncounterViewComponent):
         self.main = self.frame.add(SpriteTitleLabel())
         self.main.set_size(x=main_width)
         self.stack = self.frame.add(Stack(
+            name='Browse',
             wtype=lambda *a, **k: SpriteBox(*a,
                 bg_sprite=Assets.get_sprite('ui.sprite-box-mask'),
                 fg_sprite=Assets.get_sprite('ui.sprite-box'),
@@ -289,33 +288,48 @@ class ModalBrowse(Modal, EncounterViewComponent):
         self.frame.set_size(x=main_width+stack_size, y=main_height)
         self.set_frame(self.frame)
         self.enc.interface.register('browse_showing', lambda: self.activated)
-        self.enc.interface.register('browse_show', self.show)
-        self.enc.interface.register('browse_hide', self.hide)
+        self.enc.interface.register('browse_show', self.activate)
+        self.enc.interface.register('browse_hide', self.deactivate)
+        self.enc.interface.register('browse_toggle', self.toggle)
         self.enc.interface.register('set_browse_main', self.set_browse_main)
         self.enc.interface.register('set_browse_elements', self.set_browse_elements)
+        self.enc.settings_notifier.subscribe('ui.detailed_mode', self.set_auto_hover)
+        self.enc.settings_notifier.subscribe('ui.auto_tooltip', self.set_auto_hover)
+        self.set_auto_hover()
 
     def click(self, index, button):
         self.enc.interface.append(ControlEvent(f'modal_{MOUSE_EVENTS[button]}', index, ''))
 
-    def show(self):
-        self.activate()
+    def activate(self):
+        super().activate()
         self.enc.tooltip.deactivate()
+        self.set_auto_hover()
 
-    def hide(self):
-        self.deactivate()
+    def deactivate(self):
+        super().deactivate()
         self.enc.tooltip.deactivate()
+        self.set_auto_hover()
 
     def update(self):
-        if not self.activated:
-            self.stack.consider_hover = False
-            return
-        self.stack.consider_hover = PROFILE.get_setting('ui.detailed_mode') if PROFILE.get_setting('ui.auto_tooltip') else False
+        pass
 
     def set_browse_main(self, stl):
         self.main.update(stl)
 
     def set_browse_elements(self, spriteboxes):
         self.stack.update(spriteboxes)
+
+    def click_dismiss(self):
+        self.enc.interface.append(ControlEvent('toggle_shop', 0, ''))
+
+    def set_auto_hover(self):
+        if not self.activated:
+            self.stack.hover_invokes = None
+            return
+        if PROFILE.get_setting('ui.detailed_mode') and PROFILE.get_setting('ui.auto_tooltip'):
+            self.stack.hover_invokes = 'middle'
+        else:
+            self.stack.hover_invokes = None
 
 
 class ViewFade(widgets.AnchorLayout, EncounterViewComponent):

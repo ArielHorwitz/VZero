@@ -155,28 +155,61 @@ class SpriteTitleLabel(widgets.AnchorLayout):
 
 
 class Stack(widgets.StackLayout):
-    def __init__(self,
+    def __init__(self, name=None,
             wtype=None, x=None, y=None,
             callback=None,
-            always_consume_touch=False,
+            consume_box_touch=True,
+            consume_stack_touch=False,
             drag_drop_callback=None,
-            consider_hover=False,
+            hover_invokes=None,
             **kwargs):
+        self.name = 'Unnamed' if name is None else name
+        self.boxes = []
         super().__init__(**kwargs)
         self.__wtype = SpriteLabel if wtype is None else wtype
-        self.__always_consume_touch = always_consume_touch
         self.__x = 250 if x is None else x
         self.__y = 50 if y is None else y
-        self.boxes = []
         self.callback = callback
+        self.consume_box_touch = consume_box_touch
+        self.consume_stack_touch = consume_stack_touch
         self.drag_drop_callback = drag_drop_callback
         self.dragging = None
-        self.consider_hover = consider_hover
+        self.__hover_invokes = None
+        self.__hover_bind = None
+        self.__last_hover = None
+        self.hover_invokes = hover_invokes
         if self.callback or self.drag_drop_callback:
             self.bind(on_touch_down=lambda w, m: self.on_touch_down(m))
         if self.drag_drop_callback:
             self.bind(on_touch_up=lambda w, m: self.on_touch_up(m))
-        widgets.kvWindow.bind(mouse_pos=self.check_hover)
+
+    @property
+    def hover_invokes(self):
+        return self.__hover_invokes
+
+    @hover_invokes.setter
+    def hover_invokes(self, x):
+        logger.debug(f'{self} setting hover_invokes: {x}')
+        self.__hover_invokes = x
+        self.__last_hover = None
+        if x is None:
+            self._unbind()
+        else:
+            self._bind()
+            self.check_hover(None, widgets.kvWindow.mouse_pos)
+
+    def _bind(self):
+        if self.__hover_bind is not None:
+            return
+        self.__hover_bind = widgets.kvWindow.fbind('mouse_pos', self.check_hover)
+        logger.debug(f'{self} binding mouse_pos {self.__hover_bind}')
+
+    def _unbind(self):
+        if self.__hover_bind is None:
+            return
+        logger.debug(f'{self} unbinding mouse_pos {self.__hover_bind}')
+        widgets.kvWindow.unbind_uid('mouse_pos', self.__hover_bind)
+        self.__hover_bind = None
 
     def set_boxsize(self, size=None):
         if size is not None:
@@ -195,14 +228,28 @@ class Stack(widgets.StackLayout):
         self.set_boxsize()
 
     def check_hover(self, w, pos):
-        if not self.consider_hover:
-            return False
+        if self.hover_invokes is None:
+            # Cannot reproduce this issue, so we're trying every contingency and logging
+            logger.warning(f'check_hover should only be called if hover_invokes, try unbinding... {w} {self.__hover_bind}')
+            if self.__hover_bind is None:
+                m = f'check_hover is being called but no fbind_uid found...'
+                logger.critical(m)
+                raise RuntimeError(m)
+            self._unbind()
+            return
+        pos = self.to_widget(*pos)
         if not self.collide_point(*pos):
+            self.__last_hover = None
             return False
         for i, b in enumerate(self.boxes):
             if b.collide_point(*pos):
-                self.callback(i, 'left')
+                if i == self.__last_hover:
+                    break
+                self.__last_hover = i
+                self.callback(i, self.hover_invokes)
                 break
+        else:
+            self.__last_hover = None
         return False
 
     def on_touch_down(self, m):
@@ -213,8 +260,8 @@ class Stack(widgets.StackLayout):
                 self.callback(i, m.button)
                 if self.drag_drop_callback:
                     self.dragging = i
-                return True
-        return self.__always_consume_touch
+                return self.consume_box_touch
+        return self.consume_stack_touch
 
     def on_touch_up(self, m):
         if self.dragging is None:
@@ -232,9 +279,17 @@ class Stack(widgets.StackLayout):
         for i, box in enumerate(boxes):
             self.boxes[i].update(box)
 
+    def __repr__(self):
+        return f'<Stack {self.name} with {len(self.boxes)} boxes>'
+
 
 class Tooltip(widgets.BoxLayout):
-    def __init__(self, bounding_widget=None, **kwargs):
+    def __init__(self,
+        bounding_widget=None,
+        consume_colliding_touch=True,
+        consume_any_touch=False,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.bounding_widget = bounding_widget
         self.__frame = widgets.AnchorLayout()
@@ -246,6 +301,8 @@ class Tooltip(widgets.BoxLayout):
         self.bind(on_touch_down=self._check_click)
         self.__hover_bind = None
         self.__dismiss_origin = np.array([0, 0])
+        self.consume_colliding_touch = consume_colliding_touch
+        self.consume_any_touch = consume_any_touch
         SETTINGS_NOTIFIER.subscribe('ui.auto_dismiss_tooltip', self.setting_auto_dismiss)
         self.setting_auto_dismiss()
 
@@ -286,9 +343,11 @@ class Tooltip(widgets.BoxLayout):
             self.__hover_bind = None
 
     def _check_click(self, w, m):
-        if m.button == 'left' and self.__frame in self.children:
+        if self.__frame in self.children:
             self.deactivate()
-            return True
+            if self.consume_colliding_touch:
+                return self.__frame.collide_point(*m.pos)
+        return self.consume_any_touch
 
     def _check_hover(self, w, pos):
         if self.__frame not in self.children:
@@ -326,7 +385,16 @@ class Modal(widgets.AnchorLayout):
         if self.__frame in self.children:
             self.remove_widget(self.__frame)
 
+    def toggle(self):
+        if self.activated:
+            self.deactivate()
+        else:
+            self.activate()
+
     def _check_click(self, w, m):
-        if self.auto_dismiss is True and m.button == 'left':
+        if self.activated and self.auto_dismiss:
             if not self.__frame.collide_point(*m.pos):
-                self.deactivate()
+                self.click_dismiss()
+
+    def click_dismiss(self):
+        self.deactivate()

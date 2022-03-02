@@ -124,6 +124,11 @@ default: 100.0
 type: float
 caption: in pixels
 
+--- auto_pause_shop
+default: 1
+type: bool
+display_name: Pause when shopping
+
 --- hud_height
 default: 0.5
 type: slider

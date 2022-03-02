@@ -4,7 +4,7 @@ logger = logging.getLogger(__name__)
 
 
 from nutil.kex import widgets
-from data import resource_name, APP_COLOR, BASE_RESOLUTION
+from data import resource_name, APP_COLOR, BASE_RESOLUTION, INFO_STR
 from data.load import RDF
 from data.assets import Assets
 
@@ -27,6 +27,7 @@ class HelpGUI(widgets.AnchorLayout):
         self.buttons = []
         bottom_frame = main_frame.add(widgets.BoxLayout())
         self.button_stack = bottom_frame.add(Stack(
+            name='Info buttons',
             wtype=lambda *a, **k: SpriteLabel(*a, **k),
             callback=self.button_stack_click, x=200, y=50))
         self.button_stack.set_size(x=200)
@@ -52,33 +53,14 @@ class HelpGUI(widgets.AnchorLayout):
         Assets.play_sfx('ui.select', volume='ui')
 
 
-_DEFAULT_INFO_STR = """
-=== VZero
-Welcome to VZero. I appreciate your help in testing this early version of the game [b]:)[/b]
-~
-[u]The game is in early alpha and not intended for public distribution.[/u]
-~
-This software enables and encourages user modifications for personal use. The developers take no responsibility for user directed content. The software and associated content is provided "as is", without warranty of any kind, express or implied.
-
--- Software
-[b]© 2021-2022, all rights reserved by Ariel Horwitz.[/b]
-Redistribution of this software is prohibited without explicit written permission.
-~
-Written in python with kivy (https://github.com/kivy/kivy)
---- Art
-While there are many public domain contributions, redistribution of [i]proprietary[/i] artwork is prohibited without explicit written permission.
-~
-[b]Yisrael Hessler[/b] - https://github.com/imcrazeegamer
-[b]Orr Didi[/b] - https://scardust.co
-"""
-
 def get_info_widgets():
     return [
-        *rdf2info(RDF.from_str(_DEFAULT_INFO_STR)),
+        *rdf2info(RDF.from_str(INFO_STR)),
         *rdf2info(RDF.from_file(RDF.CONFIG_DIR / 'help.rdf')),
         ('Scaling table', widgets.Image(allow_stretch=True, source=Assets.get_sprite('ui.info1'))),
         ('Scaling table long', widgets.Image(allow_stretch=True, source=Assets.get_sprite('ui.info2'))),
     ]
+
 
 def rdf2info(rdf):
     info_widgets = []

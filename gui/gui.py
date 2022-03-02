@@ -72,9 +72,9 @@ class App(widgets.App):
         self.settings_notifier.subscribe('general.window_offset_y', self.setting_window_state)
         self.settings_notifier.subscribe('general.borderless_offset_x', self.setting_window_state)
         self.settings_notifier.subscribe('general.borderless_offset_y', self.setting_window_state)
+        self.settings_notifier.subscribe('general.enable_window_offset', self.setting_window_state)
         self.settings_notifier.subscribe('ui.fullscreen_grab_mouse', self.setting_fullscreen_grab_mouse)
         self.setting_window_state()
-        self.settings_notifier.subscribe('ui.fullscreen_grab_mouse', self.setting_fullscreen_grab_mouse)
 
         hotkeys = self.make_hotkeys()
         for action, k, c in hotkeys:

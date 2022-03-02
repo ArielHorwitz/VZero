@@ -276,6 +276,9 @@ class GameAPI:
         self.refresh_draft_gui()
         self.gui.request('set_view', 'draft')
 
+    def handle_world_stack_select(self, event):
+        self.handle_world_stack_inspect(event)
+
     def handle_world_stack_inspect(self, event):
         ep = self.world_encounters[event.index]
         self.gui.request('activate_tooltip', SpriteTitleLabel(ep.sprite, ep.map, ep.description, None))
@@ -283,10 +286,13 @@ class GameAPI:
     def handle_draft_activate(self, event):
         self.draft(self.draftables[event.index])
 
+    def handle_draft_select(self, event):
+        self.handle_draft_inspect(event)
+
     def handle_draft_inspect(self, event):
         aid = self.draftables[event.index]
         ability = ABILITIES[aid]
-        ability.play_sfx(volume='ui')
+        # ability.play_sfx(volume='ui')
         self.gui.request('activate_tooltip', SpriteTitleLabel(
             ability.sprite,
             f'{ability.name}\nDraft cost: {ability.draft_cost}',
@@ -307,6 +313,9 @@ class GameAPI:
         aid = self.loadout[event.index]
         if aid is not None:
             self.draft(aid)
+
+    def handle_loadout_select(self, event):
+        self.handle_loadout_inspect(event)
 
     def handle_loadout_inspect(self, event):
         aid = self.loadout[event.index]

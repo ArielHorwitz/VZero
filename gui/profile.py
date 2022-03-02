@@ -51,15 +51,18 @@ class ProfileGUI(widgets.AnchorLayout):
         button_frame = bottom_frame.add(widgets.BoxLayout(orientation='vertical'))
         button_frame.set_size(x=200)
         self.control_button_stack = button_frame.add(Stack(
+            name='Settings control',
             wtype=lambda *a, **k: SpriteLabel(*a, **k),
             callback=self.control_button_stack_click, x=200, y=50))
         self.control_button_stack.set_size(y=50*len(self.control_buttons))
         self.control_button_stack.update(self.control_buttons)
         self.buttons = []
         self.button_stack = button_frame.add(Stack(
+            name='Settings categories',
             wtype=lambda *a, **k: SpriteLabel(*a, **k),
             callback=self.button_stack_click, x=200, y=50))
         self.misc_button_stack = button_frame.add(Stack(
+            name='Settings misc',
             wtype=lambda *a, **k: SpriteLabel(*a, **k),
             callback=self.misc_button_stack_click, x=200, y=50))
         self.misc_button_stack.update(self.misc_buttons)

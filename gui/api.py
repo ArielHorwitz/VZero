@@ -1,9 +1,9 @@
 from collections import namedtuple as _namedtuple
 
 MOUSE_EVENTS = {
+    'left': 'select',
     'right': 'activate',
-    'left': 'inspect',
-    'middle': 'focus',
+    'middle': 'inspect',
     'scrollup': 'zoomout',
     'scrolldown': 'zoomin',
     'mouse4': 'back',
