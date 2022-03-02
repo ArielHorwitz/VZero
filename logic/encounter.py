@@ -172,7 +172,7 @@ class EncounterAPI:
         hotkeys = set()
         for i in range(8):
             for ktype, l in (('ability', self.hud_left_hotkeys), ('item', self.hud_right_hotkeys)):
-                key_name = f'hotkeys.{ktype}{i+1}'
+                key_name = f'hotkeys.{ktype}_{i+1}'
                 key = PROFILE.get_setting(key_name)
                 hotkeys.add(key_name)
                 l.append(str(key).upper())
@@ -837,12 +837,16 @@ class EncounterAPI:
         if not DEV_BUILD:  # HANDLE DEV ACTION
             return
         if event.name == 'dev1':
-            PROFILE.toggle_setting('misc.map_editor_mode')
-        elif event.name == 'dev2':
             self.engine._do_ticks(1)
-        elif event.name == 'dev3':
+        elif event.name == 'dev2':
             logger.info(f'Dev doing 3000 ticks...')
             self.engine._do_ticks(3000)
+        elif event.name == 'dev3':
+            gdelta = self.engine.get_position(self.player_uid) == self.player.grave_pos
+            if gdelta.sum() == 2:
+                self.player.move_to_spawn()
+            else:
+                self.player.move_to_graveyard()
 
     # GUI input event handlers
     def _ihandle_activate(self, event):

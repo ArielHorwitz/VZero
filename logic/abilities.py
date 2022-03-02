@@ -936,7 +936,7 @@ class EffectTeleportHome(Effect):
         return '[u][b]Teleport home[/b][/u]'
 
     def apply(self, api, uid, targets):
-        target = api.units[uid]._respawn_location
+        target = api.units[uid].spawn_pos
         Mechanics.apply_teleport(api, uid, target, reset_target=True)
 
 

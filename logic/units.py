@@ -23,6 +23,7 @@ RNG = np.random.default_rng()
 
 
 STARTING_PLAYER_STOCKS = 10
+GRAVEYARD_POSITION = np.array([-1_000_000, -1_000_000], dtype=np.float64)
 
 
 class Slots:
@@ -155,6 +156,8 @@ class Unit:
         self.p = raw_data.default
         raw_stats = raw_data['stats'] if 'stats' in raw_data else {}
         self.starting_stats = self._load_raw_stats(raw_stats)
+        self.grave_offset = np.array([(self.uid%10)*300, (self.uid//10)*300], dtype=np.float64)
+        self.grave_pos = GRAVEYARD_POSITION + self.grave_offset
         self.cache = defaultdict(lambda: None)
         self.always_visible = True if 'always_visible' in self.p.positional else False
         self.always_active = True if 'always_active' in self.p.positional else False
@@ -163,7 +166,8 @@ class Unit:
         self.api = api
         self.engine = api.engine
         self.name = raw_data.default['name'] if 'name' in raw_data.default else name
-        self.sprite = Assets.get_sprite(f'units.{self.name}')
+        sprite_name = raw_data.default['sprite'] if 'sprite' in raw_data.default else name
+        self.sprite = Assets.get_sprite(f'units.{sprite_name}')
         self.regen_trackers = defaultdict(lambda: FIFO(int(FPS*2)))
         # Abilities
         self._ability_slots = Slots(8)
@@ -326,7 +330,7 @@ class Unit:
         self.use_ability(self.builtin_loot, target)
 
     def setup(self):
-        self._respawn_location = self.engine.get_position(self.uid)
+        self.spawn_pos = self.engine.get_position(self.uid)
         self._respawn_gold = self.engine.get_stats(self.uid, STAT.GOLD)
         self.set_abilities(self.default_abilities)
         self._ability_slots.add_unslotted(self.builtin_walk)
@@ -411,13 +415,20 @@ class Unit:
         self.engine.set_stats(self.uid, STAT.HP, max_hp)
         max_mana = self.engine.get_stats(self.uid, STAT.MANA, VALUE.MAX)
         self.engine.set_stats(self.uid, STAT.MANA, max_mana)
-        self.engine.set_position(self.uid, self._respawn_location)
-        self.engine.set_position(self.uid, self._respawn_location, value_name=VALUE.TARGET)
+        self.move_to_spawn()
         self.engine.kill_dmods(self.uid)
         self.engine.kill_statuses(self.uid)
         if reset_gold:
             self.engine.set_stats(self.uid, STAT.GOLD, self._respawn_gold)
         self.play_respawn_sfx()
+
+    def move_to_spawn(self):
+        self.engine.set_position(self.uid, self.spawn_pos)
+        self.engine.set_position(self.uid, self.spawn_pos, value_name=VALUE.TARGET)
+
+    def move_to_graveyard(self):
+        self.engine.set_position(self.uid, self.grave_pos)
+        self.engine.set_position(self.uid, self.grave_pos, value_name=VALUE.TARGET)
 
     @property
     def networth_str(self):
@@ -436,7 +447,8 @@ class Unit:
             f'Draft cost: {self.draft_cost}',
             f'Current velocity: {s2ticks(velocity):.2f}/s ({velocity:.2f}/t)',
             f'Action phase: {self.uid % self.api.engine.AGENCY_PHASE_COUNT}',
-            f'Spawn location: {self._respawn_location}',
+            f'Spawn location: {self.spawn_pos}',
+            f'Grave offset: {self.grave_offset}',
             f'Agency: {self.api.engine.agency_timers[self.uid].mean_elapsed_ms:.3f} ms',
             f'Distance to player: {self.api.engine.unit_distance(0, self.uid):.1f}',
         ]
@@ -500,16 +512,16 @@ class Creep(Unit):
         self.wave_offset = int(float(self.p['wave_offset']) * 100)
         self.scaling = float(self.p['scaling']) if 'scaling' in self.p else 1
         # Space out the wave, as collision is finnicky at the time of writing
-        self._respawn_location += RNG.random(2) * self.engine.get_stats(self.uid, STAT.HITBOX) * 0.5
+        self.spawn_pos += RNG.random(2) * self.engine.get_stats(self.uid, STAT.HITBOX) * 0.5
         # Prepare the first wave
         self.first_wave = True
-        self.engine.set_position(self.uid, (-1_000_000, -1_000_000))
+        self.move_to_graveyard()
         self.engine.set_stats(self.uid, STAT.HP, 0)
         self.engine.set_status(self.uid, STATUS.RESPAWN, self._respawn_timer + 1, 1)
 
     @property
     def target(self):
-        return self.engine.units[0]._respawn_location
+        return self.engine.units[0].spawn_pos
 
     def respawn(self):
         super().respawn()
@@ -540,7 +552,7 @@ class Creep(Unit):
             self.use_ability(aid, None)
 
     def debug_str(self, *a, **k):
-        return f'{super().debug_str(*a, **k)}\nSpawned at: {self._respawn_location}\nNext wave: {self._respawn_timer}'
+        return f'{super().debug_str(*a, **k)}\nSpawned at: {self.spawn_pos}\nNext wave: {self._respawn_timer}'
 
 
 class Camper(Unit):
@@ -625,10 +637,10 @@ class Camper(Unit):
     def debug_str(self, *a, **k):
         return '\n'.join([
             f'{super().debug_str(*a, **k)}',
-            f'Camping at: {self.camp}',
+            f'Camping at: {pos2str(self.camp)}',
             f'Camp spread: {self.__camp_spread}',
             f'Next walk: {self.__next_walk}',
-            f'Walk target: {self.__walk_target}',
+            f'Walk target: {pos2str(self.__walk_target)}',
             f'Keep distance: {self.__keep_distance}',
             f'Aggro flank: {self.__aggro_flank}',
             f'Aggro range: {self.__aggro_range}',

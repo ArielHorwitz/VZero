@@ -29,6 +29,16 @@ def resource_name(name):
     return name.lower().replace(' ', '-').replace('_', '-')
 
 
+import numpy as np
+def str2pos(s):
+    return np.array(tuple(float(_) for _ in s.split(', ')))
+
+
+def pos2str(pos):
+    logger.info(f'pos2str: {pos}')
+    return ', '.join(tuple(str(round(_,2)) for _ in tuple(pos)))
+
+
 from data.settings import PROFILE
 DEV_BUILD = PROFILE.get_setting('misc.dev_build*')
 logger.info(f'DEV_BUILD: {"enabled" if DEV_BUILD else "disabled"}')

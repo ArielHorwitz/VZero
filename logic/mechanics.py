@@ -8,6 +8,7 @@ from collections import defaultdict
 import numpy as np
 from nutil.vars import normalize, modify_color
 from data.assets import Assets
+from data.settings import PROFILE
 from logic.common import *
 
 
@@ -32,7 +33,7 @@ class Mechanics:
         # Apply and move remains
         looted_gold = api.get_stats(loot_target, STAT.GOLD)
         api.set_stats(loot_target, STAT.GOLD, 0)
-        api.set_stats(loot_target, (STAT.POS_X, STAT.POS_Y), (-1_000_000, -1_000_000))
+        api.units[loot_target].move_to_graveyard()
         api.set_stats(uid, STAT.GOLD, looted_gold, additive=True)
         Assets.play_sfx('ui.loot', volume='sfx')
         logger.debug(f'{api.units[uid]} looted {looted_gold} gold from {api.units[loot_target]}.')
@@ -235,6 +236,9 @@ class Mechanics:
     @staticmethod
     def bound_to_map(api, point):
         point = np.array(point)
+        if (point > -100_000).sum() < 2:
+            if PROFILE.get_setting('misc.debug_mode'):
+                return point
         map_size = np.array(api.map_size)
         point[point < 0] = 0
         over = point > map_size

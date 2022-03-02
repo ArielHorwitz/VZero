@@ -66,29 +66,26 @@ class MapGenerator:
         if 'Metadata' not in map_data:
             raise CorruptedDataError(f'Map metadata missing from {self.map_name}!')
         metadata = map_data['Metadata'].default
-        self.size = np.array([float(_) for _ in metadata['size'].split(', ')])
+        self.size = str2pos(metadata['size'])
         if 'source' in metadata:
             self.__map_image_source = metadata['source']
         biomes = map_data['Biomes']
         for tile, biome in biomes.items():
             for raw_point in biome.positional:
-                p = [float(_) for _ in raw_point.split(', ')]
-                self.add_biome(tile.lower(), p)
+                self.add_biome(tile.lower(), str2pos(raw_point))
         self.__biome_pos = np.array([[*b.pos] for b in self.biomes], dtype=np.float64)
 
     def spawn_map(self):
-        def s2v(s):
-            return tuple(float(_) for _ in s.split(', '))
         spawn_data = MAP_DATA[self.map_name]['spawns']
         assert 'Spawn' in spawn_data
         raw_player_spawn = spawn_data['Spawn']['loc'].positional[0]
-        self.player_spawn = np.array(s2v(raw_player_spawn)) + 0.1
+        self.player_spawn = str2pos(raw_player_spawn) + 0.1
         self.spawn_unit('player', self.player_spawn)
         for spawn_name, sdata in spawn_data.items():
             if 'loc' not in sdata:
                 raise CorruptedDataError(f'{spawn_name} missing locations!')
             for raw_pos in sdata['loc'].positional:
-                pos = s2v(raw_pos)
+                pos = str2pos(raw_pos)
                 if 'units' not in sdata:
                     raise CorruptedDataError(f'{spawn_name} missing units!')
                 for unit, count in sdata['units'].items():
@@ -147,7 +144,7 @@ class MapGenerator:
             biomes[b.tile].append(b.pos)
         s = [
             '=== Metadata',
-            ', '.join(str(_) for _ in self.size),
+            pos2str(self.size),
             '=== Biomes',
         ]
         for tile, points in biomes.items():

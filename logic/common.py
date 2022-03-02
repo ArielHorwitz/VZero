@@ -1,4 +1,4 @@
-from data import FPS, TPS, resource_name, CorruptedDataError
+from data import FPS, TPS, resource_name, CorruptedDataError, str2pos, pos2str
 from logic import internal_name
 from logic import ABILITY
 from logic import STAT
@@ -43,7 +43,6 @@ def str2color(s):
         rgb = tuple(float(_) for _ in s.split(', '))
         assert len(rgb) >= 3
         return tuple(rgb[:4])
-
 
 def str2vfx(s):
     return getattr(VFX, internal_name(s))
