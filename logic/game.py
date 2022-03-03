@@ -13,7 +13,7 @@ from data import DEV_BUILD
 from data.load import RDF
 from data.assets import Assets
 from data.settings import PROFILE
-from logic.mapgen import MAP_NAMES
+from logic.mapgen import MAP_DATA
 from logic.common import *
 from gui.api import SpriteLabel, SpriteTitleLabel, SpriteBox
 from gui.api import ControlEvent
@@ -59,6 +59,7 @@ class GameAPI:
     def generate_world(self):
         self.silver_bank = 1000
         self.victory_points = 0
+        counts = [1, 3, 2, 1, 1]
         replayable = [True, False, False, False, False]
         silver_cost = [False, True, True, True, True]
         vp_rewards = [0, 5, 10, 20, 50]
@@ -66,24 +67,30 @@ class GameAPI:
         self.world_encounters = []
         self.expired_encounters = set()
         for i in range(5):
-            for map in MAP_NAMES:
-                color = modify_color(colors[i], v=0.3)
-                sprite = Assets.get_sprite(f'maps.{map}')
-                vp_reward = vp_rewards[i]
-                desc = '\n'.join([
-                    f'Difficulty: {DIFFICULTY_LEVELS[i]}',
-                    'Draft costs silver' if silver_cost[i] else 'Free play',
-                    'Replayable' if replayable[i] else 'Non-replayable',
-                    f'Map: {map.capitalize()}',
-                    f'Reward: {vp_reward} Victory Points',
-                ])
-                self.world_encounters.append(EncounterParams(
-                    replayable=replayable[i], silver_cost=silver_cost[i],
-                    map=map, difficulty=i, vp_reward=vp_rewards[i],
-                    color=modify_color(colors[i], v=0.3),
-                    sprite=Assets.get_sprite(f'maps.{map}'),
-                    description=desc,
-                ))
+            for j in range(counts[i]):
+                for map in MAP_DATA:
+                    if i > 0 and 'devtest' in map.lower():
+                        continue
+                    metadata = MAP_DATA[map]['map']['Metadata'].default
+                    map_desc = metadata['description'] if 'description' in metadata else ''
+                    color = modify_color(colors[i], v=0.3)
+                    sprite = Assets.get_sprite(f'maps.{map}')
+                    vp_reward = vp_rewards[i]
+                    desc = '\n'.join([
+                        map_desc,
+                        f'Difficulty: {DIFFICULTY_LEVELS[i]}',
+                        'Draft costs silver' if silver_cost[i] else 'Free play',
+                        'Replayable' if replayable[i] else 'Non-replayable',
+                        f'Map: {map.capitalize()}',
+                        f'Reward: {vp_reward} Victory Points',
+                    ])
+                    self.world_encounters.append(EncounterParams(
+                        replayable=replayable[i], silver_cost=silver_cost[i],
+                        map=map, difficulty=i, vp_reward=vp_rewards[i],
+                        color=modify_color(colors[i], v=0.3),
+                        sprite=Assets.get_sprite(f'maps.{map}'),
+                        description=desc,
+                    ))
         assert len(self.world_encounters) > 0
 
     # Encounter management

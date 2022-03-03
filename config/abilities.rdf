@@ -163,7 +163,7 @@ damage=scale: 50, physical, 300, 150
 target: single
 status: bounded
 stacks: 1
-duration: 2
+duration=scale: 1, air, 2.5, 50
 
 
 
@@ -176,16 +176,18 @@ sfx: attack
 info: Auto attack a target. Altcast for blink to target.
 --- ACTIVE
 requires_los
+status_block: bounded
 target: enemy
 selection_distance: 200
 range=scale: 200, air, 800, 100
 mana_cost: 20
+no_sfx
 --- active.unconditional.select
 --- active.upcast.vfx-line
 --- active.upcast.teleport
 target: single
 offset: 5
--- active.upcast.recast
+-- active.unconditional.recast
 phase: passive
 -- PASSIVE
 requires_los
@@ -321,16 +323,17 @@ color: purple
 draft_cost: 25
 info: Pull an enemy to yourself.
 -- ACTIVE
-point: self
 target: enemy
 mana_cost: 15
 cooldown=reduc: 8, water, 2, 50
 range: 600
 -- active.upcast.vfx-line
-p1: point
+p1: single
+p2: self
 duration=scale: 1, air, 4, 100
 -- active.upcast.pull
 target: single
+point: self
 duration=scale: 1, air, 4, 100
 distance: 500
 
@@ -1389,7 +1392,6 @@ stacks_add=scale: 10, air, 20, 50
 === Whip
 hidden
 type: base
-sfx: root
 info: Activate to bind and darken your target, while gaining movespeed.
 --- stats
 mana.delta=scale: 2, water, 10, 75

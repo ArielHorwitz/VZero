@@ -524,6 +524,7 @@ camp_spread: 600
 keep_distance: 150
 always_visible
 --- stats
+stocks: 1
 allegiance: 1000
 hitbox: 200
 gold: 5000
@@ -543,6 +544,7 @@ reaggro_range: 500
 camp_spread: 600
 always_visible
 --- stats
+stocks: 1
 allegiance: 1000
 hitbox: 200
 gold: 5000
@@ -562,6 +564,7 @@ reaggro_range: 300
 camp_spread: 100
 always_visible
 --- stats
+stocks: 1
 allegiance: 1000
 hitbox: 220
 gold: 5000
@@ -581,6 +584,7 @@ reaggro_range: 300
 camp_spread: 100
 always_visible
 --- stats
+stocks: 1
 allegiance: 1000
 hitbox: 220
 gold: 5000
@@ -602,6 +606,7 @@ movespeed: 100
 type: fort
 always_visible
 --- stats
+stocks: 1
 allegiance: 0
 hitbox: 175
 hp.max: 5000

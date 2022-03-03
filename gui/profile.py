@@ -31,9 +31,13 @@ class ProfileGUI(widgets.AnchorLayout):
         PROFILE.reset_to_defaults,
     ]
     misc_buttons = [
+        APISpriteLabel(Assets.get_sprite('ui.backup'), 'Backup settings', (0.7,0.35,0.7,1)),
+        APISpriteLabel(Assets.get_sprite('ui.restore'), 'Restore backup', (0.35,0.7,0.7,1)),
         APISpriteLabel(Assets.get_sprite('ui.folder'), 'Open program folder', (0.7,0.35,0.35,1)),
     ]
     misc_actions = [
+        PROFILE.backup,
+        PROFILE.restore_backup,
         partial(open_file_explorer, ROOT_DIR),
     ]
     def __init__(self, **kwargs):
@@ -41,13 +45,12 @@ class ProfileGUI(widgets.AnchorLayout):
         self.make_bg((1,1,1,1))
         self._bg.source = Assets.get_sprite('ui.home')
 
-        main_frame = self.add(widgets.BoxLayout(orientation='vertical'))
-        main_frame.set_size(*BASE_RESOLUTION)
-        main_frame.make_bg((0,0,0,0.75))
-        self.app_control = main_frame.add(self.app.generate_app_control_buttons())
+        self.main_frame = self.add(widgets.BoxLayout(orientation='vertical'))
+        self.main_frame.make_bg((0,0,0,0.75))
+        self.app_control = self.main_frame.add(self.app.generate_app_control_buttons())
         self.app_control.title.text = '[b]Settings[/b]'
 
-        bottom_frame = main_frame.add(widgets.BoxLayout())
+        bottom_frame = self.main_frame.add(widgets.BoxLayout())
         button_frame = bottom_frame.add(widgets.BoxLayout(orientation='vertical'))
         button_frame.set_size(x=200)
         self.control_button_stack = button_frame.add(Stack(
@@ -71,6 +74,14 @@ class ProfileGUI(widgets.AnchorLayout):
         self.panel_switch = bottom_frame.add(widgets.ScreenSwitch(transition=widgets.kvFadeTransition(duration=0.1)))
         self.settings_panels = {name: SettingsPanel_(name, data) for name, data in PROFILE.gui_settings.items()}
         self.set_screens([(panel.name, panel) for panel in self.settings_panels.values()])
+        self.app.settings_notifier.subscribe('ui.allow_stretch', self.setting_allow_stretch)
+        self.setting_allow_stretch()
+
+    def setting_allow_stretch(self):
+        if PROFILE.get_setting('ui.allow_stretch'):
+            self.main_frame.set_size(hx=1, hy=1)
+        else:
+            self.main_frame.set_size(*BASE_RESOLUTION)
 
     def set_screens(self, screens):
         self.buttons = []

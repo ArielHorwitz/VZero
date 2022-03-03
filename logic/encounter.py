@@ -191,12 +191,12 @@ class EncounterAPI:
                 if self.__last_log_interval + self.__log_interval_ticks < self.engine.tick:
                     self.log_player_state()
                     self.__last_log_interval = self.engine.tick
-                self.refresh_play_gui()
 
-            self.refresh_nonplay_gui()
+            with self.engine.total_timers['logic_gui_refresh'].time_block:
+                self.refresh_gui()
 
             # Handle GUI event queue
-            with self.engine.total_timers['event_handles'].time_block:
+            with self.engine.total_timers['handle_events'].time_block:
                 for event in self.gui.get_flush_queue():
                     self._handle_event(event)
 
@@ -212,17 +212,15 @@ class EncounterAPI:
         self.gui.request('set_menu_text', self.menu_text)
         self.gui.request('set_menu_leave_text', 'Give up', 'Ditch encounter?')
 
-    def refresh_nonplay_gui(self):
+    def refresh_gui(self):
         self.gui.request('set_view_center', self.view_center)
         self.gui.request('set_move_crosshair', self.engine.get_position(self.player_uid, value_name=VALUE.TARGET))
         with self.engine.total_timers['gui_vfx'].time_block:
             self.gui.request('set_vfx', self.engine.get_visual_effects())
-        self.refresh_debug()
-
-    def refresh_play_gui(self):
         self.refresh_gui_sprite_layer()
         self.refresh_hud()
         self.refresh_shop()
+        self.refresh_debug()
 
     def refresh_gui_sprite_layer(self):
         with self.engine.total_timers['gui_sprite_layer'].time_block:
@@ -234,7 +232,7 @@ class EncounterAPI:
             radii = Mechanics.get_stats(self.engine, visible_mask, STAT.HITBOX)
             positions = self.engine.get_positions(visible_mask)
             top_bars, bot_bars = self.sprite_bars(visible_mask)
-            with self.engine.total_timers['gui_sprite_layer_statuses'].time_block:
+            with self.engine.total_timers['gui_sprite_statuses'].time_block:
                 statuses = [self.sprite_statuses(uid) for uid in np.flatnonzero(visible_mask)]
             self.gui.request('update_units', visible_mask, radii, positions, top_bars, bot_bars, statuses)
 
@@ -736,7 +734,11 @@ class EncounterAPI:
             strs = []
             for tname, timer in collection.items():
                 if isinstance(timer, RateCounter):
-                    strs.append(f'{tname}: {timer.mean_elapsed_ms:.3f} ms')
+                    m = timer.mean_elapsed_ms
+                    if m > 0.5:
+                        strs.append(f'[b]{tname}: {m:.3f} ms[/b]')
+                    else:
+                        strs.append(f'{tname}: {m:.3f} ms')
             return '\n'.join(strs)
 
         verbose = True

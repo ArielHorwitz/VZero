@@ -1,7 +1,9 @@
 
 === Metadata
 size: 10_000, 10_000
+name: Tripod
 source: tripod
+description: [b]Testing, needs balance![/b]
 
 === Biomes
 --- chaos

@@ -469,6 +469,17 @@ class DebugPanel(Modal, EncounterViewComponent):
         pass
 
     def set_debug_panels(self, texts):
+        def display_timer_collection(collection):
+            strs = []
+            for tname, timer in collection.items():
+                if isinstance(timer, RateCounter):
+                    m = timer.mean_elapsed_ms
+                    if m > 0.5:
+                        strs.append(f'[b]{tname}: {m:.3f} ms[/b]')
+                    else:
+                        strs.append(f'{tname}: {m:.3f} ms')
+            return '\n'.join(strs)
+
         texts = list(texts)
         perf_strs = [
             make_title('GUI Performance', length=30),
@@ -480,9 +491,9 @@ class DebugPanel(Modal, EncounterViewComponent):
             f'Unit sprites: {len(self.enc.overlays["sprites"].sprites)} (drawing: {self.enc.overlays["sprites"].visible_count})',
             f'VFX count: {self.enc.overlays["vfx"].vfx_count}',
             make_title('Totals', length=30),
-            self.display_timer_collection(self.enc.total_timers),
+            display_timer_collection(self.enc.total_timers),
             make_title('Singles', length=30),
-            self.display_timer_collection(self.enc.single_timers),
+            display_timer_collection(self.enc.single_timers),
         ]
 
         perf_text = '\n'.join(perf_strs)
@@ -495,10 +506,3 @@ class DebugPanel(Modal, EncounterViewComponent):
             panel.text_size = w, self.main_panel.size[1]
             panel.size_hint = 1, 1
             panel.set_size(x=w)
-
-    def display_timer_collection(self, collection):
-        strs = []
-        for tname, timer in collection.items():
-            if isinstance(timer, RateCounter):
-                strs.append(f'{tname}: {timer.mean_elapsed_ms:.3f} ms')
-        return '\n'.join(strs)

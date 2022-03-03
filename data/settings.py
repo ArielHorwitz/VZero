@@ -11,6 +11,10 @@ from data.load import RDF
 from data.default_settings import DEFAULT_SETTINGS_STR
 
 
+SETTINGS_FILE = RDF.CONFIG_DIR / 'settings.rdf'
+BACKUP_SETTINGS_FILE = RDF.CONFIG_DIR / 'settings-backup.rdf'
+
+
 class Profile:
     def __init__(self):
         self.callbacks = set()
@@ -85,6 +89,19 @@ class Profile:
         logger.info(f'Reseting settings to default values...')
         self._reset_setting_env(self.settings_modified)
 
+    def backup(self):
+        logger.info(f'Backing up settings...')
+        self._save_to_file(BACKUP_SETTINGS_FILE)
+
+    def restore_backup(self):
+        logger.info(f'Restoring settings backup...')
+        self._load_from_file(BACKUP_SETTINGS_FILE)
+        diff = self._diff_env(self.settings_proper, self.settings_modified)
+        self._transfer_setting_env(self.settings_proper, self.settings_modified)
+        self._save_to_file()
+        if diff:
+            self._notify(diff)
+
     @staticmethod
     def _diff_env(env_1, env_2):
         differences = set()
@@ -110,9 +127,9 @@ class Profile:
             for setting_name, setting in settings_category.items():
                 target[category_name][setting_name].set_value(setting.value)
 
-    def _load_from_file(self):
+    def _load_from_file(self, file=SETTINGS_FILE):
         self._reset_setting_env(self.settings_proper)
-        user_settings = RDF.from_file(RDF.CONFIG_DIR / 'settings.rdf')
+        user_settings = RDF.from_file(file)
         logger.info(f'Loading user-defined settings: {user_settings}')
         for category_name, settings_category in self.settings_proper.items():
             if category_name not in user_settings:
@@ -123,7 +140,7 @@ class Profile:
                     v = category_user[setting_name]
                     setting.value = setting.from_str(v)
 
-    def _save_to_file(self):
+    def _save_to_file(self, file=SETTINGS_FILE):
         rdf_lines = ['']
         for category_name, settings_category in self.settings_proper.items():
             rdf_lines.append(f'=== {category_name}')
@@ -134,7 +151,7 @@ class Profile:
         rdf_lines.append('')
         rdf_str = '\n'.join(rdf_lines)
         logger.debug(f'Exporting user-defined settings: {rdf_str}')
-        file_dump(RDF.CONFIG_DIR / 'settings.rdf', rdf_str)
+        file_dump(file, rdf_str)
 
     def get_setting(self, full_setting_name):
         category, setting = full_setting_name.split('.')
@@ -267,6 +284,7 @@ class Setting:
 
     def on_touch_down(self, w, m):
         if m.button != 'right' or not self.not_default:
+            self.on_set()
             return False
         if self._widget_label.collide_point(*m.pos):
             self.reset()
@@ -500,7 +518,7 @@ class HotkeySetting(Setting):
         _SETTINGS_IM.deactivate()
         if keys == GLOBAL_CANCEL_KEY:
             keys = ''
-        self.widget_set_value(keys)
+        self.set_value(keys)
 
     def display_value(self, keys):
         return widgets.InputManager.humanize_keys(keys)

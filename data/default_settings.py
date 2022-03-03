@@ -62,7 +62,7 @@ caption: holding keyboard auto presses
 name: Audio
 
 --- volume_master
-default: 0.15
+default: 0.5
 type: slider
 display_name: Master volume
 
@@ -72,17 +72,17 @@ type: slider
 display_name: Sound effects volume
 
 --- volume_ui
-default: 0.5
+default: 0.6
 type: slider
 display_name: UI volume
 
 --- volume_feedback
-default: 0.5
+default: 0.75
 type: slider
 display_name: Feedback volume
 
 --- volume_monster_death
-default: 0.4
+default: 0.5
 type: slider
 display_name: Monster death volume
 
@@ -120,14 +120,20 @@ display_name: Tooltip on hover
 caption: in detailed mode
 
 --- auto_dismiss_tooltip
-default: 100.0
+default: 50.0
 type: float
-caption: in pixels
+caption: mouse distance in pixels
 
 --- auto_pause_shop
 default: 1
 type: bool
 display_name: Pause when shopping
+
+--- allow_stretch
+default: 1
+type: bool
+display_name: UI stretch
+caption: UI stretches to fit screen
 
 --- hud_height
 default: 0.5

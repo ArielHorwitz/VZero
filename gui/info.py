@@ -6,6 +6,7 @@ logger = logging.getLogger(__name__)
 from nutil.kex import widgets
 from data import resource_name, APP_COLOR, BASE_RESOLUTION, INFO_STR
 from data.load import RDF
+from data.settings import PROFILE
 from data.assets import Assets
 
 from gui.api import SpriteLabel as APISpriteLabel
@@ -18,14 +19,13 @@ class HelpGUI(widgets.AnchorLayout):
         self.make_bg((1,1,1,1))
         self._bg.source = Assets.get_sprite('ui.home')
 
-        main_frame = self.add(widgets.BoxLayout(orientation='vertical'))
-        main_frame.set_size(*BASE_RESOLUTION)
-        main_frame.make_bg((0,0,0,0.75))
-        self.app_control = main_frame.add(self.app.generate_app_control_buttons())
+        self.main_frame = self.add(widgets.BoxLayout(orientation='vertical'))
+        self.main_frame.make_bg((0,0,0,0.75))
+        self.app_control = self.main_frame.add(self.app.generate_app_control_buttons())
         self.app_control.title.text = '[b]Help[/b]'
 
         self.buttons = []
-        bottom_frame = main_frame.add(widgets.BoxLayout())
+        bottom_frame = self.main_frame.add(widgets.BoxLayout())
         self.button_stack = bottom_frame.add(Stack(
             name='Info buttons',
             wtype=lambda *a, **k: SpriteLabel(*a, **k),
@@ -34,6 +34,14 @@ class HelpGUI(widgets.AnchorLayout):
 
         self.panel_switch = bottom_frame.add(widgets.ScreenSwitch(transition=widgets.kvFadeTransition(duration=0.1)))
         self.set_screens(get_info_widgets())
+        self.app.settings_notifier.subscribe('ui.allow_stretch', self.setting_allow_stretch)
+        self.setting_allow_stretch()
+
+    def setting_allow_stretch(self):
+        if PROFILE.get_setting('ui.allow_stretch'):
+            self.main_frame.set_size(hx=1, hy=1)
+        else:
+            self.main_frame.set_size(*BASE_RESOLUTION)
 
     def set_screens(self, screens):
         self.buttons = []

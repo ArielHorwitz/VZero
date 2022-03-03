@@ -76,7 +76,6 @@ class Encounter(widgets.RelativeLayout):
 
         hotkeys = self.make_hotkeys()
         for action, k, c in hotkeys:
-            logger.info(f'EGUI subscribing to setting: {action}')
             self.settings_notifier.subscribe(f'hotkeys.{action}', self.make_hotkeys)
         self.settings_notifier.subscribe(f'hotkeys.alt_modifier', self.make_hotkeys)
 

@@ -395,9 +395,7 @@ class Unit:
         self.check_win_condition()
 
     def play_death_sfx(self):
-        v = PROFILE.get_setting('audio.volume_monster_death')
-        if v > 0:
-            Assets.play_sfx(self.death_sfx, volume=v)
+        Assets.play_sfx(self.death_sfx, volume='monster_death')
 
     def play_respawn_sfx(self):
         Assets.play_sfx(self.respawn_sfx, volume='feedback')

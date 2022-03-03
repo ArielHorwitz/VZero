@@ -70,13 +70,18 @@ from nutil.kex import KexWidget
 class App(kvApp):
     def __init__(self, escape_exits=False, enable_multitouch=False, **kwargs):
         super().__init__(**kwargs)
+        self.root = BoxLayout()
         if escape_exits:
             kex.Config.enable_escape_exit()
         else:
             kex.Config.disable_escape_exit()
         if not enable_multitouch:
             kex.Config.disable_multitouch()
-        self.root = BoxLayout()
+            self.root.bind(
+                on_touch_down=self.intercept_multitouch,
+                on_touch_up=self.intercept_multitouch,
+                on_touch_move=self.intercept_multitouch,
+            )
 
     def run(self, **kwargs):
         super().run(**kwargs)
@@ -103,6 +108,12 @@ class App(kvApp):
     @property
     def mouse_pos(self):
         return kvWindow.mouse_pos
+
+    def intercept_multitouch(self, w, m):
+        if not hasattr(m, 'multitouch_sim'):
+            return False
+        if m.multitouch_sim:
+            return True
 
 
 class Widget(kvWidget, KexWidget):
@@ -377,6 +388,48 @@ class ModalView(kvModalView, KexWidget):
 
 class ScrollView(kvScrollView, KexWidget):
     pass
+
+class ScrollViewNew(kvScrollView, KexWidget):
+    SCROLL_SENS = 0.2
+    def __init__(self, view, scroll_dir='vertical', **kwargs):
+        super().__init__(**kwargs)
+        self.scroll_dir = scroll_dir
+        self.bar_width = 15
+        self.scroll_type = ['bars']
+        self.view = self.add(view)
+        self.bind(on_touch_down=self._on_touch_down)
+        self.bind(size=self.on_size, pos=self.on_size)
+        self.view.bind(size=self.on_size, pos=self.on_size)
+
+    @property
+    def scroll_dir(self):
+        return self.__scroll_dir
+
+    @scroll_dir.setter
+    def scroll_dir(self, v):
+        self.__scroll_dir = v
+        self.do_scroll_x = (v == 'horizontal')
+        self.do_scroll_y = (v == 'vertical')
+
+    def on_size(self, *a):
+        self.do_scroll_x = self.view.size[0] > self.size[0] and self.scroll_dir == 'horizontal'
+        self.do_scroll_y = self.view.size[1] > self.size[1] and self.scroll_dir == 'vertical'
+
+    def _on_touch_down(self, w, m):
+        if m.button not in {'scrollup', 'scrolldown'}: return
+        if not any((self.do_scroll_x, self.do_scroll_y)): return
+        if not self.collide_point(*m.pos): return
+
+        if m.button == 'scrollup':
+            if self.scroll_dir == 'horizontal':
+                self.scroll_x = min(1, max(0, self.scroll_x + self.SCROLL_SENS))
+            elif self.scroll_dir == 'vertical':
+                self.scroll_y = min(1, max(0, self.scroll_y - self.SCROLL_SENS))
+        elif m.button == 'scrolldown':
+            if self.scroll_dir == 'horizontal':
+                self.scroll_x = min(1, max(0, self.scroll_x - self.SCROLL_SENS))
+            elif self.scroll_dir == 'vertical':
+                self.scroll_y = min(1, max(0, self.scroll_y + self.SCROLL_SENS))
 
 
 # BASIC WIDGETS

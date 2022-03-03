@@ -193,13 +193,14 @@ for map_file in MAP_DIR.iterdir():
         continue
     if map_file.name.endswith('-spawns.rdf'):
         continue
-    map_name = map_file.name[:-4]  # strip '.rdf' extension
-    spawn_file = MAP_DIR / f'{map_name}-spawns.rdf'
+    raw_map_name = map_file.name[:-4]  # strip '.rdf' extension
+    spawn_file = MAP_DIR / f'{raw_map_name}-spawns.rdf'
     if not spawn_file.is_file():
         logger.info(f'skipping map_file {map_file.name}, no matching spawns file')
         continue
     map_data = RDF.from_file(map_file, convert_float=True)
     spawn_data = RDF.from_file(spawn_file, convert_float=True)
+    map_name = map_data['Metadata'].default['name'] if 'name' in map_data['Metadata'].default else raw_map_name
     MAP_DATA[map_name] = {
         'map': map_data,
         'spawns': spawn_data,

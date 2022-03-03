@@ -27,13 +27,12 @@ class HomeGUI(widgets.AnchorLayout):
         self.make_bg((1,1,1,1))
         self._bg.source = Assets.get_sprite('ui.home')
 
-        main_frame = self.add(widgets.BoxLayout(orientation='vertical'))
-        main_frame.set_size(*BASE_RESOLUTION)
-        main_frame.make_bg((0,0,0,0.5))
-        self.app_control = main_frame.add(self.app.generate_app_control_buttons())
+        self.main_frame = self.add(widgets.BoxLayout(orientation='vertical'))
+        self.main_frame.make_bg((0,0,0,0.5))
+        self.app_control = self.main_frame.add(self.app.generate_app_control_buttons())
         self.app.interface.register('set_title_text', self.set_title_text)
 
-        self.screen_switch = main_frame.add(widgets.ScreenSwitch(transition=widgets.kvFadeTransition(duration=0.25)))
+        self.screen_switch = self.main_frame.add(widgets.ScreenSwitch(transition=widgets.kvFadeTransition(duration=0.25)))
         self.draft = Draft()
         self.world = World()
         self.screen_switch.add_screen('world', view=self.world)
@@ -41,6 +40,14 @@ class HomeGUI(widgets.AnchorLayout):
         self.app.interface.register('set_view', self.switch_screen)
         self.tooltip = self.add(Tooltip(bounding_widget=self, consume_colliding_touch=False))
         self.app.interface.register('activate_tooltip', lambda x: self.tooltip.activate(self.app.mouse_pos, x))
+        self.app.settings_notifier.subscribe('ui.allow_stretch', self.setting_allow_stretch)
+        self.setting_allow_stretch()
+
+    def setting_allow_stretch(self):
+        if PROFILE.get_setting('ui.allow_stretch'):
+            self.main_frame.set_size(hx=1, hy=1)
+        else:
+            self.main_frame.set_size(*BASE_RESOLUTION)
 
     def update(self):
         self.app.game.update()
@@ -98,6 +105,7 @@ class World(widgets.BoxLayout):
         else:
             self.encounter_stack.hover_invokes = None
 
+
 class Draft(widgets.BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -107,24 +115,34 @@ class Draft(widgets.BoxLayout):
 
         # draft
         main_frame = self.add(widgets.BoxLayout(orientation='vertical'))
-        self.draft = main_frame.add(Stack(
+        self.draft = Stack(
             name='Draft abilities',
-            wtype=CenteredSpriteBox, x=50, y=50,
-            callback=self.draft_click))
-        self.app.interface.register('set_draft_stack', self.draft.update)
+            wtype=CenteredSpriteBox, x=75, y=75,
+            callback=self.draft_click)
+        self.draft_frame = main_frame.add(widgets.ScrollViewNew(self.draft))
+        self.draft.set_size(hx=1, hy=None)
+        self.draft.bind(size=self.resize_draft)
+        self.app.interface.register('set_draft_stack', self.draft_update)
         # loadout
         self.loadout = main_frame.add(Stack(
             name='Draft loadout',
             wtype=SpriteLabel, x=175, y=50,
             callback=self.loadout_click,
             drag_drop_callback=self.loadout_drag_drop))
+        self.loadout.bind(size=self.resize_loadout)
         self.loadout.set_size(y=100)
         self.app.interface.register('set_loadout_stack', self.loadout.update)
 
-        self.bind(pos=self.reposition, size=self.reposition)
+    def draft_update(self, *a, **k):
+        self.draft.update(*a, **k)
+        self.resize_draft()
 
-    def reposition(self, *a):
-        self.loadout.set_boxsize(((self.size[0]-DETAILS_WIDTH)/4, 50))
+    def resize_draft(self, *a):
+        self.draft.fix_height(minimum=int(self.draft_frame.height))
+
+    def resize_loadout(self, *a):
+        self.loadout.set_boxsize((self.loadout.size[0]/4, 50))
+        self.resize_draft()
 
     def draft_click(self, index, button):
         self.app.interface.append(ControlEvent(f'draft_{MOUSE_EVENTS[button]}', index, 'World stack click'))
@@ -143,6 +161,7 @@ class Draft(widgets.BoxLayout):
             set_as = 'middle'
         self.draft.hover_invokes = set_as
         self.loadout.hover_invokes = set_as
+
 
 class DraftDetails(widgets.BoxLayout):
     def __init__(self, **kwargs):

@@ -59,7 +59,7 @@ class Engine:
             logger.info(f'Requested {ticks} ticks on a single frame, throttled to {self.AGENCY_PHASE_COUNT}.')
             ticks = self.AGENCY_PHASE_COUNT
         if ticks > 0:
-            with self.total_timers['engine'].time_block:
+            with self.total_timers['engine_total'].time_block:
                 self._do_ticks(ticks)
 
     def _check_ticks(self):
@@ -73,11 +73,11 @@ class Engine:
         return ticks
 
     def _do_ticks(self, ticks):
-        with self.total_timers['stats'].time_block:
+        with self.total_timers['engine_stats'].time_block:
             hp_zero, status_zero, cooldown_zero = self.stats.do_tick(ticks)
-        with self.total_timers['vfx'].time_block:
+        with self.total_timers['engine_vfx'].time_block:
             self._iterate_visual_effects(ticks)
-        with self.total_timers['agency'].time_block:
+        with self.total_timers['engine_agency'].time_block:
             self._do_agency(ticks)
             if len(hp_zero) > 0:
                 for uid in hp_zero:
@@ -88,7 +88,7 @@ class Engine:
             if len(cooldown_zero) > 0:
                 for uid, aid in cooldown_zero:
                     self.units[uid].off_cooldown(aid)
-        with self.total_timers['valuecap'].time_block:
+        with self.total_timers['engine_valuecap'].time_block:
             self.stats._cap_minmax_values()
 
     def _iterate_visual_effects(self, ticks):

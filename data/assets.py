@@ -20,17 +20,17 @@ class Assets:
     BLANK_SPRITE = str(ASSETS_DIR / 'blank.png')
     SPRITE_CACHE = {}
     SFX_CACHE = {}
-    VOLUMES = {v: PROFILE.get_setting(f'audio.volume_{v}') for v in ('master', 'sfx', 'ui', 'feedback')}
-
+    VOLUMES = {v: PROFILE.get_setting(f'audio.volume_{v}') for v in ('master', 'sfx', 'ui', 'feedback', 'monster_death')}
 
     @classmethod
-    def get_volume(cls, volume=None):
-        v = cls.VOLUMES['master']
+    def get_volume(cls, volume):
         if is_floatable(volume):
-            return v * volume
-        if volume in cls.VOLUMES and volume is not None:
-            return v * cls.VOLUMES[volume]
-        return v
+            return volume
+        assert volume in cls.VOLUMES
+        if volume in cls.VOLUMES:
+            return cls.VOLUMES[volume]
+        logger.warning(f'Looking for volume {volume} but not found in: {cls.VOLUMES}')
+        return 1
 
     @classmethod
     def get_sfx(cls, sound_name):
@@ -55,11 +55,14 @@ class Assets:
         return cls.SFX_CACHE[sound_name]
 
     @classmethod
-    def play_sfx(cls, sound_name, volume=None, **kwargs):
+    def play_sfx(cls, sound_name, volume, **kwargs):
         sfx = cls.get_sfx(sound_name)
         if sfx is None:
             return
-        sfx.play(volume=cls.get_volume(volume), **kwargs)
+        volume = cls.VOLUMES['master'] * cls.get_volume(volume)
+        if volume <= 0:
+            return
+        sfx.play(volume=volume**2, **kwargs)
 
     @classmethod
     def get_sprite(cls, sprite_name):

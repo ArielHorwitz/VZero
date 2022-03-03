@@ -40,7 +40,12 @@ class RDF(dict):
 
     @classmethod
     def from_file(cls, file, *a, **k):
-        return cls(file_load(file), *a, **k)
+        if not Path(file).is_file():
+            logger.warning(f'No such file {file} found, loading empty string')
+            s = ''
+        else:
+            s = file_load(file)
+        return cls(s, *a, **k)
 
     def __init__(self, raw_str, convert_float=False):
         self.raw_dict = self._read_toplevel(raw_str.split('\n'), convert_float)

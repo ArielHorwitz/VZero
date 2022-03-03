@@ -4,7 +4,7 @@ logger = logging.getLogger(__name__)
 
 import math
 import numpy as np
-from nutil.vars import modify_color, PublishSubscribe
+from nutil.vars import modify_color, PublishSubscribe, minmax
 from nutil.kex import widgets
 
 from data import APP_NAME
@@ -183,6 +183,12 @@ class Stack(widgets.StackLayout):
         if self.drag_drop_callback:
             self.bind(on_touch_up=lambda w, m: self.on_touch_up(m))
 
+    def fix_height(self, minimum=0, maximum=float('inf')):
+        widget_width = max(1, self.__x)
+        max_widgets_row = max(1, int(self.size[0] / widget_width))
+        min_rows = math.ceil(len(self.boxes) / max_widgets_row)
+        self.height = minmax(minimum, maximum, min_rows * self.__y)
+
     @property
     def hover_invokes(self):
         return self.__hover_invokes
@@ -286,7 +292,7 @@ class Stack(widgets.StackLayout):
 class Tooltip(widgets.BoxLayout):
     def __init__(self,
         bounding_widget=None,
-        consume_colliding_touch=True,
+        consume_colliding_touch=False,
         consume_any_touch=False,
         **kwargs,
     ):
