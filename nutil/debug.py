@@ -14,11 +14,10 @@ def format_exc(e):
     :param e:       Exception
     :return:        Formatted multi-line string
     """
-    s = ''
+    strs = []
     for line in traceback.format_exception(*sys.exc_info()):
-        s += str(line)+'\n'
-    s += str(e)
-    return s
+        strs.append(str(line))
+    return ''.join(strs)
 
 def fdebug(func):
     @functools.wraps(func)

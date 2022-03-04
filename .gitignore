@@ -1,4 +1,5 @@
 config/settings*.rdf
+logs/*
 
 
 # Byte-compiled / optimized / DLL files

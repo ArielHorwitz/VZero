@@ -38,6 +38,7 @@ class HomeGUI(widgets.AnchorLayout):
         self.screen_switch.add_screen('world', view=self.world)
         self.screen_switch.add_screen('draft', view=self.draft)
         self.app.interface.register('set_view', self.switch_screen)
+        self.app.interface.register('get_view', lambda: self.screen_switch.current_screen.name)
         self.tooltip = self.add(Tooltip(bounding_widget=self, consume_colliding_touch=False))
         self.app.interface.register('activate_tooltip', lambda x: self.tooltip.activate(self.app.mouse_pos, x))
         self.app.settings_notifier.subscribe('ui.allow_stretch', self.setting_allow_stretch)
@@ -53,7 +54,6 @@ class HomeGUI(widgets.AnchorLayout):
         self.app.game.update()
 
     def switch_screen(self, sname):
-        logger.info(f'Home switching to screen: {sname}')
         self.screen_switch.switch_screen(sname)
 
     def set_title_text(self, text):

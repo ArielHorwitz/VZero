@@ -9,10 +9,9 @@ from nutil.vars import modify_color, List
 from nutil.time import humanize_ms
 from nutil.random import Seed
 from nutil.file import file_dump
-from data import DEV_BUILD
 from data.load import RDF
 from data.assets import Assets
-from data.settings import PROFILE
+from data.settings import PROFILE, DEV_BUILD
 from logic.mapgen import MAP_DATA
 from logic.common import *
 from gui.api import SpriteLabel, SpriteTitleLabel, SpriteBox
@@ -44,7 +43,7 @@ class GameAPI:
         self.refresh_world()
 
     def update(self):
-        self.gui.request('set_title_text', '[b]Drafting Phase[/b]' if self.encounter_api is None else '[b]Encounter in progress[/b]')
+        self.refresh_title_text()
 
         # Handle GUI event queue
         event_queue = self.gui.get_flush_queue()
@@ -168,6 +167,19 @@ class GameAPI:
     # GUI
     def set_widgets(self):
         self.refresh_world()
+
+    def refresh_title_text(self):
+        if self.encounter_api is None:
+            view = self.gui.request('get_view')
+            if view == 'world':
+                title_text = 'Map Selection'
+            elif view == 'draft':
+                title_text = 'Drafting Phase'
+            else:
+                title_text = ''
+        else:
+            title_text = 'Encounter in progress'
+        self.gui.request('set_title_text', f'[b]{title_text}[/b]')
 
     def refresh_world(self):
         sbs = []
@@ -322,7 +334,8 @@ class GameAPI:
             self.draft(aid)
 
     def handle_loadout_select(self, event):
-        self.handle_loadout_inspect(event)
+        # self.handle_loadout_inspect(event)
+        pass
 
     def handle_loadout_inspect(self, event):
         aid = self.loadout[event.index]

@@ -307,10 +307,7 @@ point_target
 point: fix
 target: self
 range: 600
--- active.upcast.vfx-line
-p1: source
-p1: point
-duration=scale: 1, air, 4, 100
+cooldown: 5
 -- active.upcast.pull
 target: self
 duration=scale: 1, air, 4, 100
@@ -338,11 +335,37 @@ duration=scale: 1, air, 4, 100
 distance: 500
 
 
+=== Twirl
+type: base
+color: purple
+draft_cost: 35
+info: Pull enemies in an area.
+-- ACTIVE
+point_target
+point: self
+target: enemy
+area: circle
+radius: 350
+include_hitbox
+mana_cost: 15
+cooldown=scale: 8, physical, 2, 50
+-- active.upcast.vfx-sprite
+center: self
+size=scale: 400, air, 1200, 150
+color: 1, 1, 1, 0.5
+duration: 0.5
+fade: 0.5
+-- active.upcast.push
+target: area
+distance=scale: 200, air, 600, 100
+speed: 400
+
+
 === Mudslide
 type: base
 color: purple
 draft_cost: 35
-info: Suck enemies in an area toward one point.
+info: Pull enemies in an area.
 --- stats
 los=scale: 200, time, 600, 25
 -- ACTIVE
@@ -567,25 +590,6 @@ stacks=scale: 30, air, 200, 150
 duration: 6
 
 
-=== Static Charge
-type: base
-color: yellow
-draft_cost: 60
-info: Passively apply slow on the nearest enemy.
--- PASSIVE
-target: enemy
-cooldown: 3
-range: 500
---- passive.upcast.vfx-line
---- passive.upcast.status
-status: slow
-stacks=scale: 10, air, 200, 125
-duration: 1.5
---- passive.upcast.steal
-stat: air
-delta: 0.1
-
-
 
 === Root
 type: base
@@ -723,7 +727,7 @@ passive
 type: base
 color: yellow
 draft_cost: 40
-info: Intense darkness aura.
+info: Intense darkness aura for enemies around you.
 --- PASSIVE
 point_target
 target: enemy
@@ -831,7 +835,6 @@ stacks=scale: 25, earth, 200, 125
 type: base
 draft_cost: 65
 color: blue
-sprite: spikes
 sfx: fireblast
 info: Passively stack spikes on yourself. Activate for blast based on total spikes.
 --- PASSIVE
@@ -941,7 +944,7 @@ fade: 0.5
 
 
 
-=== Lavabed
+=== Magma
 type: base
 color: 1, 0, 0, 0.5
 sfx: fireblast
@@ -1025,6 +1028,26 @@ fade: 1.5
 
 
 
+=== Static Charge
+type: base
+color: brown
+draft_cost: 40
+info: Passively apply slow on the nearest enemy.
+-- PASSIVE
+target: enemy
+cooldown: 3
+range: 500
+--- passive.upcast.vfx-line
+--- passive.upcast.status
+status: slow
+stacks=scale: 10, air, 200, 125
+duration: 1.5
+--- passive.upcast.steal
+stat: air
+delta: 0.125
+
+
+
 === Static Link
 type: base
 draft_cost: 25
@@ -1085,6 +1108,23 @@ mana_cost: 50
 no_sfx
 --- active.upcast.sfx
 
+
+
+=== Aceso Aura
+type: base
+color: brown
+sprite: fountain
+info: Healing aura for allies.
+-- PASSIVE
+point_target
+target: ally
+area: circle
+radius: 350
+include_hitbox
+--- passive.upcast.regen.1
+target: area
+stat: hp
+delta=scale: 5, water, 30, 100
 
 
 === Death Fog
@@ -1179,7 +1219,7 @@ type: base
 draft_cost: 30
 info: Gain movespeed.
 --- stats
-movespeed=scale: 15, time, 60, 25
+movespeed=scale: 10, time, 30, 25
 === Walk
 type: base
 sprite: walk
@@ -1676,29 +1716,6 @@ stacks=scale: 20, fire, 500, 50
 
 
 ---------------------------------------------------------------------- -
-
-
-
-
-=== Healing Aura
-hidden
-type: base
-sprite: fountain
-info: HP regen for nearby allies.
--- PASSIVE
-point_target
-target: ally
-area: circle
-radius=scale: 250, water, 1000, 150
-include_hitbox
---- passive.upcast.regen.1
-target: area
-stat: hp
-delta=scale: 5, earth, 30, 100
---- passive.upcast.regen.2
-target: area
-stat: mana
-delta=scale: 5, earth, 30, 100
 
 
 

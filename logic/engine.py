@@ -22,7 +22,7 @@ POS = (STAT.POS_X, STAT.POS_Y)
 
 
 class Engine:
-    AGENCY_PHASE_COUNT = 30
+    AGENCY_PHASE_COUNT = 25
 
     def __init__(self, logic):
         # Variable initialization

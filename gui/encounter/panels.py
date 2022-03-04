@@ -12,9 +12,9 @@ from nutil.vars import minmax, modify_color
 from nutil.display import make_title
 from nutil.time import ratecounter, RateCounter, humanize_ms
 
-from data import TITLE, DEV_BUILD
+from data import TITLE
 from data.assets import Assets
-from data.settings import PROFILE
+from data.settings import PROFILE, DEV_BUILD
 from gui import cc_int, center_position
 from gui.api import MOUSE_EVENTS, ControlEvent, InputEvent
 from gui.common import SpriteLabel, CenteredSpriteBox, SpriteTitleLabel, SpriteBox, Stack, Modal
@@ -235,8 +235,8 @@ class HUD(widgets.AnchorLayout, EncounterViewComponent):
         self.middle_label.text = text
 
     def setting_hud_scale(self):
-        width_scale = PROFILE.get_setting('ui.hud_width') * 2
-        height_scale = PROFILE.get_setting('ui.hud_height') * 2
+        width_scale = 0.5 + PROFILE.get_setting('ui.hud_width')
+        height_scale = 0.5 + PROFILE.get_setting('ui.hud_height')
 
         status_size = 50 * sum((width_scale, height_scale))/2
         middle_width = 230 * width_scale

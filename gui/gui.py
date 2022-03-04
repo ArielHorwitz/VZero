@@ -3,16 +3,17 @@ logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
 
-import contextlib
 import numpy as np
 from functools import partial
 from nutil import restart_script
+from nutil.debug import format_exc
+from nutil.file import file_dump
 from nutil.kex import widgets
-from nutil.time import RateCounter, pingpong
+from nutil.time import RateCounter
 from nutil.vars import Interface, PublishSubscribe
-from data import TITLE, FPS, DEV_BUILD, APP_NAME, APP_COLOR, ROOT_DIR, BASE_RESOLUTION
+from data import TITLE, FPS, APP_NAME, APP_COLOR, ROOT_DIR, BASE_RESOLUTION
 from data.assets import Assets
-from data.settings import PROFILE
+from data.settings import PROFILE, DEV_BUILD
 from gui.home import HomeGUI
 from gui.profile import ProfileGUI
 from gui.info import HelpGUI
@@ -62,7 +63,6 @@ class App(widgets.App):
 
         # Start mainloop
         self.fps = RateCounter(sample_size=FPS)
-        self.hook_mainloop(FPS)
 
         self.settings_notifier.subscribe('general.fullscreen', self.setting_window_state)
         self.settings_notifier.subscribe('general.fullscreen_type', self.setting_window_state)
@@ -86,6 +86,8 @@ class App(widgets.App):
         self.interface.register('end_encounter', self.end_encounter)
         self.interface.register('switch_screen', self.switch_screen)
         self.game.setup()
+
+        self.hook_mainloop(FPS)
 
     def make_hotkeys(self):
         logger.info(f'App making hotkeys...')
@@ -200,14 +202,22 @@ class App(widgets.App):
 
     def mainloop_hook(self, dt):
         if self.__quit_flag == 1:
+            logger.info(f'App stopping...')
             self.stop()
             return
         elif self.__quit_flag == 2:
+            logger.info(f'App restarting...')
             restart_script()
             return
+        try:
+            self.do_update()
+        except Exception as e:
+            exc_str = f'App.do_update() failed:\n\n{format_exc(e)}'
+            file_dump(ROOT_DIR / '.crashing', exc_str)
+            self.__quit_flag = 1
+
+    def do_update(self):
         self.fps.tick()
-        s = widgets.kvWindow.size
-        self.title = f'{TITLE} | {round(self.fps.rate)} FPS, {s[0]}×{s[1]}'
         self.home.update()
         sname = self.switch.current_screen.name
         if self.encounter is not None and sname == 'encounter':
@@ -231,6 +241,8 @@ class App(widgets.App):
         self.__quit_flag = 1
 
     def do_restart(self):
+        print('do_restart')
+        logger.info('Restarting...')
         self.__quit_flag = 2
 
     def setting_enable_hold_key(self):
@@ -253,14 +265,19 @@ class AppControl(widgets.AnchorLayout):
         self.right_frame = self.add(widgets.AnchorLayout(anchor_x='right'))
         app_control_buttons = self.right_frame.add(widgets.BoxLayout())
         sizex = 0
+        if DEV_BUILD:
+            cbutton = app_control_buttons.add(widgets.Button(text='Crash', on_release=self.do_crash))
+            cbutton.set_size(x=100)
+            sizex += 100
         fbutton = app_control_buttons.add(widgets.Button(text='Fullscreen', on_release=lambda *a: PROFILE.toggle_setting('general.fullscreen')))
         fbutton.set_size(x=100)
+        sizex += 100
         rebutton = app_control_buttons.add(widgets.Button(text=f'Restart', on_release=lambda *a: self.app.do_restart()))
         rebutton.set_size(x=100)
         sizex += 100
         qbutton = app_control_buttons.add(widgets.Button(text='Quit', on_release=lambda *a: self.app.do_quit()))
         qbutton.set_size(x=100)
-        sizex += 200
+        sizex += 100
         app_control_buttons.set_size(x=sizex, y=30)
 
         # Custom buttons
@@ -274,3 +291,6 @@ class AppControl(widgets.AnchorLayout):
     def callback(self, c):
         Assets.play_sfx('ui.select', volume='ui')
         c()
+
+    def do_crash(self, *a):
+        raise RuntimeError(f'Requested do_crash... {a}')

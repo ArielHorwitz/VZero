@@ -1,9 +1,5 @@
-import logging
-logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
 
-
-VERSION = 0.016
+VERSION = 0.017
 APP_NAME = 'VZero'
 TITLE = f'{APP_NAME} v{VERSION:.3f}'
 
@@ -35,11 +31,6 @@ While there are many public domain contributions, redistribution of [i]proprieta
 """
 
 
-logger.info(f'Loading {TITLE}...')
-logger.info(INFO_STR)
-logger.info(f'FPS: {FPS} TPS: {TPS} BASE_RESOLUTION: {BASE_RESOLUTION} APP_COLOR {APP_COLOR}')
-
-
 class CorruptedDataError(Exception):
     pass
 
@@ -54,10 +45,4 @@ def str2pos(s):
 
 
 def pos2str(pos):
-    logger.info(f'pos2str: {pos}')
     return ', '.join(tuple(str(round(_,2)) for _ in tuple(pos)))
-
-
-from data.settings import PROFILE
-DEV_BUILD = PROFILE.get_setting('misc.dev_build*')
-logger.info(f'DEV_BUILD: {"enabled" if DEV_BUILD else "disabled"}')

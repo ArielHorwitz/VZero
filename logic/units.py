@@ -10,10 +10,9 @@ from nutil.vars import normalize, collide_point, is_iterable, List, nsign_str, n
 from nutil.display import make_title
 from nutil.time import ratecounter
 from nutil.random import SEED
-from data import DEV_BUILD
 from data.load import RDF
 from data.assets import Assets
-from data.settings import PROFILE
+from data.settings import PROFILE, DEV_BUILD
 
 from logic.common import *
 from logic.mechanics import Mechanics

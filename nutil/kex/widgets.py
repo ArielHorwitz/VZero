@@ -87,7 +87,8 @@ class App(kvApp):
         super().run(**kwargs)
 
     def hook_mainloop(self, fps):
-        kex.Clock.schedule_interval(self.mainloop_hook, 1/fps)
+        c = lambda *a: kex.Clock.schedule_interval(self.mainloop_hook, 1/fps)
+        kex.Clock.schedule_once(c, 0)
 
     def mainloop_hook(self, dt):
         pass
@@ -281,8 +282,8 @@ class InputManager(Widget):
 
     def register_app_control_defaults(self):
         self.register('Debug input', '^!+ f12', lambda *a: self.record(on_release=self.start_debug_record))
-        self.register('Restart', '+ escape', lambda *a: nutil.restart_script())
-        self.register('Quit', '^+ escape', lambda *a: self.app.stop())
+        self.register('Restart', '+ escape', lambda *a: self.app.do_restart())
+        self.register('Quit', '^+ escape', lambda *a: self.app.do_quit())
 
     def _refresh_all_keys(self):
         self.__all_keys = set()

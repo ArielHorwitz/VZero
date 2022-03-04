@@ -1,6 +1,7 @@
 
 import pathlib
 import os
+import shutil
 import platform
 import subprocess
 import datetime
@@ -64,6 +65,9 @@ def file_load(file):
     with open(file, 'r') as f:
         d = f.read()
     return d
+
+def file_copy(src, dst, *a, **k):
+    return shutil.copy(src, dst, *a, **k)
 
 def log_disk(log_path, message, clear=False, timestamp=False, force_print=False):
     """

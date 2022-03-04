@@ -539,3 +539,5 @@ _SETTING_TYPES = {scls.stype: scls for scls in _SETTING_TYPES_LIST}
 
 
 PROFILE = Profile()
+DEV_BUILD = PROFILE.get_setting('misc.dev_build*')
+logger.info(f'DEV_BUILD: {"enabled" if DEV_BUILD else "disabled"}')

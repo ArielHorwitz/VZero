@@ -12,9 +12,9 @@ from nutil.display import njoin, make_title
 from nutil.time import RateCounter, ping, pong, humanize_ms
 from nutil.file import file_load
 
-from data import DEV_BUILD, VERSION
+from data import VERSION
 from data.load import RDF
-from data.settings import PROFILE
+from data.settings import PROFILE, DEV_BUILD
 from data.assets import Assets
 from gui.api import SpriteTitleLabel, ProgressBar, SpriteBox, SpriteLabel
 from gui.api import ControlEvent, InputEvent, CastEvent
@@ -591,7 +591,7 @@ class EncounterAPI:
         shop_name, shop_color = Item.item_category_gui(shop_status)
         if shop_name is not None:
             strs.append(SpriteBox(
-                Assets.get_sprite(f'units.{shop_name}-shop'), f'{shop_name.capitalize()}',
+                Assets.get_sprite(f'units.{shop_name}-shop'), '',
                 (0,0,0,0), (0,0,0,0),
             ))
             self.__last_hud_statuses.append(STATUS.SHOP)
@@ -844,6 +844,7 @@ class EncounterAPI:
         if not DEV_BUILD:  # HANDLE DEV ACTION
             return
         if event.name == 'dev1':
+            logger.info(f'Dev doing 1 tick...')
             self.engine._do_ticks(1)
         elif event.name == 'dev2':
             logger.info(f'Dev doing 3000 ticks...')
@@ -851,8 +852,10 @@ class EncounterAPI:
         elif event.name == 'dev3':
             gdelta = self.engine.get_position(self.player_uid) == self.player.grave_pos
             if gdelta.sum() == 2:
+                logger.info(f'Dev returning from graveyard...')
                 self.player.move_to_spawn()
             else:
+                logger.info(f'Dev moving to graveyard...')
                 self.player.move_to_graveyard()
 
     # GUI input event handlers
@@ -1053,6 +1056,9 @@ class EncounterAPI:
             return
         self.player.sell_item(event.index)
         self.log_player_state()
+
+    def _chandle_modal_select(self, event):
+        self._chandle_modal_inspect(event)
 
     def _chandle_modal_inspect(self, event):
         item = ITEMS[event.index]
