@@ -90,8 +90,10 @@ class SpriteLabel(widgets.AnchorLayout):
         self.sprite_source = sprite
         self.sprite = self.main.add(widgets.Image(source=sprite, allow_stretch=True))
         self.label = self.main.add(widgets.Label(text=text, halign=halign, valign=valign, markup=True))
-        self.main.make_bg((0,0,0,0) if bg_mask_color is None else bg_mask_color)
-        self.main._bg.source = Assets.get_sprite('ui.mask-4x1') if bg_mask is None else bg_mask
+        self.main.make_bg(
+            (0,0,0,0) if bg_mask_color is None else bg_mask_color,
+            source=Assets.get_sprite('ui.mask-4x1') if bg_mask is None else bg_mask,
+        )
         self.label.bind(pos=self.resize, size=self.resize)
 
     def resize(self, *a):
@@ -111,11 +113,11 @@ class SpriteTitleLabel(widgets.AnchorLayout):
     def __init__(self,
         sprite=None, title='', text='',
         top_bg=None, outline_width=None, text_color=(1,1,1,1),
+        padding=(15, 15),
         **kwargs
     ):
-        super().__init__(**kwargs)
+        super().__init__(padding=padding, **kwargs)
         self.make_bg((0,0,0,0))
-        self.padding = 0.9, 0.9
         self.main_frame = self.add(widgets.BoxLayout(orientation='vertical'))
         self._bg.source = Assets.get_sprite('ui.mask-1x2')
         if sprite is None:
@@ -136,12 +138,6 @@ class SpriteTitleLabel(widgets.AnchorLayout):
             text=text, halign='left', valign='top', color=text_color,
             outline_color=(0,0,0,1), outline_width=outline_width, markup=True,
         ))
-        self.bind(size=self.resize, pos=self.resize)
-
-    def resize(self, *a):
-        self.main_frame.set_size(
-            x=self.size[0]*self.padding[0],
-            y=self.size[1]*self.padding[1])
 
     def update(self, stl):
         if stl.sprite != self.sprite_source and stl.sprite is not None:
@@ -195,7 +191,6 @@ class Stack(widgets.StackLayout):
 
     @hover_invokes.setter
     def hover_invokes(self, x):
-        logger.debug(f'{self} setting hover_invokes: {x}')
         self.__hover_invokes = x
         self.__last_hover = None
         if x is None:
@@ -208,12 +203,10 @@ class Stack(widgets.StackLayout):
         if self.__hover_bind is not None:
             return
         self.__hover_bind = widgets.kvWindow.fbind('mouse_pos', self.check_hover)
-        logger.debug(f'{self} binding mouse_pos {self.__hover_bind}')
 
     def _unbind(self):
         if self.__hover_bind is None:
             return
-        logger.debug(f'{self} unbinding mouse_pos {self.__hover_bind}')
         widgets.kvWindow.unbind_uid('mouse_pos', self.__hover_bind)
         self.__hover_bind = None
 

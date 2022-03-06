@@ -118,13 +118,12 @@ class SettingsPanel_(widgets.BoxLayout):
         sprite = Assets.get_sprite(f'ui.settings-{resource_name(panel_name)}')
         panel_title = SpriteLabel(sprite, self.name, APP_COLOR)
         self.add(panel_title).set_size(y=50)
-        self.scrollview = self.add(widgets.ScrollView())
-        self.scrollview.do_scroll_x = True
-        self.scrollview.do_scroll_y = False
-        self.scrollview.bar_width = 15
-        self.scrollview.scroll_type = ['bars']
-        self.settings_frame = self.scrollview.add(widgets.StackLayout(orientation='tb-lr'))
-        self.settings_frame.set_size(x=1000)
+        self.settings_frame = widgets.StackLayout(orientation='tb-lr')
+        self.scrollview = self.add(widgets.ScrollView(
+            self.settings_frame,
+            scroll_dir='horizontal',
+            scroll_amount=800,
+        ))
 
         self.widget_size = 100, 100
         self.widget_count = 0
@@ -133,24 +132,10 @@ class SettingsPanel_(widgets.BoxLayout):
             self.widget_count += 1
             self.widget_size = setting_obj.widget.size
 
-        self.bind(on_touch_down=self._on_touch_down)
-        if self.widget_count > 0:
-            self.scrollview.bind(size=self.on_size)
-        else:
-            logger.warning(f'Created settings panel for empty category {panel_name} with no widgets...')
+        self.scrollview.bind(size=self._on_size)
 
-    def on_size(self, w, m):
+    def _on_size(self, *a):
         max_widget_vertical = max(1, int(self.scrollview.size[1] / self.widget_size[1]))
         min_horizontal = math.ceil(self.widget_count / max_widget_vertical)
         frame_width = self.widget_size[0] * min_horizontal
         self.settings_frame.set_size(x=frame_width)
-        self.scrollview.do_scroll_x = frame_width > self.scrollview.size[0]
-
-    def _on_touch_down(self, w, m):
-        if m.button not in {'scrollup', 'scrolldown'}:
-            return
-        if self.scrollview.do_scroll_x and self.collide_point(*m.pos):
-            if m.button == 'scrollup':
-                self.scrollview.scroll_x = minmax(0, 1, self.scrollview.scroll_x + SCROLL_SENS)
-            elif m.button == 'scrolldown':
-                self.scrollview.scroll_x = minmax(0, 1, self.scrollview.scroll_x - SCROLL_SENS)

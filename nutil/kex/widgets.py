@@ -388,13 +388,10 @@ class ModalView(kvModalView, KexWidget):
 
 
 class ScrollView(kvScrollView, KexWidget):
-    pass
-
-class ScrollViewNew(kvScrollView, KexWidget):
-    SCROLL_SENS = 0.2
-    def __init__(self, view, scroll_dir='vertical', **kwargs):
+    def __init__(self, view, scroll_dir='vertical', scroll_amount=200, **kwargs):
         super().__init__(**kwargs)
         self.scroll_dir = scroll_dir
+        self.scroll_amount = scroll_amount
         self.bar_width = 15
         self.scroll_type = ['bars']
         self.view = self.add(view)
@@ -421,16 +418,25 @@ class ScrollViewNew(kvScrollView, KexWidget):
         if not any((self.do_scroll_x, self.do_scroll_y)): return
         if not self.collide_point(*m.pos): return
 
-        if m.button == 'scrollup':
-            if self.scroll_dir == 'horizontal':
-                self.scroll_x = min(1, max(0, self.scroll_x + self.SCROLL_SENS))
-            elif self.scroll_dir == 'vertical':
-                self.scroll_y = min(1, max(0, self.scroll_y - self.SCROLL_SENS))
-        elif m.button == 'scrolldown':
-            if self.scroll_dir == 'horizontal':
-                self.scroll_x = min(1, max(0, self.scroll_x - self.SCROLL_SENS))
-            elif self.scroll_dir == 'vertical':
-                self.scroll_y = min(1, max(0, self.scroll_y + self.SCROLL_SENS))
+        dir = -1 if m.button == 'scrollup' else 1
+        if self.scroll_dir == 'horizontal':
+            scroll_pixels = self.scroll_amount / self.width
+            self.scroll_x = min(1, max(0, self.scroll_x - dir * scroll_pixels))
+        elif self.scroll_dir == 'vertical':
+            scroll_pixels = self.scroll_amount / self.height
+            self.scroll_y = min(1, max(0, self.scroll_y + dir * scroll_pixels))
+
+
+class DynamicHeight(GridLayout):
+    def __init__(self, cols=1, **kwargs):
+        super().__init__(cols=cols, **kwargs)
+
+    def add(self, w):
+        super().add(w)
+        w.bind(size=self._resize)
+
+    def _resize(self, *a):
+        self.set_size(hx=1, y=sum([_.height for _ in self.children]))
 
 
 # BASIC WIDGETS
@@ -441,6 +447,17 @@ class Label(kvLabel, KexWidget):
 
     def _on_resize(self, *a):
         self.text_size = self.size
+
+
+class FixedWidthLabel(kvLabel, KexWidget):
+    def __init__(self, *a, halign='left', valign='top', **k):
+        super().__init__(*a, halign=halign, valign=valign, **k)
+        self.bind(size=self.fix_height, text=self.fix_height)
+
+    def fix_height(self, *a):
+        self.text_size = self.size[0], None
+        self.texture_update()
+        self.set_size(hx=1, y=self.texture_size[1])
 
 
 class Button(kvButton, KexWidget):

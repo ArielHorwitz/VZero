@@ -24,7 +24,7 @@ class HelpGUI(widgets.AnchorLayout):
         self.app_control = self.main_frame.add(self.app.generate_app_control_buttons())
         self.app_control.title.text = '[b]Help[/b]'
 
-        self.buttons = []
+        self.screen_names = []
         bottom_frame = self.main_frame.add(widgets.BoxLayout())
         self.button_stack = bottom_frame.add(Stack(
             name='Info buttons',
@@ -44,20 +44,23 @@ class HelpGUI(widgets.AnchorLayout):
             self.main_frame.set_size(*BASE_RESOLUTION)
 
     def set_screens(self, screens):
-        self.buttons = []
+        buttons = []
+        self.screen_names = []
         sprite = Assets.BLANK_SPRITE
         for i, (name, view) in enumerate(screens):
-            name = f'[b]{name}[/b]'
-            self.buttons.append(APISpriteLabel(sprite, name, (0,0,0,0)))
-            self.panel_switch.add_screen(name, view=view)
-            if i == 1:
-                self.panel_switch.switch_screen(name)
-        self.button_stack.update(self.buttons)
+            self.screen_names.append(name)
+            title = f'[b]{name}[/b]'
+            buttons.append(APISpriteLabel(sprite, title, (0,0,0,0)))
+            scroll_view = widgets.ScrollView(view)
+            scroll_view.make_bg(v=0, a=0.4)
+            self.panel_switch.add_screen(name, view=scroll_view)
+        self.panel_switch.switch_screen(screens[0][0])
+        self.button_stack.update(buttons)
 
     def button_stack_click(self, index, button):
         if button != 'left':
             return
-        self.panel_switch.switch_screen(self.buttons[index].text)
+        self.panel_switch.switch_screen(self.screen_names[index])
         Assets.play_sfx('ui.select', volume='ui')
 
 
@@ -72,14 +75,19 @@ def get_info_widgets():
 
 def rdf2info(rdf):
     info_widgets = []
-    logger.info(f'rdf2info rdf: {rdf}')
+    logger.info(f'rdf2info source: {rdf}')
     for panel, data in rdf.items():
-        panel_widget = widgets.BoxLayout(orientation='vertical')
-        logger.info(f'rdf2info {panel} data: {data}')
-        pstr = '\n'.join(data.default.positional)
-        panel_widget.add(SpriteTitleLabel(Assets.BLANK_SPRITE, f'[b]{panel}[/b]', pstr, top_bg=APP_COLOR))
+        panel_widget = widgets.DynamicHeight()
+        sl = SpriteLabel(Assets.BLANK_SPRITE, f'[b]{panel}[/b]', bg_mask_color=APP_COLOR)
+        sl.set_size(y=50)
+        panel_widget.add(sl)
+        pstr = '\n'.join(data.default.positional) + '\n'
+        panel_widget.add(widgets.FixedWidthLabel(text=pstr, markup=True))
         for subpanel, subpanel_data in data.items():
-            pstr = '\n'.join(subpanel_data.positional)
-            panel_widget.add(SpriteTitleLabel(Assets.BLANK_SPRITE, f'[b]{subpanel}[/b]', pstr, top_bg=APP_COLOR))
+            sl = SpriteLabel(Assets.BLANK_SPRITE, f'[b]{subpanel}[/b]', bg_mask_color=APP_COLOR)
+            sl.set_size(y=50)
+            panel_widget.add(sl)
+            pstr = '\n'.join(subpanel_data.positional) + '\n'
+            panel_widget.add(widgets.FixedWidthLabel(text=pstr, markup=True))
         info_widgets.append((panel, panel_widget))
     return info_widgets

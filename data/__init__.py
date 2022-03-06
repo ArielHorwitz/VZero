@@ -22,12 +22,18 @@ This software enables and encourages user modifications for personal use. The de
 [b]© 2021-2022, all rights reserved by Ariel Horwitz.[/b]
 Redistribution of this software is prohibited without explicit written permission.
 ~
-Written in python with kivy (https://github.com/kivy/kivy)
---- Art
-While there are many public domain contributions, redistribution of [i]proprietary[/i] artwork is prohibited without explicit written permission.
+Written in python with kivy (https://github.com/kivy/kivy).
 ~
+A special thanks to [b]Yisrael Hessler[/b] for providing a great deal of testing and feedback.
+--- Art
 [b]Yisrael Hessler[/b] - https://github.com/imcrazeegamer
 [b]Orr Didi[/b] - https://scardust.co
+[b]Kenney[/b] - https://kenney.itch.io/
+[b]7Soul1[/b] - https://www.deviantart.com/7soul1
+[b]Dungeon Crawl Stone Soup[/b] - https://opengameart.org/content/dungeon-crawl-32x32-tiles
+And many more public domain contributions discovered on https://OpenGameArt.org
+~
+While there are many public domain contributions, redistribution of [i]proprietary[/i] artwork is prohibited without explicit written permission.
 """
 
 

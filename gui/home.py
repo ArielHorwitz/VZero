@@ -119,7 +119,7 @@ class Draft(widgets.BoxLayout):
             name='Draft abilities',
             wtype=CenteredSpriteBox, x=75, y=75,
             callback=self.draft_click)
-        self.draft_frame = main_frame.add(widgets.ScrollViewNew(self.draft))
+        self.draft_frame = main_frame.add(widgets.ScrollView(self.draft))
         self.draft.set_size(hx=1, hy=None)
         self.draft.bind(size=self.resize_draft)
         self.app.interface.register('set_draft_stack', self.draft_update)

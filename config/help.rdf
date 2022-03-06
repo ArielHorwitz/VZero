@@ -7,7 +7,7 @@ If you win, you will get the [b]Victory Point[/b] reward. Beware, encounters cos
 
 
 --- Version
-This help section has been updated to the [i]base game of version [b]0.016[/b][/i]
+This help section has been updated to the [i]base game of version [b]0.017[/b][/i]
 
 
 === World
@@ -42,3 +42,60 @@ Monsters generally fall in to one of the following categories:
 » [b]Creeps[/b] - aggressive waves, intent on destroying your Fort.
 » [b]Treasures[/b] - passive and difficult to crack, but yield much gold.
 » [b]Neutrals[/b] - passive and usually offer some service, like an item shop.
+
+
+=== Mechanics
+Most mechanics are represented by both a [i]stat[/i] and a [i]status[/i]. Add them together to get the final value.
+A [b]stat[/b] is a permanent value that is affected by regen, steal, or bonuses from abilities and items.
+A [b]status[/b] is a temporary value that is added to the stat for a limited time.
+
+--- Scaling
+Many mechanics use [i]scaling values[/i] - which is simply a way to convert any number to a [b]%[/b]. Scaling values have a [i]minimum[/i] value, [i]maximum[/i] value, and [i]curve[/i]. The curve determines how quickly the value approaches 100%.
+
+Mechanics always use a curve of [b]§ 50[/b]. See the scaling tables for detailed graphs.
+--- Stats and Statuses
+[b]Stocks[/b] - number of lives left.
+~
+[b]Shop[/b] - determines what tier items you have access to. You can buy any item tier at or below your shop value. Items can be sold with any shop value.
+~
+[b]Line of Sight (LOS)[/b] - determines how far you can see other units.
+~
+[b]Darkness[/b] - scaling value that reduces LOS. E.g. 50 darkness will reduce LOS by 50%.
+~
+[b]Movespeed[/b] - scaling value that determines how fast you walk. E.g. 50 movespeed equates to 250 units/second. The max movespeed is 500.
+~
+[b]Bounded[/b] - prevents any movement. The value doesn't matter (normally set to 1 or nothing).
+~
+[b]Slow[/b] - scaling value that inhibits movespeed. E.g. a unit with 50 slow will have reduced movespeed by 50%.
+~
+[b]Cuts[/b] - adds damage to any instance of normal damage taken. E.g. if a unit with 10 cuts gets hit by an attack with 30 normal damage, the unit will take 40 pure damage. See [i]damage types[/i].
+~
+[b]Armor[/b] - scaling value that reduces damage taken by any instance of normal damage. E.g. if a unit with 50 armor gets hit by an attack with 10 normal damage, the unit will take 5 pure damage. See [i]damage types[/i].
+~
+[b]Spikes[/b] - returns damage for any instance of normal damage taken. E.g. if a unit with 10 spikes gets hit by an attack with 50 normal damage, the unit will take 50 pure damage and the attacker will take 10 pure damage. See [i]damage types[/i].
+~
+[b]Lifesteal[/b] - % value that heals the attacker for any instance of normal damage given. E.g. if a unit with 50 lifesteal (50%) attacks for 10 normal damage, the attacker will heal 5 HP. See [i]damage types[/i].
+~
+[b]Vanity[/b] - % value that amplifies the damage of any instance of blast damage taken. E.g. if a unit with 50 vanity (50%) gets hit by an attack with 50 blast damage, the unit will take 75 pure damage. See [i]damage types[/i].
+~
+[b]Reflect[/b] - % value that returns damage for any instance of blast damage taken. E.g. if a unit with 50 reflect (50%) gets hit by an attack with 60 blast damage, the unit will take 60 pure damage and the attacker will take 30 pure damage. See [i]damage types[/i].
+~
+[b]Sensitivity[/b] - scaling value that amplifies incoming and outgoing status effects. E.g. if a unit with 30 sensitivity applies a status of 100 slow to a unit with 20 sensitivity (50 combined sensitivity), the unit will get a status of 150 slow. For mechanics that value means nothing (like bounded), the duration is amplified instead.
+
+=== Damage Types
+--- Pure Damage
+Pure damage is the final amount of hp to reduce. All damage types are converted to pure damage.
+
+--- Normal Damage
+~Normal damage is a damage type that generally scales with Physical. When applying normal damage, follow this algorithm:
+» Add the target's [i]cuts[/i] to the damage value
+» Reduce damage value by the target's [i]armor[/i] (as %)
+» Deal that damage as pure damage to the target
+» Return the target's [i]spikes[/i] as pure damage to the attacker
+» Heal the attacker by the attacker's [i]lifesteal[/i] (as %)
+
+--- Blast Damage
+~Blast damage is a damage type that generally scales with Fire. When applying blast damage, follow this algorithm:
+» Add the target's [i]vanity[/i] to the damage value (as %)
+» Deal that damage as pure damage to the target
+» Return the target's [i]reflect[/i] as pure damage to the attacker (as %)
