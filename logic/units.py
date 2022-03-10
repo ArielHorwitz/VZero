@@ -23,83 +23,10 @@ RNG = np.random.default_rng()
 
 STARTING_PLAYER_STOCKS = 10
 GRAVEYARD_POSITION = np.array([-1_000_000, -1_000_000], dtype=np.float64)
-
-
-class Slots:
-    def __init__(self, max_slots):
-        self.max_slots = max_slots
-        self.slots = [None for i in range(self.max_slots)]
-        self.unslotted = set()
-        self.all_elements = set()
-        self.empty_slot = 0
-        self.clear()
-
-    def __repr__(self):
-        return f'<Slots {self.slots} | {self.unslotted}>'
-
-    def swap_slots(self, i1, i2):
-        List.swap(self.slots, i1, i2)
-        self.refresh()
-
-    def clear(self):
-        self.slots = [None for i in range(self.max_slots)]
-        self.unslotted = set()
-        self.elements = set()
-        self.empty_slot = 0
-
-    def refresh(self):
-        self.all_elements = set(self.slots) | self.unslotted
-        if None in self.all_elements:
-            self.all_elements.remove(None)
-        for i, e in enumerate(self.slots):
-            if e is None:
-                self.empty_slot = i
-                break
-        else:
-            self.empty_slot = None
-
-    def add_prefer_slot(self, e, slot):
-        if self.slots[slot] is None:
-            self.add_slotted(e, slot)
-        else:
-            self.add(e)
-
-    def add(self, e):
-        es = [e] if not is_iterable(e) else e
-        for e in es:
-            if self.empty_slot is None:
-                self.add_unslotted(e)
-            else:
-                self.add_slotted(e)
-
-    def add_slotted(self, e, slot=None):
-        if slot is None:
-            slot = self.empty_slot
-        assert slot is not None
-        assert self.slots[slot] is None
-        self.slots[slot] = e
-        self.refresh()
-        return slot
-
-    def add_unslotted(self, e):
-        assert e not in self.unslotted
-        self.unslotted.add(e)
-        self.refresh()
-
-    def remove(self, e):
-        if e in self.slots:
-            i = self.slots.index(e)
-            self.slots[i] = None
-        elif e in self.unslotted:
-            self.unslotted.remove(e)
-        else:
-            raise ValueError(f'Requested remove {e} from {self} but not found: {self.slots} {self.unslotted}')
-        self.refresh()
+DEFAULT_RESPAWN_TIMER = 12000  # ~ 2 minutes
 
 
 class Unit:
-    _respawn_timer = 12000  # ~ 2 minutes
-    say = ''
     win_on_death = False
     lose_on_death = False
 
@@ -158,15 +85,19 @@ class Unit:
         self.grave_offset = np.array([(self.uid%10)*300, (self.uid//10)*300], dtype=np.float64)
         self.grave_pos = GRAVEYARD_POSITION + self.grave_offset
         self.cache = defaultdict(lambda: None)
+        self.disable_collision = 'disable_collision' in raw_data.default.positional
+        self.__respawn_timer = raw_data.default['respawn_timer'] if 'respawn_timer' in raw_data.default else DEFAULT_RESPAWN_TIMER
         self.always_visible = True if 'always_visible' in self.p.positional else False
         self.always_active = True if 'always_active' in self.p.positional else False
+        self.win_condition = bool(int(raw_data.default['win_condition'])) if 'win_condition' in raw_data.default else None
         self.death_sfx = raw_data.default['death_sfx'] if 'death_sfx' in raw_data.default else f'ui.death-unit{RNG.integers(4)+1}'
         self.respawn_sfx = f'ui.{raw_data.default["respawn_sfx"]}' if 'respawn_sfx' in raw_data.default else 'ui.respawn-unit'
+        self.say = raw_data.default['say'] if 'say' in raw_data.default else ''
         self.api = api
         self.engine = api.engine
         self.name = raw_data.default['name'] if 'name' in raw_data.default else name
-        sprite_name = raw_data.default['sprite'] if 'sprite' in raw_data.default else name
-        self.sprite = Assets.get_sprite(f'units.{sprite_name}')
+        sprite_name = raw_data.default['sprite'] if 'sprite' in raw_data.default else f'units.{name}'
+        self.sprite = Assets.get_sprite(sprite_name)
         self.regen_trackers = defaultdict(lambda: FIFO(int(FPS*2)))
         # Abilities
         self._ability_slots = Slots(8)
@@ -177,7 +108,9 @@ class Unit:
         self.builtin_loot = str2ability('Builtin Loot')
         self.default_abilities = []
         if 'abilities' in self.p:
-            self.default_abilities = [str2ability(a) for a in self.p['abilities'].split(', ')]
+            for a in self.p['abilities'].split(', '):
+                aid = None if a == 'null' else str2ability(a)
+                self.default_abilities.append(aid)
 
         logger.info(f'Created unit: {name} with data: {self._raw_data}')
 
@@ -336,6 +269,8 @@ class Unit:
         self._load_ability(self.builtin_walk)
         self._ability_slots.add_unslotted(self.builtin_loot)
         self._load_ability(self.builtin_loot)
+        if self.disable_collision:
+            self.engine.set_collision(self.uid, False)
         self._setup()
 
     def action_phase(self):
@@ -390,7 +325,7 @@ class Unit:
         logger.info(f'{self} died. Remaining stocks: {self.stocks}')
         self.play_death_sfx()
         self._respawn_gold = self.engine.get_stats(self.uid, STAT.GOLD)
-        self.engine.set_status(self.uid, STATUS.RESPAWN, self._respawn_timer, 1)
+        self.engine.set_status(self.uid, STATUS.RESPAWN, self.respawn_timer, 1)
         self.check_win_condition()
 
     def play_death_sfx(self):
@@ -445,6 +380,7 @@ class Unit:
             f'Current velocity: {s2ticks(velocity):.2f}/s ({velocity:.2f}/t)',
             f'Action phase: {self.uid % self.api.engine.AGENCY_PHASE_COUNT}',
             f'Spawn location: {self.spawn_pos}',
+            f'Spawn timer: {self.respawn_timer}',
             f'Grave offset: {self.grave_offset}',
             f'Agency: {self.api.engine.agency_timers[self.uid].mean_elapsed_ms:.3f} ms',
             f'Distance to player: {self.api.engine.unit_distance(0, self.uid):.1f}',
@@ -469,11 +405,93 @@ class Unit:
         return f'{self.name} #{self.uid}'
 
     def check_win_condition(self):
-        pass
+        if self.win_condition is not None:
+            if self.stocks <= 0:
+                self.api.end_encounter(win=self.win_condition)
 
     @property
     def stocks(self):
         return round(Mechanics.get_status(self.engine, self.uid, STAT.STOCKS))
+
+    @property
+    def respawn_timer(self):
+        return self.__respawn_timer
+
+    @respawn_timer.setter
+    def respawn_timer(self, x):
+        self.__respawn_timer = x
+
+
+class Slots:
+    def __init__(self, max_slots):
+        self.max_slots = max_slots
+        self.slots = [None for i in range(self.max_slots)]
+        self.unslotted = set()
+        self.all_elements = set()
+        self.empty_slot = 0
+        self.clear()
+
+    def __repr__(self):
+        return f'<Slots {self.slots} | {self.unslotted}>'
+
+    def swap_slots(self, i1, i2):
+        List.swap(self.slots, i1, i2)
+        self.refresh()
+
+    def clear(self):
+        self.slots = [None for i in range(self.max_slots)]
+        self.unslotted = set()
+        self.elements = set()
+        self.empty_slot = 0
+
+    def refresh(self):
+        self.all_elements = set(self.slots) | self.unslotted
+        if None in self.all_elements:
+            self.all_elements.remove(None)
+        for i, e in enumerate(self.slots):
+            if e is None:
+                self.empty_slot = i
+                break
+        else:
+            self.empty_slot = None
+
+    def add_prefer_slot(self, e, slot):
+        if self.slots[slot] is None:
+            self.add_slotted(e, slot)
+        else:
+            self.add(e)
+
+    def add(self, e):
+        es = [e] if not is_iterable(e) else e
+        for e in es:
+            if self.empty_slot is None:
+                self.add_unslotted(e)
+            else:
+                self.add_slotted(e)
+
+    def add_slotted(self, e, slot=None):
+        if slot is None:
+            slot = self.empty_slot
+        assert slot is not None
+        assert self.slots[slot] is None
+        self.slots[slot] = e
+        self.refresh()
+        return slot
+
+    def add_unslotted(self, e):
+        assert e not in self.unslotted
+        self.unslotted.add(e)
+        self.refresh()
+
+    def remove(self, e):
+        if e in self.slots:
+            i = self.slots.index(e)
+            self.slots[i] = None
+        elif e in self.unslotted:
+            self.unslotted.remove(e)
+        else:
+            raise ValueError(f'Requested remove {e} from {self} but not found: {self.slots} {self.unslotted}')
+        self.refresh()
 
 
 class Player(Unit):
@@ -481,8 +499,8 @@ class Player(Unit):
 
     def _setup(self):
         self.engine.set_stats(self.uid, STAT.STOCKS, STARTING_PLAYER_STOCKS)
-        self._respawn_timer = 500
-        self._respawn_timer_scaling = 100
+        self.respawn_timer = 500
+        self.respawn_timer_scaling = 100
         self.death_sfx = 'ui.death-player'
         self.respawn_sfx = 'ui.respawn-player'
         if not DEV_BUILD:  # PLAYER SETUP RESPAWN SFX
@@ -493,11 +511,7 @@ class Player(Unit):
 
     def respawn(self):
         super().respawn(reset_gold=False)
-        self._respawn_timer += self._respawn_timer_scaling
-
-    def check_win_condition(self):
-        if self.stocks <= 0:
-            self.api.end_encounter(win=False)
+        self.respawn_timer += self.respawn_timer_scaling
 
 
 class Creep(Unit):
@@ -514,7 +528,7 @@ class Creep(Unit):
         self.first_wave = True
         self.move_to_graveyard()
         self.engine.set_stats(self.uid, STAT.HP, 0)
-        self.engine.set_status(self.uid, STATUS.RESPAWN, self._respawn_timer + 1, 1)
+        self.engine.set_status(self.uid, STATUS.RESPAWN, self.respawn_timer + 1, 1)
 
     @property
     def target(self):
@@ -536,7 +550,7 @@ class Creep(Unit):
         self.engine.set_stats(self.uid, maxs, 1_000_000)
 
     @property
-    def _respawn_timer(self):
+    def respawn_timer(self):
         ticks_since_last_wave = (self.engine.tick - self.wave_offset) % self.wave_interval
         ticks_to_next_wave = self.wave_interval - ticks_since_last_wave
         return ticks_to_next_wave
@@ -549,7 +563,7 @@ class Creep(Unit):
             self.use_ability(aid, None)
 
     def debug_str(self, *a, **k):
-        return f'{super().debug_str(*a, **k)}\nSpawned at: {self.spawn_pos}\nNext wave: {self._respawn_timer}'
+        return f'{super().debug_str(*a, **k)}\nSpawned at: {self.spawn_pos}\nNext wave: {self.respawn_timer}'
 
 
 class Camper(Unit):
@@ -561,11 +575,11 @@ class Camper(Unit):
         self.camp = self.engine.get_position(self.uid)
         self.__keep_distance = float(self.p['keep_distance']) if 'keep_distance' in self.p else 0
         self.__aggro_flank = float(self.p['aggro_flank']) * nsign(RNG.random()-0.5) if 'aggro_flank' in self.p else 0
-        self.__aggro_range = float(self.p['aggro_range'])
+        self.__aggro_range = float(self.p['aggro_range']) if 'aggro_range' in self.p else 0
         self.__aggro_range_camp = float(self.p['aggro_range_camp']) if 'aggro_range_camp' in self.p else self.__aggro_range
-        self.__deaggro_range = float(self.p['deaggro_range'])
-        self.__reaggro_range = float(self.p['reaggro_range'])
-        self.__camp_spread = float(self.p['camp_spread'])
+        self.__deaggro_range = float(self.p['deaggro_range']) if 'deaggro_range' in self.p else 0
+        self.__reaggro_range = float(self.p['reaggro_range']) if 'reaggro_range' in self.p else 0
+        self.__camp_spread = float(self.p['camp_spread']) if 'camp_spread' in self.p else 0
         self.__deaggro = False
         self.__walk_target = self.camp
         self.__next_walk = self.engine.tick
@@ -647,22 +661,9 @@ class Camper(Unit):
         ])
 
 
-class Boss(Camper):
-    say = 'Foolishly brave are we?'
-
-    def _setup(self):
-        super()._setup()
-        self.death_sfx = None
-
-    def check_win_condition(self):
-        if self.stocks <= 0:
-            self.api.end_encounter(win=True)
-
-
 class Treasure(Unit):
     say = 'Breach me if you can'
     def _setup(self):
-        self._respawn_timer = 30000
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
 
 
@@ -692,11 +693,6 @@ class Fort(Fountain):
     def _setup(self):
         self.set_abilities([ABILITY.FORT_AURA])
         self.engine.set_stats(self.uid, STAT.WEIGHT, -1)
-        self.death_sfx = None
-
-    def check_win_condition(self):
-        if self.stocks <= 0:
-            self.api.end_encounter(win=False)
 
 
 class DPSMeter(Unit):
@@ -736,7 +732,6 @@ class DPSMeter(Unit):
 UNIT_CLASSES = {
     'fort': Fort,
     'player': Player,
-    'boss': Boss,
     'creep': Creep,
     'camper': Camper,
     'treasure': Treasure,

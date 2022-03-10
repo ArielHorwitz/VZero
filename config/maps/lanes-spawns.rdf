@@ -2,12 +2,12 @@
 --- units
 fort: 1
 --- loc
-300, 1500
+200, 1500
 === Shop
 --- units
 basic shop: 1
 --- loc
-200, 1500
+200, 1700
 
 
 === Creep wave
@@ -20,9 +20,48 @@ large creep: 1
 9500, 250
 
 
+=== Jackals
+--- units
+jackal: 5
+penguin: 2
+--- loc
+1800, 2400
+1800, 600
+2500, 1500
+
+=== Slanks
+--- units
+glob: 5
+penguin: 2
+--- loc
+2800, 2400
+2800, 600
+3500, 1500
+
+=== Boos
+--- units
+boo: 3
+crab: 4
+--- loc
+4500, 2200
+4500, 800
+5500, 2500
+6000, 1500
+5500, 500
+
+
+=== Skulls
+--- units
+skull: 2
+slank: 5
+--- loc
+7000, 2400
+7000, 600
+7500, 1500
+
 
 === Boss
 --- units
-winged snake: 1
+objective: 1
 --- loc
 9500, 1500

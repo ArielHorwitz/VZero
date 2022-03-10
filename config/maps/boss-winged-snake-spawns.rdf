@@ -1,0 +1,21 @@
+=== Spawn
+--- units
+fort: 1
+--- loc
+0, 1000
+=== Shop
+--- units
+ornament shop: 1
+--- loc
+0, 600
+=== Free gold
+--- units
+free treasure: 1
+--- loc
+0, 1400
+
+=== Boss
+--- units
+winged snake: 1
+--- loc
+4000, 1000

@@ -555,7 +555,7 @@ class EncounterAPI:
         gold = current[-1]
         current = [f'{math.floor(c)}' for c in current]
         current.extend([
-            f'{round(self.units[uid]._respawn_timer/100)}s',
+            f'{round(self.units[uid].respawn_timer/100)}s',
             f'{round(self.engine.get_stats(uid, STAT.HITBOX))}',
             f'{round(self.engine.unit_distance(0, uid))}',
         ])

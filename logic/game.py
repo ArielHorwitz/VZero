@@ -65,29 +65,32 @@ class GameAPI:
         colors = [COLOR.WHITE, COLOR.YELLOW, COLOR.CYAN, COLOR.PURPLE, COLOR.RED]
         self.world_encounters = []
         self.expired_encounters = set()
-        for i in range(5):
+        for i in range(1):
             for j in range(counts[i]):
                 for map in MAP_DATA:
+                    logger.info(f'Loading map: {map}')
                     if i > 0 and 'devtest' in map.lower():
                         continue
                     metadata = MAP_DATA[map]['map']['Metadata'].default
+                    map_name = metadata['name']
                     map_desc = metadata['description'] if 'description' in metadata else ''
                     color = modify_color(colors[i], v=0.3)
-                    sprite = Assets.get_sprite(f'maps.{map}')
+                    sprite_name = metadata['sprite'] if 'sprite' in metadata else f'maps.{map}'
+                    sprite = Assets.get_sprite(sprite_name)
                     vp_reward = vp_rewards[i]
                     desc = '\n'.join([
                         map_desc,
                         f'Difficulty: {DIFFICULTY_LEVELS[i]}',
                         'Draft costs silver' if silver_cost[i] else 'Free play',
                         'Replayable' if replayable[i] else 'Non-replayable',
-                        f'Map: {map.capitalize()}',
+                        f'Map: {map_name}',
                         f'Reward: {vp_reward} Victory Points',
                     ])
                     self.world_encounters.append(EncounterParams(
                         replayable=replayable[i], silver_cost=silver_cost[i],
                         map=map, difficulty=i, vp_reward=vp_rewards[i],
                         color=modify_color(colors[i], v=0.3),
-                        sprite=Assets.get_sprite(f'maps.{map}'),
+                        sprite=sprite,
                         description=desc,
                     ))
         assert len(self.world_encounters) > 0

@@ -339,7 +339,7 @@ distance: 500
 type: base
 color: purple
 draft_cost: 35
-info: Pull enemies in an area.
+info: Push enemies away from you.
 -- ACTIVE
 point_target
 point: self
@@ -1910,6 +1910,7 @@ hp.delta: 10000
 hp.max: 10000
 mana.delta: 10000
 mana.max: 10000
+los: 50000
 shop: 3
 -- ACTIVE
 status_block: bounded

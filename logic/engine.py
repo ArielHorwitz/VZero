@@ -474,7 +474,15 @@ class UnitStats:
         # Live flag
         self._flags_alive = np.append(self._flags_alive, [False])
         self._collision_flags = np.append(self._collision_flags, [COLLISION_DEFAULT])
-        assert len(self.table) == len(self.status_table) == len(self.cooldowns) == self._dmod_targets.shape[1] == len(self._flags_alive) == len(self._collision_flags)
+        assert all([
+            len(self.table) == len(_) for _ in (
+                self.status_table,
+                self.cooldowns,
+                self._dmod_targets[0],
+                self._collision_flags,
+                self._flags_alive
+                )
+        ])
         return len(self.table) - 1
 
     def add_dmod(self, ticks, units, stat, delta):

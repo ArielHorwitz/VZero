@@ -2,6 +2,7 @@
 ====== Player
 type: player
 max_hp_delta: 0.002
+win_condition: 0
 --- stats
 allegiance: 0
 gold: 150
@@ -30,7 +31,6 @@ hitbox: 75
 gold: 50
 hp.max: 100
 physical: 20
-movespeed: 20
 
 === Huge creep
 type: creep
@@ -47,7 +47,6 @@ hitbox: 150
 gold: 150
 hp.max: 300
 physical: 60
-movespeed: 20
 
 
 === Mini creep
@@ -55,36 +54,34 @@ type: creep
 abilities: shoot
 wave: 60
 wave_offset: 1
-scaling: 1.15
+scaling: 1.1
 always_active
 always_visible
 respawn_sfx: respawn-wave
-sprite: small-creep
+sprite: units.small-creep
 --- stats
 movespeed: 20
 hitbox: 75
 gold: 50
-hp.max: 100
-physical: 20
-movespeed: 20
+hp.max: 65
+physical: 13
 
 === Large creep
 type: creep
 abilities: attack
 wave: 60
 wave_offset: 1
-scaling: 1.15
+scaling: 1.1
 always_active
 always_visible
 respawn_sfx: respawn-wave2
-sprite: huge-creep
+sprite: units.huge-creep
 --- stats
 movespeed: 20
 hitbox: 150
 gold: 150
-hp.max: 300
-physical: 60
-movespeed: 20
+hp.max: 200
+physical: 40
 
 
 
@@ -514,8 +511,20 @@ movespeed: 5
 
 ------------------------------------- Bosses
 
+====== Objective
+type: camper
+abilities: null
+always_visible
+win_condition: 1
+say: Finish me to win!
+--- stats
+hp.max: 1
+bounded: 1
+
+
+
 ====== Barkshroom
-type: boss
+type: camper
 abilities: snipe, dunder beam
 aggro_range: 800
 deaggro_range: 1000
@@ -523,6 +532,7 @@ reaggro_range: 500
 camp_spread: 600
 keep_distance: 150
 always_visible
+win_condition: 1
 --- stats
 stocks: 1
 allegiance: 1000
@@ -537,12 +547,13 @@ air: 150
 movespeed: 50
 
 ====== Robot
-type: boss
+type: camper
 aggro_range: 800
 deaggro_range: 1000
 reaggro_range: 500
 camp_spread: 600
 always_visible
+win_condition: 1
 --- stats
 stocks: 1
 allegiance: 1000
@@ -557,12 +568,13 @@ spikes: 35
 movespeed: 40
 
 ====== Winged Snake
-type: boss
+type: camper
 aggro_range: 500
 deaggro_range: 700
 reaggro_range: 300
 camp_spread: 100
 always_visible
+win_condition: 1
 --- stats
 stocks: 1
 allegiance: 1000
@@ -577,12 +589,13 @@ movespeed: 100
 
 
 ====== Omegor
-type: boss
+type: camper
 aggro_range: 500
 deaggro_range: 700
 reaggro_range: 300
 camp_spread: 100
 always_visible
+win_condition: 1
 --- stats
 stocks: 1
 allegiance: 1000
@@ -605,6 +618,7 @@ movespeed: 100
 ===== Fort
 type: fort
 always_visible
+win_condition: 0
 --- stats
 stocks: 1
 allegiance: 0
@@ -697,10 +711,20 @@ bounded: 1
 ---------------------------- -
 
 
+=== Free Treasure
+type: treasure
+always_visible
+death_sfx: null
+respawn_timer: 1000
+sprite: mechanics.gold
+--- stats
+hp.max: 1
+gold: 100_000
 === Hero Treasure
 type: treasure
 always_visible
 death_sfx: null
+respawn_timer: 30_000
 --- stats
 hp.max: 750
 hp.delta: 0.5
@@ -712,6 +736,7 @@ reflect: 20
 type: treasure
 always_visible
 death_sfx: null
+respawn_timer: 30_000
 --- stats
 hp.max: 750
 hp.delta: 1

@@ -266,6 +266,9 @@ class AppControl(widgets.AnchorLayout):
         app_control_buttons = self.right_frame.add(widgets.BoxLayout())
         sizex = 0
         if DEV_BUILD:
+            dbutton = app_control_buttons.add(widgets.Button(text='Debug', on_release=self.do_debug))
+            dbutton.set_size(x=100)
+            sizex += 100
             cbutton = app_control_buttons.add(widgets.Button(text='Crash', on_release=self.do_crash))
             cbutton.set_size(x=100)
             sizex += 100
@@ -294,3 +297,6 @@ class AppControl(widgets.AnchorLayout):
 
     def do_crash(self, *a):
         raise RuntimeError(f'Requested do_crash... {a}')
+
+    def do_debug(self, *a):
+        PROFILE.toggle_setting('misc.debug_mode')
