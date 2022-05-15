@@ -23,15 +23,11 @@ Welcome to VZero. I appreciate your help in testing this early version of the ga
 This software enables and encourages user modifications for personal use. The developers take no responsibility for user directed content. The software and associated content is provided "as is", without warranty of any kind, express or implied.
 
 -- Software
-[b]© 2021-2022, all rights reserved by Ariel Horwitz.[/b]
-Redistribution of this software is prohibited without explicit written permission.
-~
-Written in python with kivy (https://github.com/kivy/kivy)
+Written by Ariel Horwitz in Python 3 with Kivy (https://github.com/kivy/kivy).
 --- Art
-While there are many public domain contributions, redistribution of [i]proprietary[/i] artwork is prohibited without explicit written permission.
-~
 [b]Yisrael Hessler[/b] - https://github.com/imcrazeegamer
 [b]Orr Didi[/b] - https://scardust.co
+And many more public domain contributions
 """
 
 
