@@ -3,7 +3,7 @@ DEFAULT_SETTINGS_STR = """
 name: General
 
 --- fullscreen
-default: 1
+default: 0
 type: bool
 
 --- fullscreen_resolution
