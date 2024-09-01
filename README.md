@@ -21,3 +21,12 @@ Requires Python 3.9, and then: `pip install -r requirements.txt`
 
 ## Open source
 The project has been open sourced, with the hope to inspire people to develop cool stuff in Python. Anything I have authored (the code) is hereby released to the public domain. The repository includes many assets that themselves have been released to the public domain.
+
+## Artwork
+All of the artwork (both visual and audio) was contributed directly or collected via [OpenGameArt](https://opengameart.org) from generous artists who have contributed to the public domain. Credits include but are not limited to:
+- [Yisrael Hessler](https://github.com/imcrazeegamer)
+- [Orr Didi](https://scardust.co)
+- [Kenney](https://kenney.itch.io/)
+- [7Soul1](https://www.deviantart.com/7soul1)
+- [Dungeon Crawl Stone Soup](https://opengameart.org/content/dungeon-crawl-32x32-tiles-supplemental)
+- And many more...
